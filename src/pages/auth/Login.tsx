@@ -92,16 +92,16 @@ export default function Login() {
           <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center">
             <ShieldCheck className="w-6 h-6 text-white" />
           </div>
-          <span className="text-white font-bold text-2xl font-[Outfit]">ApartmentOS</span>
+          <span className="text-white font-bold text-2xl font-[Outfit]">OfficeGate</span>
         </div>
         
         {/* Content */}
         <div className="relative z-10 space-y-6">
           <h1 className="text-4xl font-bold text-white font-[Outfit] leading-tight">
-            Smart Apartment<br />Management System
+            Smart Office<br />Visitor Management
           </h1>
           <p className="text-slate-400 text-lg max-w-md">
-            Streamline visitor management, security operations, and facility tracking for your apartment complex.
+            Streamline visitor management, security operations, and vehicle tracking for your office building.
           </p>
           
           {/* Features */}
@@ -122,7 +122,7 @@ export default function Login() {
         
         {/* Footer */}
         <div className="relative z-10 text-slate-500 text-sm">
-          © 2026 ApartmentOS. All rights reserved.
+          © 2026 OfficeGate. All rights reserved.
         </div>
       </div>
 
@@ -134,7 +134,7 @@ export default function Login() {
             <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center">
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
-            <span className="text-white font-bold text-xl font-[Outfit]">ApartmentOS</span>
+            <span className="text-white font-bold text-xl font-[Outfit]">OfficeGate</span>
           </div>
 
           <div className="bg-white rounded-2xl shadow-2xl p-8">
@@ -301,7 +301,7 @@ export default function Login() {
                     <p className="text-xs text-slate-500">Full system access</p>
                   </div>
                   <div className="text-right text-xs text-slate-600">
-                    <p>admin@apartmentos.com</p>
+                    <p>admin@officegate.com</p>
                     <p>admin123</p>
                   </div>
                 </div>
@@ -311,7 +311,7 @@ export default function Login() {
                     <p className="text-xs text-slate-500">Gate operations</p>
                   </div>
                   <div className="text-right text-xs text-slate-600">
-                    <p>security@apartmentos.com</p>
+                    <p>security@officegate.com</p>
                     <p>security123</p>
                   </div>
                 </div>

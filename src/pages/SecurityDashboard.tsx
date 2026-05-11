@@ -4,7 +4,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
   Users, Car, HardHat, LogOut, Search, Clock, QrCode,
-  UserPlus, LogIn, RefreshCw, AlertTriangle, Shield, X, Phone, Send, CheckCircle
+  UserPlus, LogIn, Shield, X, Phone, Send, CheckCircle, Building2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { QRCodeSVG } from 'qrcode.react';
@@ -15,7 +15,7 @@ function formatTime(iso: string) {
 
 export default function SecurityDashboard() {
   const navigate = useNavigate();
-  const { visitors, vehicles, dailyWorkers, checkOutVisitor, checkOutVehicle, addVisitor } = useAppStore();
+  const { visitors, vehicles, dailyWorkers, offices, checkOutVisitor, checkOutVehicle, addVisitor } = useAppStore();
   const { user, logout } = useAuthStore();
   const { toast } = useToast();
   
@@ -28,8 +28,13 @@ export default function SecurityDashboard() {
   const [visitorForm, setVisitorForm] = useState({
     name: '',
     phone: '',
-    apartmentNo: '',
-    purpose: 'Personal Visit',
+    officeId: '',
+    whomToMeet: '',
+    reason: 'Meeting',
+    gender: 'Male' as 'Male' | 'Female' | 'Other',
+    address: '',
+    city: '',
+    pincode: '',
     vehicleNo: '',
   });
   const [otpSent, setOtpSent] = useState(false);
@@ -45,11 +50,12 @@ export default function SecurityDashboard() {
   // Search filter
   const filteredVisitors = activeVisitors.filter(v =>
     v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.apartmentNo.toLowerCase().includes(searchQuery.toLowerCase())
+    v.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    v.whomToMeet.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const filteredVehicles = activeVehicles.filter(v =>
     v.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.apartmentNo.toLowerCase().includes(searchQuery.toLowerCase())
+    v.ownerName.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const filteredWorkers = activeWorkers.filter(w =>
     w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -77,9 +83,12 @@ export default function SecurityDashboard() {
     });
   };
 
+  // Get selected office details
+  const selectedOffice = offices.find(o => o.id === visitorForm.officeId);
+
   // Send OTP to visitor
   const handleSendOTP = () => {
-    if (!visitorForm.name || !visitorForm.phone || !visitorForm.apartmentNo) {
+    if (!visitorForm.name || !visitorForm.phone || !visitorForm.officeId || !visitorForm.whomToMeet) {
       toast({
         title: 'Missing Information',
         description: 'Please fill in all required fields',
@@ -117,8 +126,15 @@ export default function SecurityDashboard() {
       id: `V${Date.now()}`,
       name: visitorForm.name,
       phone: visitorForm.phone,
-      apartmentNo: visitorForm.apartmentNo,
-      purpose: visitorForm.purpose,
+      gender: visitorForm.gender,
+      address: visitorForm.address,
+      city: visitorForm.city,
+      pincode: visitorForm.pincode,
+      block: selectedOffice?.block || '',
+      floorNumber: selectedOffice?.floorNumber || '',
+      companyName: selectedOffice?.companyName || '',
+      whomToMeet: visitorForm.whomToMeet,
+      reason: visitorForm.reason,
       category: 'Guest' as const,
       status: 'Inside' as const,
       entryTime: new Date().toISOString(),
@@ -135,7 +151,23 @@ export default function SecurityDashboard() {
     });
 
     // Reset form
-    setVisitorForm({ name: '', phone: '', apartmentNo: '', purpose: 'Personal Visit', vehicleNo: '' });
+    resetAddVisitorForm();
+  };
+
+  // Reset add visitor form
+  const resetAddVisitorForm = () => {
+    setVisitorForm({
+      name: '',
+      phone: '',
+      officeId: '',
+      whomToMeet: '',
+      reason: 'Meeting',
+      gender: 'Male',
+      address: '',
+      city: '',
+      pincode: '',
+      vehicleNo: '',
+    });
     setOtpSent(false);
     setOtp('');
     setGeneratedOtp('');
@@ -143,23 +175,8 @@ export default function SecurityDashboard() {
     setShowAddVisitorModal(false);
   };
 
-  // Reset add visitor form
-  const resetAddVisitorForm = () => {
-    setVisitorForm({ name: '', phone: '', apartmentNo: '', purpose: 'Personal Visit', vehicleNo: '' });
-    setOtpSent(false);
-    setOtp('');
-    setGeneratedOtp('');
-    setShowAddVisitorModal(false);
-  };
-
   // QR Code URL for visitor self-registration
   const qrCodeUrl = `${window.location.origin}/scan/visitor-entry`;
-
-  // Listen for new visitor entries from QR scan (simulated with polling)
-  useEffect(() => {
-    // In a real app, this would be a WebSocket connection
-    // For demo, we just show the visitors list which updates automatically
-  }, [visitors]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -171,7 +188,7 @@ export default function SecurityDashboard() {
               <Shield className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-900 font-[Outfit]">Security Gate</h1>
+              <h1 className="text-lg font-bold text-slate-900 font-[Outfit]">OfficeGate Security</h1>
               <p className="text-xs text-slate-500">Welcome, {user?.name}</p>
             </div>
           </div>
@@ -302,7 +319,7 @@ export default function SecurityDashboard() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search by name, apartment, or vehicle..."
+                placeholder="Search by name, company, or vehicle..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -327,7 +344,8 @@ export default function SecurityDashboard() {
                       </div>
                       <div>
                         <p className="font-medium text-slate-900">{visitor.name}</p>
-                        <p className="text-xs text-slate-500">{visitor.apartmentNo} • {visitor.purpose}</p>
+                        <p className="text-xs text-slate-500">{visitor.companyName} • Floor {visitor.floorNumber}</p>
+                        <p className="text-xs text-slate-400">Meeting: {visitor.whomToMeet} • {visitor.reason}</p>
                         <p className="text-xs text-slate-400 flex items-center gap-1">
                           <Clock className="w-3 h-3" /> Entry: {formatTime(visitor.entryTime)}
                         </p>
@@ -360,7 +378,7 @@ export default function SecurityDashboard() {
                       </div>
                       <div>
                         <p className="font-medium text-slate-900">{vehicle.vehicleNo}</p>
-                        <p className="text-xs text-slate-500">{vehicle.type} • {vehicle.apartmentNo}</p>
+                        <p className="text-xs text-slate-500">{vehicle.type} • {vehicle.ownerName}</p>
                         <p className="text-xs text-slate-400 flex items-center gap-1">
                           <Clock className="w-3 h-3" /> Entry: {formatTime(vehicle.entryTime)}
                         </p>
@@ -444,7 +462,7 @@ export default function SecurityDashboard() {
         </div>
       )}
 
-      {/* Add Visitor Modal (for button phone visitors) */}
+      {/* Add Visitor Modal */}
       {showAddVisitorModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -491,31 +509,104 @@ export default function SecurityDashboard() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Visiting Apartment *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Gender *</label>
+                <select
+                  value={visitorForm.gender}
+                  onChange={(e) => setVisitorForm({ ...visitorForm, gender: e.target.value as 'Male' | 'Female' | 'Other' })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={otpSent}
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Visiting Office *</label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <select
+                    value={visitorForm.officeId}
+                    onChange={(e) => setVisitorForm({ ...visitorForm, officeId: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={otpSent}
+                  >
+                    <option value="">Select Office</option>
+                    {offices.map((office) => (
+                      <option key={office.id} value={office.id}>
+                        {office.companyName} - Floor {office.floorNumber} ({office.block})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Whom to Meet *</label>
                 <input
                   type="text"
-                  value={visitorForm.apartmentNo}
-                  onChange={(e) => setVisitorForm({ ...visitorForm, apartmentNo: e.target.value })}
-                  placeholder="e.g., A-101"
+                  value={visitorForm.whomToMeet}
+                  onChange={(e) => setVisitorForm({ ...visitorForm, whomToMeet: e.target.value })}
+                  placeholder="Person's name"
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   disabled={otpSent}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Purpose of Visit</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Reason for Visit</label>
                 <select
-                  value={visitorForm.purpose}
-                  onChange={(e) => setVisitorForm({ ...visitorForm, purpose: e.target.value })}
+                  value={visitorForm.reason}
+                  onChange={(e) => setVisitorForm({ ...visitorForm, reason: e.target.value })}
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   disabled={otpSent}
                 >
-                  <option value="Personal Visit">Personal Visit</option>
+                  <option value="Meeting">Meeting</option>
+                  <option value="Interview">Interview</option>
                   <option value="Delivery">Delivery</option>
                   <option value="Maintenance">Maintenance</option>
                   <option value="Official">Official</option>
+                  <option value="Personal">Personal</option>
                   <option value="Other">Other</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                <input
+                  type="text"
+                  value={visitorForm.address}
+                  onChange={(e) => setVisitorForm({ ...visitorForm, address: e.target.value })}
+                  placeholder="Street address"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={otpSent}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={visitorForm.city}
+                    onChange={(e) => setVisitorForm({ ...visitorForm, city: e.target.value })}
+                    placeholder="City"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={otpSent}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Pincode</label>
+                  <input
+                    type="text"
+                    value={visitorForm.pincode}
+                    onChange={(e) => setVisitorForm({ ...visitorForm, pincode: e.target.value })}
+                    placeholder="Pincode"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={otpSent}
+                  />
+                </div>
               </div>
 
               <div>

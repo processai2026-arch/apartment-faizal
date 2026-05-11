@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
-  '/apartments': 'Manage Apartments',
+  '/offices': 'Manage Offices',
   '/visitors/entry': 'Entry Visitors',
   '/visitors/checkout': 'Check-Out Visitors',
   '/visitors/manage': 'Visitor Management',
@@ -29,7 +29,7 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  const title = pageTitles[location.pathname] || 'ApartmentOS';
+  const title = pageTitles[location.pathname] || 'OfficeGate';
   const unreadCount = visitors.filter(v => v.status === 'Inside').length;
 
   const handleLogout = () => {

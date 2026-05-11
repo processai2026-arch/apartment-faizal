@@ -24,7 +24,7 @@ interface NavGroup {
 const adminNavItems: NavGroup[] = [
   { group: 'Main', items: [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/apartments', label: 'Manage Apartments', icon: Building2 },
+    { to: '/offices', label: 'Manage Offices', icon: Building2 },
   ]},
   { group: 'Visitor & Security', items: [
     { to: '/visitors/entry', label: 'Entry Visitors', icon: UserPlus },
@@ -89,7 +89,7 @@ export default function Sidebar() {
           </div>
           {!sidebarCollapsed && (
             <div className="ml-3 overflow-hidden">
-              <span className="text-white font-bold text-lg font-[Outfit] whitespace-nowrap">ApartmentOS</span>
+              <span className="text-white font-bold text-lg font-[Outfit] whitespace-nowrap">OfficeGate</span>
             </div>
           )}
           <button

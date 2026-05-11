@@ -98,7 +98,8 @@ const App = () => (
                   {/* Dashboard */}
                   <Route path="/" element={<DashboardRedirect />} />
                   
-                  {/* Apartment Management */}
+                  {/* Office Management */}
+                  <Route path="/offices" element={<ManageApartment />} />
                   <Route path="/apartments" element={<ManageApartment />} />
                   
                   {/* Visitor Management */}

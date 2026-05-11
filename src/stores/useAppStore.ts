@@ -1,12 +1,12 @@
 import { create } from 'zustand';
-import { mockVisitors, mockVehicles, mockApartments, mockVendors, mockStaff, mockInventory, mockUtilityTasks, mockComplaints, mockDailyWorkers, mockEmergencyContacts, type EmergencyContact } from '@/data/mockData';
-import type { Visitor, Vehicle, Apartment, Vendor, Staff, InventoryItem, UtilityTask, Complaint, DailyWorker } from '@/types';
+import { mockVisitors, mockVehicles, mockOffices, mockVendors, mockStaff, mockInventory, mockUtilityTasks, mockComplaints, mockDailyWorkers, mockEmergencyContacts, type EmergencyContact } from '@/data/mockData';
+import type { Visitor, Vehicle, Office, Vendor, Staff, InventoryItem, UtilityTask, Complaint, DailyWorker } from '@/types';
 
 interface AppState {
   sidebarCollapsed: boolean;
   visitors: Visitor[];
   vehicles: Vehicle[];
-  apartments: Apartment[];
+  offices: Office[];
   vendors: Vendor[];
   staff: Staff[];
   inventory: InventoryItem[];
@@ -20,15 +20,14 @@ interface AppState {
   checkOutVisitor: (id: string) => void;
   addVehicle: (vehicle: Vehicle) => void;
   checkOutVehicle: (id: string) => void;
-  addApartment: (apt: Apartment) => void;
-  updateApartment: (apt: Apartment) => void;
-  toggleApartmentStatus: (id: string) => void;
+  addOffice: (office: Office) => void;
+  updateOffice: (office: Office) => void;
+  toggleOfficeStatus: (id: string) => void;
   addVendor: (vendor: Vendor) => void;
   updateStaffAttendance: (staffId: string, date: string, status: 'P' | 'A' | 'H') => void;
   addInventoryItem: (item: InventoryItem) => void;
   addUtilityTask: (task: UtilityTask) => void;
   markUtilityDone: (id: string) => void;
-  markPaymentPaid: (aptId: string) => void;
   addComplaint: (complaint: Complaint) => void;
 }
 
@@ -36,7 +35,7 @@ export const useAppStore = create<AppState>((set) => ({
   sidebarCollapsed: false,
   visitors: mockVisitors,
   vehicles: mockVehicles,
-  apartments: mockApartments,
+  offices: mockOffices,
   vendors: mockVendors,
   staff: mockStaff,
   inventory: mockInventory,
@@ -68,15 +67,15 @@ export const useAppStore = create<AppState>((set) => ({
     )
   })),
 
-  addApartment: (apt) => set((state) => ({ apartments: [...state.apartments, apt] })),
+  addOffice: (office) => set((state) => ({ offices: [...state.offices, office] })),
 
-  updateApartment: (apt) => set((state) => ({
-    apartments: state.apartments.map(a => a.id === apt.id ? apt : a)
+  updateOffice: (office) => set((state) => ({
+    offices: state.offices.map(o => o.id === office.id ? office : o)
   })),
 
-  toggleApartmentStatus: (id) => set((state) => ({
-    apartments: state.apartments.map(a =>
-      a.id === id ? { ...a, status: a.status === 'Occupied' ? 'Vacant' : 'Occupied' } : a
+  toggleOfficeStatus: (id) => set((state) => ({
+    offices: state.offices.map(o =>
+      o.id === id ? { ...o, status: o.status === 'Active' ? 'Inactive' : 'Active' } : o
     )
   })),
 
@@ -95,12 +94,6 @@ export const useAppStore = create<AppState>((set) => ({
   markUtilityDone: (id) => set((state) => ({
     utilityTasks: state.utilityTasks.map(t =>
       t.id === id ? { ...t, status: 'Done' as const, lastCompleted: new Date().toISOString().split('T')[0] } : t
-    )
-  })),
-
-  markPaymentPaid: (aptId) => set((state) => ({
-    apartments: state.apartments.map(a =>
-      a.id === aptId ? { ...a, paymentStatus: 'Paid' as const, lastPaid: new Date().toISOString().split('T')[0] } : a
     )
   })),
 

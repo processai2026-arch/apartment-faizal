@@ -1,170 +1,440 @@
 import { useState, useRef, useEffect } from 'react';
-import { CheckCircle, QrCode, Phone, ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react';
+import { CheckCircle, Phone, Camera, Clock, Building2, Users, Car } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import type { Visitor } from '@/types';
 import { toast } from 'sonner';
-import QRCode from 'qrcode';
-
-type Step = 1 | 2 | 3 | 4;
 
 const MOCK_OTP = '123456';
 
 export default function EntryVisitors() {
-  const { addVisitor } = useAppStore();
-  const [step, setStep] = useState<Step>(1);
-  const [mode, setMode] = useState<'otp' | 'qr'>('otp');
-  const [form, setForm] = useState({ name: '', phone: '', apartmentNo: '', purpose: 'Personal Visit', vehicleNo: '', vehicleType: '' });
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [resendTimer, setResendTimer] = useState(60);
-  const [visitorRecord, setVisitorRecord] = useState<Visitor | null>(null);
-  const [qrUrl, setQrUrl] = useState('');
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const { addVisitor, offices } = useAppStore();
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [snapshot, setSnapshot] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [cameraActive, setCameraActive] = useState(false);
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-    if (step === 2 && resendTimer > 0) {
-      timer = setInterval(() => setResendTimer(t => t - 1), 1000);
+  const [form, setForm] = useState({
+    phone: '',
+    name: '',
+    gender: '',
+    address: '',
+    city: '',
+    pincode: '',
+    vehicleType: '',
+    vehicleNo: '',
+    block: '',
+    floor: '',
+    company: '',
+    whomToMeet: '',
+    reason: '',
+  });
+
+  // Get unique blocks from offices
+  const blocks = [...new Set(offices.map(o => o.block))].sort();
+  
+  // Get floors for selected block
+  const floors = offices
+    .filter(o => o.block === form.block)
+    .map(o => o.floorNumber)
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => parseInt(a) - parseInt(b));
+
+  // Get companies for selected block and floor
+  const companies = offices
+    .filter(o => o.block === form.block && o.floorNumber === form.floor)
+    .map(o => o.companyName)
+    .filter(Boolean);
+
+  const handleSendOTP = () => {
+    if (!form.phone || form.phone.length < 10) {
+      toast.error('Please enter a valid phone number');
+      return;
     }
-    return () => clearInterval(timer);
-  }, [step, resendTimer]);
-
-  useEffect(() => {
-    if (step === 3 && mode === 'qr') {
-      const data = JSON.stringify({ apartmentNo: form.apartmentNo, visitor: form.name, otp: MOCK_OTP });
-      QRCode.toDataURL(data, { width: 200, margin: 2 }).then(setQrUrl).catch(console.error);
-    }
-  }, [step, mode, form]);
-
-  const handleStep1 = () => {
-    if (!form.name || !form.phone || !form.apartmentNo) { toast.error('Please fill all required fields'); return; }
-    setResendTimer(60);
-    setStep(2);
+    setOtpSent(true);
+    toast.success('OTP sent successfully! Use 123456 for demo');
   };
 
-  const handleOtpChange = (idx: number, val: string) => {
-    if (!/^\d?$/.test(val)) return;
-    const newOtp = [...otp];
-    newOtp[idx] = val;
-    setOtp(newOtp);
-    if (val && idx < 5) otpRefs.current[idx + 1]?.focus();
+  const handleVerifyOTP = () => {
+    if (otp !== MOCK_OTP) {
+      toast.error('Invalid OTP. Use 123456 for demo');
+      return;
+    }
+    setOtpVerified(true);
+    toast.success('OTP verified successfully!');
   };
 
-  const handleVerify = () => {
-    const entered = otp.join('');
-    if (entered !== MOCK_OTP) { toast.error('Invalid OTP. Use 123456 for demo'); return; }
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setCameraActive(true);
+      }
+    } catch (err) {
+      toast.error('Unable to access camera');
+    }
+  };
+
+  const takeSnapshot = () => {
+    if (videoRef.current && canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        canvasRef.current.width = videoRef.current.videoWidth;
+        canvasRef.current.height = videoRef.current.videoHeight;
+        ctx.drawImage(videoRef.current, 0, 0);
+        const dataUrl = canvasRef.current.toDataURL('image/jpeg');
+        setSnapshot(dataUrl);
+        
+        // Stop camera
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream?.getTracks().forEach(track => track.stop());
+        setCameraActive(false);
+      }
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!form.name || !form.phone || !form.block || !form.floor) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
     const newVisitor: Visitor = {
-      id: `V${Date.now()}`, name: form.name, phone: form.phone, apartmentNo: form.apartmentNo,
-      purpose: form.purpose, category: 'Guest', vehicleNo: form.vehicleNo || undefined,
-      status: 'Inside', entryTime: new Date().toISOString(), guardName: 'Guard on Duty', otp: MOCK_OTP
+      id: `V${Date.now()}`,
+      name: form.name,
+      phone: form.phone,
+      gender: form.gender as 'Male' | 'Female' | 'Other' | undefined,
+      address: form.address,
+      city: form.city,
+      pincode: form.pincode,
+      block: form.block,
+      floorNumber: form.floor,
+      companyName: form.company,
+      whomToMeet: form.whomToMeet,
+      reason: form.reason,
+      vehicleNo: form.vehicleNo || undefined,
+      vehicleType: (form.vehicleType as 'Car' | 'Bike' | '2-Wheeler' | '4-Wheeler' | 'NA') || undefined,
+      category: 'Guest',
+      status: 'Inside',
+      entryTime: new Date().toISOString(),
+      guardName: 'Guard on Duty',
+      otp: MOCK_OTP,
+      photoUrl: snapshot || undefined,
     };
+
     addVisitor(newVisitor);
-    setVisitorRecord(newVisitor);
-    setStep(4);
     toast.success('Visitor entry logged successfully!');
+    
+    // Reset form
+    setForm({
+      phone: '', name: '', gender: '', address: '', city: '', pincode: '',
+      vehicleType: '', vehicleNo: '', block: '', floor: '', company: '',
+      whomToMeet: '', reason: '',
+    });
+    setOtpSent(false);
+    setOtpVerified(false);
+    setOtp('');
+    setSnapshot(null);
   };
 
-  const resetForm = () => {
-    setStep(1); setForm({ name: '', phone: '', apartmentNo: '', purpose: 'Personal Visit', vehicleNo: '', vehicleType: '' });
-    setOtp(['', '', '', '', '', '']); setMode('otp'); setVisitorRecord(null);
-  };
-
-  const stepLabels = ['Visitor Details', 'OTP Verification', 'QR Alternative', 'Entry Pass'];
+  const currentTime = new Date().toLocaleString('en-US', {
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Progress */}
-      <div className="flex items-center gap-2 mb-8">
-        {[1, 2, 4].map((s, idx) => (
-          <div key={s} className="flex items-center gap-2 flex-1">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step >= s ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>{idx + 1}</div>
-            {idx < 2 && <div className={`flex-1 h-1 rounded-full transition-all ${step > s ? 'bg-indigo-600' : 'bg-slate-100'}`} />}
-          </div>
-        ))}
-      </div>
+    <div className="max-w-6xl mx-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="bg-slate-100 px-6 py-4 border-b border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-800">Visitor's Entry Form</h2>
+          <p className="text-sm text-slate-500">Please fill up the details below</p>
+        </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 fade-in">
-        {/* Step 1 */}
-        {step === 1 && (
-          <div>
-            <h2 className="text-xl font-semibold font-[Outfit] mb-6">Visitor Details</h2>
-            <div className="space-y-4">
-              {[['Visitor Name *', 'name', 'text', 'e.g. John Doe'], ['Phone Number *', 'phone', 'tel', '+91 XXXXX XXXXX'], ['Apartment No. *', 'apartmentNo', 'text', 'e.g. A-101'], ['Purpose of Visit', 'purpose', 'text', 'Personal Visit'], ['Vehicle Number (Optional)', 'vehicleNo', 'text', 'e.g. KA-01-AB-1234']].map(([label, key, type, placeholder]) => (
-                <div key={key}>
-                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">{label}</label>
-                  <input type={type} placeholder={placeholder} value={(form as Record<string, string>)[key]}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition-colors" />
+        <div className="p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Visitor Details */}
+            <div className="space-y-5">
+              {/* Phone with OTP */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Visitor's Contact Number *</label>
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    placeholder="+91 XXXXX XXXXX"
+                    value={form.phone}
+                    onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                    disabled={otpVerified}
+                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+                  />
                 </div>
-              ))}
+                {!otpSent ? (
+                  <button
+                    onClick={handleSendOTP}
+                    className="mt-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Send OTP
+                  </button>
+                ) : !otpVerified ? (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter OTP"
+                      value={otp}
+                      onChange={e => setOtp(e.target.value)}
+                      maxLength={6}
+                      className="w-32 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      onClick={handleVerifyOTP}
+                      className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Verify
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-green-600 flex items-center gap-1">
+                    <CheckCircle className="w-4 h-4" /> OTP Verified
+                  </p>
+                )}
+              </div>
+
+              {/* Full Name */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Visitor's Full Name *</label>
+                <input
+                  type="text"
+                  placeholder="Enter full name"
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Gender */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Gender</label>
+                <select
+                  value={form.gender}
+                  onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                >
+                  <option value="">Choose...</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Visitor's Address</label>
+                <input
+                  type="text"
+                  placeholder="Enter address"
+                  value={form.address}
+                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* City */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">City</label>
+                <input
+                  type="text"
+                  placeholder="Enter city"
+                  value={form.city}
+                  onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Pincode */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Pincode</label>
+                <input
+                  type="text"
+                  placeholder="Enter pincode"
+                  value={form.pincode}
+                  onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))}
+                  maxLength={6}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Vehicle Type */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Vehicle Type</label>
+                <select
+                  value={form.vehicleType}
+                  onChange={e => setForm(f => ({ ...f, vehicleType: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                >
+                  <option value="">Choose...</option>
+                  <option value="2-Wheeler">2-Wheeler</option>
+                  <option value="4-Wheeler">4-Wheeler</option>
+                  <option value="None">None</option>
+                </select>
+              </div>
             </div>
-            <button onClick={handleStep1} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
-              Send OTP <ArrowRight className="w-4 h-4" />
+
+            {/* Middle Column - Office Details */}
+            <div className="space-y-5">
+              {/* Check In Time */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Check In Time</label>
+                <div className="px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600 flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  {currentTime}
+                </div>
+              </div>
+
+              {/* Block */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Block *</label>
+                <select
+                  value={form.block}
+                  onChange={e => setForm(f => ({ ...f, block: e.target.value, floor: '', company: '' }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                >
+                  <option value="">Choose...</option>
+                  {blocks.map(block => (
+                    <option key={block} value={block}>Block {block}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Floor */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Floor *</label>
+                <select
+                  value={form.floor}
+                  onChange={e => setForm(f => ({ ...f, floor: e.target.value, company: '' }))}
+                  disabled={!form.block}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-slate-100"
+                >
+                  <option value="">Choose...</option>
+                  {floors.map(floor => (
+                    <option key={floor} value={floor}>Floor {floor}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Company */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Company</label>
+                <select
+                  value={form.company}
+                  onChange={e => setForm(f => ({ ...f, company: e.target.value }))}
+                  disabled={!form.floor}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-slate-100"
+                >
+                  <option value="">Choose...</option>
+                  {companies.map(company => (
+                    <option key={company} value={company}>{company}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Whom to Meet */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Whom to Meet</label>
+                <input
+                  type="text"
+                  placeholder="Enter person name"
+                  value={form.whomToMeet}
+                  onChange={e => setForm(f => ({ ...f, whomToMeet: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Reason</label>
+                <input
+                  type="text"
+                  placeholder="Enter reason for visit"
+                  value={form.reason}
+                  onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Vehicle Number */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Vehicle Number</label>
+                <input
+                  type="text"
+                  placeholder="e.g. KA-01-AB-1234"
+                  value={form.vehicleNo}
+                  onChange={e => setForm(f => ({ ...f, vehicleNo: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Right Column - Snapshot */}
+            <div className="space-y-5">
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Visitor Photo</label>
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center">
+                  {snapshot ? (
+                    <div className="space-y-3">
+                      <img src={snapshot} alt="Visitor" className="w-48 h-48 object-cover rounded-xl mx-auto" />
+                      <button
+                        onClick={() => setSnapshot(null)}
+                        className="text-sm text-red-600 hover:underline"
+                      >
+                        Retake Photo
+                      </button>
+                    </div>
+                  ) : cameraActive ? (
+                    <div className="space-y-3">
+                      <video ref={videoRef} autoPlay className="w-48 h-48 object-cover rounded-xl mx-auto" />
+                      <button
+                        onClick={takeSnapshot}
+                        className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 mx-auto"
+                      >
+                        <Camera className="w-4 h-4" /> Capture
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 py-8">
+                      <Camera className="w-12 h-12 text-slate-300 mx-auto" />
+                      <button
+                        onClick={startCamera}
+                        className="px-4 py-2 border border-slate-300 text-slate-700 text-sm rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        Take Snapshot
+                      </button>
+                      <p className="text-xs text-slate-400">Your captured image will appear here...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="mt-8">
+            <button
+              onClick={handleSubmit}
+              className="w-full py-4 bg-gradient-to-r from-blue-400 to-blue-600 text-white text-lg font-medium rounded-xl hover:from-blue-500 hover:to-blue-700 transition-all shadow-lg"
+            >
+              Submit Visitor Details
             </button>
           </div>
-        )}
-
-        {/* Step 2 */}
-        {step === 2 && (
-          <div className="text-center">
-            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Phone className="w-7 h-7 text-indigo-600" />
-            </div>
-            <h2 className="text-xl font-semibold font-[Outfit] mb-2">OTP Verification</h2>
-            <p className="text-slate-500 text-sm mb-1">OTP sent to <span className="font-medium text-slate-800">{form.phone}</span></p>
-            <p className="text-xs text-indigo-600 font-medium mb-6">Demo OTP: 123456</p>
-            <div className="flex gap-3 justify-center mb-6">
-              {otp.map((digit, idx) => (
-                <input key={idx} ref={el => { otpRefs.current[idx] = el; }} type="text" maxLength={1} value={digit}
-                  onChange={e => handleOtpChange(idx, e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Backspace' && !digit && idx > 0) otpRefs.current[idx - 1]?.focus(); }}
-                  className="w-12 h-14 text-center text-xl font-bold border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all" />
-              ))}
-            </div>
-            <div className="flex gap-3 mb-4">
-              <button onClick={() => setStep(1)} className="flex-1 py-3 border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 flex items-center justify-center gap-2">
-                <ArrowLeft className="w-4 h-4" /> Back
-              </button>
-              <button onClick={handleVerify} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700">Verify OTP</button>
-            </div>
-            <button onClick={() => setMode('qr')} className="text-sm text-indigo-600 hover:underline flex items-center gap-1 mx-auto">
-              <QrCode className="w-4 h-4" /> Switch to QR Mode
-            </button>
-            <p className="text-xs text-slate-400 mt-2">{resendTimer > 0 ? `Resend in ${resendTimer}s` : <button onClick={() => setResendTimer(60)} className="text-indigo-600 flex items-center gap-1 mx-auto"><RefreshCw className="w-3 h-3" /> Resend OTP</button>}</p>
-          </div>
-        )}
-
-        {/* Step 3 QR */}
-        {step === 3 && (
-          <div className="text-center">
-            <h2 className="text-xl font-semibold font-[Outfit] mb-2">QR Code Entry</h2>
-            <p className="text-slate-500 text-sm mb-6">Visitor scans this QR code to verify entry</p>
-            {qrUrl && <img src={qrUrl} alt="Visitor QR Code" className="mx-auto rounded-2xl border-4 border-slate-100 w-48 h-48 mb-6" />}
-            <div className="flex gap-3">
-              <button onClick={() => { setMode('otp'); setStep(2); }} className="flex-1 py-3 border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50">Back to OTP</button>
-              <button onClick={handleVerify} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700">Confirm Entry</button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4 Success */}
-        {step === 4 && visitorRecord && (
-          <div className="text-center">
-            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-green-500" />
-            </div>
-            <h2 className="text-xl font-semibold font-[Outfit] mb-2 text-green-700">Entry Successful!</h2>
-            <div className="bg-slate-50 rounded-2xl p-5 text-left mt-6 space-y-3">
-              <h3 className="font-semibold text-slate-900 text-sm uppercase tracking-wider">Entry Pass</h3>
-              {[['Visitor', visitorRecord.name], ['Phone', visitorRecord.phone], ['Apartment', visitorRecord.apartmentNo], ['Purpose', visitorRecord.purpose], ['Entry Time', new Date(visitorRecord.entryTime).toLocaleTimeString()], ['Guard', visitorRecord.guardName || 'Guard on Duty']].map(([label, value]) => (
-                <div key={label} className="flex justify-between">
-                  <span className="text-slate-500 text-sm">{label}</span>
-                  <span className="text-slate-900 text-sm font-medium">{value}</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={resetForm} className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700">New Entry</button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

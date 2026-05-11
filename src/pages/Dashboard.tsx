@@ -11,7 +11,7 @@ function formatTime(iso: string) {
 }
 
 export default function Dashboard() {
-  const { visitors, apartments, vehicles } = useAppStore();
+  const { visitors, offices, vehicles } = useAppStore();
   const navigate = useNavigate();
 
   const todayVisitors = visitors.filter(v => {
@@ -21,8 +21,8 @@ export default function Dashboard() {
   }).length;
 
   const insideNow = visitors.filter(v => v.status === 'Inside').length;
-  const occupied = apartments.filter(a => a.status === 'Occupied').length;
-  const vacant = apartments.filter(a => a.status === 'Vacant').length;
+  const totalOffices = offices?.length || 0;
+  const totalCompanies = offices?.reduce((acc, o) => acc + (o.companyName ? 1 : 0), 0) || 0;
   const recentVisitors = visitors.slice(0, 8);
 
   return (
@@ -31,8 +31,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Visitors Today" value={todayVisitors} icon={Users} trend={{ value: 12, positive: true }} color="indigo" subtitle="All time: 847" />
         <StatCard label="Currently Inside" value={insideNow} icon={UserCheck} color="green" subtitle="Active visitors" />
-        <StatCard label="Occupied Flats" value={`${occupied}/${apartments.length}`} icon={Home} trend={{ value: 5, positive: true }} color="blue" />
-        <StatCard label="Vacant Flats" value={vacant} icon={Building2} color="red" subtitle="Available for lease" />
+        <StatCard label="Total Offices" value={totalOffices} icon={Home} trend={{ value: 5, positive: true }} color="blue" />
+        <StatCard label="Companies" value={totalCompanies} icon={Building2} color="red" subtitle="Registered companies" />
       </div>
 
       {/* Quick Actions */}
@@ -92,7 +92,7 @@ export default function Dashboard() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Visitor</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Apartment</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Office</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Purpose</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Entry Time</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Status</th>
@@ -107,7 +107,7 @@ export default function Dashboard() {
                       <p className="text-xs text-slate-400">{v.phone}</p>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{v.apartmentNo}</td>
+                  <td className="px-4 py-3 text-slate-700">{v.officeNo || v.apartmentNo}</td>
                   <td className="px-4 py-3 text-slate-500">{v.purpose}</td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatTime(v.entryTime)}</td>
                   <td className="px-4 py-3"><StatusBadge status={v.status} /></td>
