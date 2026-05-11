@@ -16,24 +16,24 @@ interface AuthStore {
 
 // Mock users - Only Admin and Security
 const mockUsers: Record<string, { password: string; user: User }> = {
-  'admin@apartmentos.com': {
+  'admin@officegate.com': {
     password: 'admin123',
     user: {
       id: 'U001',
-      email: 'admin@apartmentos.com',
+      email: 'admin@officegate.com',
       phone: '+91 98765 00000',
       name: 'Admin User',
       role: 'admin',
       createdAt: '2024-01-01',
     },
   },
-  'security@apartmentos.com': {
+  'security@officegate.com': {
     password: 'security123',
     user: {
       id: 'U002',
-      email: 'security@apartmentos.com',
+      email: 'security@officegate.com',
       phone: '+91 98765 11111',
-      name: 'Ramu Kumar',
+      name: 'Security Guard',
       role: 'security',
       createdAt: '2024-01-15',
     },
