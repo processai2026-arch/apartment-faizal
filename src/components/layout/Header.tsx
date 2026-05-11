@@ -20,12 +20,6 @@ const pageTitles: Record<string, string> = {
   '/financials': 'Financial Tracking',
   '/reports': 'Reports & Analytics',
   '/qr-codes': 'QR Codes & Gates',
-  '/resident': 'My Dashboard',
-  '/workers': 'Daily Workers',
-  '/complaints': 'Complaints',
-  '/property': 'Property Details',
-  '/payments': 'Payments',
-  '/emergency': 'Emergency Contacts',
 };
 
 export default function Header() {
@@ -94,19 +88,12 @@ export default function Header() {
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            <div className={cn(
-              'w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold',
-              user?.role === 'admin' ? 'bg-indigo-500' :
-              user?.role === 'owner' ? 'bg-amber-500' :
-              user?.role === 'tenant' ? 'bg-cyan-500' :
-              user?.role === 'owner-resident' ? 'bg-green-500' :
-              'bg-slate-500'
-            )}>
+            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium text-slate-900">{user?.name || 'User'}</p>
-              <p className="text-xs text-slate-500 capitalize">{user?.role?.replace('-', ' ') || 'Guest'}</p>
+              <p className="text-xs text-slate-500 capitalize">{user?.role || 'Guest'}</p>
             </div>
             <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
           </button>
@@ -124,19 +111,9 @@ export default function Header() {
                   <p className="text-sm font-medium text-slate-900">{user?.name}</p>
                   <p className="text-xs text-slate-500">{user?.email}</p>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className={cn(
-                      'px-2 py-0.5 rounded text-xs font-medium capitalize',
-                      user?.role === 'admin' ? 'bg-indigo-100 text-indigo-700' :
-                      user?.role === 'owner' ? 'bg-amber-100 text-amber-700' :
-                      user?.role === 'tenant' ? 'bg-cyan-100 text-cyan-700' :
-                      user?.role === 'owner-resident' ? 'bg-green-100 text-green-700' :
-                      'bg-slate-100 text-slate-700'
-                    )}>
-                      {user?.role?.replace('-', ' ')}
+                    <span className="px-2 py-0.5 rounded text-xs font-medium capitalize bg-indigo-100 text-indigo-700">
+                      {user?.role}
                     </span>
-                    {user?.apartmentNo && (
-                      <span className="text-xs text-slate-500">{user.apartmentNo}</span>
-                    )}
                   </div>
                 </div>
 

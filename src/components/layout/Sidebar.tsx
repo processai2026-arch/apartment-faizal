@@ -2,12 +2,10 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { hasPermission } from '@/types/auth';
 import {
   LayoutDashboard, Building2, UserPlus, UserCheck, Car, CarFront,
   Users, Wrench, HardHat, Package, Droplets, Wallet, BarChart3,
-  ChevronLeft, ShieldCheck, QrCode, Home, MessageSquare, Phone,
-  CreditCard, Bell
+  ChevronLeft, ShieldCheck, QrCode
 } from 'lucide-react';
 
 interface NavItem {
@@ -15,13 +13,11 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   badge?: string;
-  permission?: string;
 }
 
 interface NavGroup {
   group: string;
   items: NavItem[];
-  roles?: string[];
 }
 
 // Admin navigation
@@ -52,29 +48,6 @@ const adminNavItems: NavGroup[] = [
   ]},
 ];
 
-// Resident navigation (Owner/Tenant/Owner-Resident)
-const residentNavItems: NavGroup[] = [
-  { group: 'Main', items: [
-    { to: '/resident', label: 'Dashboard', icon: Home },
-  ]},
-  { group: 'Visitors', items: [
-    { to: '/visitors/entry', label: 'Invite Visitor', icon: UserPlus, permission: 'visitors.invite' },
-    { to: '/visitors/manage', label: 'My Visitors', icon: Users, permission: 'visitors.view' },
-  ]},
-  { group: 'Services', items: [
-    { to: '/workers', label: 'Daily Workers', icon: HardHat, permission: 'workers.register' },
-    { to: '/vehicles', label: 'My Vehicles', icon: Car, permission: 'vehicles.view' },
-    { to: '/complaints', label: 'Complaints', icon: MessageSquare, permission: 'complaints.raise' },
-  ]},
-  { group: 'Property', items: [
-    { to: '/property', label: 'Property Details', icon: Building2, permission: 'property.view' },
-    { to: '/payments', label: 'Payments', icon: CreditCard, permission: 'payments.view' },
-  ]},
-  { group: 'Emergency', items: [
-    { to: '/emergency', label: 'Emergency Contacts', icon: Phone, permission: 'emergency.view' },
-  ]},
-];
-
 export default function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, visitors, vehicles } = useAppStore();
   const { user } = useAuthStore();
@@ -89,37 +62,13 @@ export default function Sidebar() {
     return 0;
   };
 
-  // Determine which nav items to show based on user role
-  const getNavItems = (): NavGroup[] => {
-    if (!user) return [];
-    
-    switch (user.role) {
-      case 'admin':
-        return adminNavItems;
-      case 'security':
-        // Security uses a separate dashboard without sidebar
-        return [];
-      case 'owner':
-      case 'tenant':
-      case 'owner-resident':
-        // Filter items based on permissions
-        return residentNavItems.map(group => ({
-          ...group,
-          items: group.items.filter(item => 
-            !item.permission || hasPermission(user.role, item.permission)
-          )
-        })).filter(group => group.items.length > 0);
-      default:
-        return [];
-    }
-  };
-
-  const navItems = getNavItems();
-
-  // Don't render sidebar for security role
+  // Don't render sidebar for security role (they have their own dashboard)
   if (user?.role === 'security') {
     return null;
   }
+
+  // Only show admin navigation
+  const navItems = adminNavItems;
 
   return (
     <>
@@ -155,19 +104,9 @@ export default function Sidebar() {
         {!sidebarCollapsed && user && (
           <div className="px-4 py-3 border-b border-slate-800">
             <div className="flex items-center gap-2">
-              <span className={cn(
-                'px-2 py-1 rounded-lg text-xs font-medium capitalize',
-                user.role === 'admin' ? 'bg-indigo-500/20 text-indigo-400' :
-                user.role === 'owner' ? 'bg-amber-500/20 text-amber-400' :
-                user.role === 'tenant' ? 'bg-cyan-500/20 text-cyan-400' :
-                user.role === 'owner-resident' ? 'bg-green-500/20 text-green-400' :
-                'bg-slate-500/20 text-slate-400'
-              )}>
-                {user.role.replace('-', ' ')}
+              <span className="px-2 py-1 rounded-lg text-xs font-medium capitalize bg-indigo-500/20 text-indigo-400">
+                {user.role}
               </span>
-              {user.apartmentNo && (
-                <span className="text-xs text-slate-500">{user.apartmentNo}</span>
-              )}
             </div>
           </div>
         )}
@@ -181,7 +120,7 @@ export default function Sidebar() {
               )}
               {group.items.map(({ to, label, icon: Icon, badge }) => {
                 const badgeCount = getBadge(badge);
-                const isActive = to === '/' || to === '/resident' 
+                const isActive = to === '/' 
                   ? location.pathname === to 
                   : location.pathname.startsWith(to);
                 return (
@@ -223,14 +162,7 @@ export default function Sidebar() {
         {!sidebarCollapsed && user && (
           <div className="p-4 border-t border-slate-800">
             <div className="flex items-center gap-3">
-              <div className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0',
-                user.role === 'admin' ? 'bg-indigo-500' :
-                user.role === 'owner' ? 'bg-amber-500' :
-                user.role === 'tenant' ? 'bg-cyan-500' :
-                user.role === 'owner-resident' ? 'bg-green-500' :
-                'bg-slate-500'
-              )}>
+              <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                 {user.name.charAt(0).toUpperCase()}
               </div>
               <div className="overflow-hidden">

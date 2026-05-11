@@ -9,7 +9,6 @@ import { useAuthStore } from "@/stores/useAuthStore";
 
 // Auth Pages
 import Login from "@/pages/auth/Login";
-import SignUp from "@/pages/auth/SignUp";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 
 // Admin Pages
@@ -28,9 +27,8 @@ import FinancialTracking from "@/pages/FinancialTracking";
 import Reports from "@/pages/Reports";
 import QRCodesPage from "@/pages/QRCodesPage";
 
-// Role-specific Dashboards
+// Security Dashboard
 import SecurityDashboard from "@/pages/SecurityDashboard";
-import ResidentDashboard from "@/pages/ResidentDashboard";
 
 // Scan Pages (Public)
 import ScanVisitorEntry from "@/pages/scan/ScanVisitorEntry";
@@ -55,10 +53,6 @@ function DashboardRedirect() {
       return <Dashboard />;
     case 'security':
       return <Navigate to="/security" replace />;
-    case 'owner':
-    case 'tenant':
-    case 'owner-resident':
-      return <Navigate to="/resident" replace />;
     default:
       return <Navigate to="/login" replace />;
   }
@@ -75,11 +69,6 @@ const App = () => (
           <Route path="/login" element={
             <PublicRoute>
               <Login />
-            </PublicRoute>
-          } />
-          <Route path="/signup" element={
-            <PublicRoute>
-              <SignUp />
             </PublicRoute>
           } />
           <Route path="/forgot-password" element={
@@ -101,157 +90,36 @@ const App = () => (
             </ProtectedRoute>
           } />
 
-          {/* ── Protected Routes with Layout ── */}
+          {/* ── Protected Routes with Layout (Admin only) ── */}
           <Route path="/*" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
                 <Routes>
-                  {/* Dashboard - redirects based on role */}
+                  {/* Dashboard */}
                   <Route path="/" element={<DashboardRedirect />} />
                   
-                  {/* Resident Dashboard */}
-                  <Route path="/resident" element={
-                    <ProtectedRoute allowedRoles={['owner', 'tenant', 'owner-resident']}>
-                      <ResidentDashboard />
-                    </ProtectedRoute>
-                  } />
+                  {/* Apartment Management */}
+                  <Route path="/apartments" element={<ManageApartment />} />
                   
-                  {/* Owner-specific routes */}
-                  <Route path="/owner" element={
-                    <ProtectedRoute allowedRoles={['owner']}>
-                      <ResidentDashboard />
-                    </ProtectedRoute>
-                  } />
+                  {/* Visitor Management */}
+                  <Route path="/visitors/entry" element={<EntryVisitors />} />
+                  <Route path="/visitors/checkout" element={<CheckOutVisitors />} />
+                  <Route path="/visitors/manage" element={<VisitorManagement />} />
                   
-                  {/* Tenant-specific routes */}
-                  <Route path="/tenant" element={
-                    <ProtectedRoute allowedRoles={['tenant']}>
-                      <ResidentDashboard />
-                    </ProtectedRoute>
-                  } />
-
-                  {/* Admin Routes */}
-                  <Route path="/apartments" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <ManageApartment />
-                    </ProtectedRoute>
-                  } />
+                  {/* Vehicle Management */}
+                  <Route path="/vehicles/entry" element={<VehicleRegistry />} />
+                  <Route path="/vehicles/checkout" element={<CheckOutVehicle />} />
                   
-                  {/* Visitor Routes - Admin and Residents */}
-                  <Route path="/visitors/entry" element={
-                    <ProtectedRoute allowedRoles={['admin', 'tenant', 'owner-resident']}>
-                      <EntryVisitors />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/visitors/checkout" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <CheckOutVisitors />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/visitors/manage" element={
-                    <ProtectedRoute allowedRoles={['admin', 'owner', 'tenant', 'owner-resident']}>
-                      <VisitorManagement />
-                    </ProtectedRoute>
-                  } />
+                  {/* Operations */}
+                  <Route path="/vendors" element={<VendorManagement />} />
+                  <Route path="/staff" element={<StaffAttendance />} />
+                  <Route path="/inventory" element={<InventoryAudit />} />
+                  <Route path="/utilities" element={<UtilityManagement />} />
+                  <Route path="/financials" element={<FinancialTracking />} />
                   
-                  {/* Vehicle Routes */}
-                  <Route path="/vehicles/entry" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <VehicleRegistry />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/vehicles/checkout" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <CheckOutVehicle />
-                    </ProtectedRoute>
-                  } />
-                  
-                  {/* Admin-only Operations */}
-                  <Route path="/vendors" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <VendorManagement />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/staff" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <StaffAttendance />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/inventory" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <InventoryAudit />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/utilities" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <UtilityManagement />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/financials" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <FinancialTracking />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/reports" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <Reports />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/qr-codes" element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <QRCodesPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  {/* Placeholder routes for resident features */}
-                  <Route path="/workers" element={
-                    <ProtectedRoute allowedRoles={['tenant', 'owner-resident']}>
-                      <div className="p-8 text-center">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Daily Workers</h2>
-                        <p className="text-slate-500">Coming soon...</p>
-                      </div>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/vehicles" element={
-                    <ProtectedRoute allowedRoles={['owner', 'tenant', 'owner-resident']}>
-                      <div className="p-8 text-center">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-2">My Vehicles</h2>
-                        <p className="text-slate-500">Coming soon...</p>
-                      </div>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/complaints" element={
-                    <ProtectedRoute allowedRoles={['owner', 'tenant', 'owner-resident']}>
-                      <div className="p-8 text-center">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Complaints</h2>
-                        <p className="text-slate-500">Coming soon...</p>
-                      </div>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/property" element={
-                    <ProtectedRoute allowedRoles={['owner', 'owner-resident']}>
-                      <div className="p-8 text-center">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Property Details</h2>
-                        <p className="text-slate-500">Coming soon...</p>
-                      </div>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/payments" element={
-                    <ProtectedRoute allowedRoles={['owner', 'owner-resident']}>
-                      <div className="p-8 text-center">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Payments</h2>
-                        <p className="text-slate-500">Coming soon...</p>
-                      </div>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/emergency" element={
-                    <ProtectedRoute allowedRoles={['owner', 'tenant', 'owner-resident']}>
-                      <div className="p-8 text-center">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Emergency Contacts</h2>
-                        <p className="text-slate-500">Coming soon...</p>
-                      </div>
-                    </ProtectedRoute>
-                  } />
+                  {/* Reports & QR */}
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/qr-codes" element={<QRCodesPage />} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>

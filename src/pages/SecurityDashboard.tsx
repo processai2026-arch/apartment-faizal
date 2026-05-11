@@ -1,114 +1,199 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
-  QrCode, KeyRound, Users, Car, HardHat,
-  CheckCircle2, Clock, LogOut, Search, Bell, ShieldCheck,
-  Scan, UserCheck, CarFront, RefreshCw
+  Users, Car, HardHat, LogOut, Search, Clock, QrCode,
+  UserPlus, LogIn, RefreshCw, AlertTriangle, Shield, X, Phone, Send, CheckCircle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
 export default function SecurityDashboard() {
-  const [otpInput, setOtpInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'visitors' | 'vehicles' | 'workers'>('visitors');
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  const { visitors, vehicles, dailyWorkers, checkOutVisitor, checkOutVehicle } = useAppStore();
+  const navigate = useNavigate();
+  const { visitors, vehicles, dailyWorkers, checkOutVisitor, checkOutVehicle, addVisitor } = useAppStore();
   const { user, logout } = useAuthStore();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  
+  const [activeTab, setActiveTab] = useState<'visitors' | 'vehicles' | 'workers'>('visitors');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAddVisitorModal, setShowAddVisitorModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  
+  // Add Visitor Form State
+  const [visitorForm, setVisitorForm] = useState({
+    name: '',
+    phone: '',
+    apartmentNo: '',
+    purpose: 'Personal Visit',
+    vehicleNo: '',
+  });
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
+  // Filter active entries
   const activeVisitors = visitors.filter(v => v.status === 'Inside');
   const activeVehicles = vehicles.filter(v => v.status === 'Inside');
   const activeWorkers = dailyWorkers.filter(w => w.status === 'Active');
 
-  const handleOTPVerify = () => {
-    if (!otpInput || otpInput.length !== 6) {
-      toast({
-        title: 'Invalid OTP',
-        description: 'Please enter a valid 6-digit OTP',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const visitor = visitors.find(v => v.otp === otpInput && v.status === 'Inside');
-    
-    if (visitor) {
-      toast({
-        title: 'Visitor Verified!',
-        description: `${visitor.name} - Visiting ${visitor.apartmentNo}`,
-      });
-    } else {
-      const pendingVisitor = visitors.find(v => v.otp === otpInput && v.status === 'Approved');
-      if (pendingVisitor) {
-        toast({
-          title: 'Entry Approved',
-          description: `${pendingVisitor.name} can enter - Visiting ${pendingVisitor.apartmentNo}`,
-        });
-      } else {
-        toast({
-          title: 'OTP Not Found',
-          description: 'No visitor found with this OTP',
-          variant: 'destructive',
-        });
-      }
-    }
-    setOtpInput('');
-  };
-
-  const handleCheckout = (id: string, type: 'visitor' | 'vehicle') => {
-    if (type === 'visitor') {
-      checkOutVisitor(id);
-      toast({ title: 'Visitor Checked Out', description: 'Exit recorded successfully' });
-    } else {
-      checkOutVehicle(id);
-      toast({ title: 'Vehicle Checked Out', description: 'Exit recorded successfully' });
-    }
-  };
+  // Search filter
+  const filteredVisitors = activeVisitors.filter(v =>
+    v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    v.apartmentNo.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredVehicles = activeVehicles.filter(v =>
+    v.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    v.apartmentNo.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredWorkers = activeWorkers.filter(w =>
+    w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    w.apartmentNo.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const filteredVisitors = activeVisitors.filter(v =>
-    v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.apartmentNo.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleCheckOutVisitor = (id: string, name: string) => {
+    checkOutVisitor(id);
+    toast({
+      title: 'Visitor Checked Out',
+      description: `${name} has been checked out successfully`,
+    });
+  };
 
-  const filteredVehicles = activeVehicles.filter(v =>
-    v.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.ownerName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleCheckOutVehicle = (id: string, vehicleNo: string) => {
+    checkOutVehicle(id);
+    toast({
+      title: 'Vehicle Checked Out',
+      description: `${vehicleNo} has been checked out successfully`,
+    });
+  };
+
+  // Send OTP to visitor
+  const handleSendOTP = () => {
+    if (!visitorForm.name || !visitorForm.phone || !visitorForm.apartmentNo) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Generate a random 6-digit OTP
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(newOtp);
+    setOtpSent(true);
+    
+    toast({
+      title: 'OTP Sent',
+      description: `OTP ${newOtp} sent to ${visitorForm.phone} (Demo: OTP shown for testing)`,
+    });
+  };
+
+  // Verify OTP and add visitor
+  const handleVerifyAndAddVisitor = () => {
+    if (otp !== generatedOtp) {
+      toast({
+        title: 'Invalid OTP',
+        description: 'The OTP entered is incorrect',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+    
+    // Add visitor to the system
+    const newVisitor = {
+      id: `V${Date.now()}`,
+      name: visitorForm.name,
+      phone: visitorForm.phone,
+      apartmentNo: visitorForm.apartmentNo,
+      purpose: visitorForm.purpose,
+      category: 'Guest' as const,
+      status: 'Inside' as const,
+      entryTime: new Date().toISOString(),
+      guardName: user?.name || 'Security',
+      otp: generatedOtp,
+      vehicleNo: visitorForm.vehicleNo || undefined,
+    };
+
+    addVisitor(newVisitor);
+
+    toast({
+      title: 'Visitor Entry Logged',
+      description: `${visitorForm.name} has been checked in successfully`,
+    });
+
+    // Reset form
+    setVisitorForm({ name: '', phone: '', apartmentNo: '', purpose: 'Personal Visit', vehicleNo: '' });
+    setOtpSent(false);
+    setOtp('');
+    setGeneratedOtp('');
+    setIsVerifying(false);
+    setShowAddVisitorModal(false);
+  };
+
+  // Reset add visitor form
+  const resetAddVisitorForm = () => {
+    setVisitorForm({ name: '', phone: '', apartmentNo: '', purpose: 'Personal Visit', vehicleNo: '' });
+    setOtpSent(false);
+    setOtp('');
+    setGeneratedOtp('');
+    setShowAddVisitorModal(false);
+  };
+
+  // QR Code URL for visitor self-registration
+  const qrCodeUrl = `${window.location.origin}/scan/visitor-entry`;
+
+  // Listen for new visitor entries from QR scan (simulated with polling)
+  useEffect(() => {
+    // In a real app, this would be a WebSocket connection
+    // For demo, we just show the visitors list which updates automatically
+  }, [visitors]);
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
+      <header className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5 text-white" />
+              <Shield className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-900 font-[Outfit]">Security Dashboard</h1>
-              <p className="text-xs text-slate-500">{user?.name || 'Security Guard'}</p>
+              <h1 className="text-lg font-bold text-slate-900 font-[Outfit]">Security Gate</h1>
+              <p className="text-xs text-slate-500">Welcome, {user?.name}</p>
             </div>
           </div>
+          
           <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition-colors font-medium"
+            >
+              <QrCode className="w-5 h-5" />
+              <span className="hidden sm:inline">Show Gate QR</span>
+            </button>
+            <button
+              onClick={() => setShowAddVisitorModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors font-medium"
+            >
+              <UserPlus className="w-5 h-5" />
+              <span className="hidden sm:inline">Add Visitor</span>
             </button>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+              className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -116,13 +201,14 @@ export default function SecurityDashboard() {
         </div>
       </header>
 
-      <div className="p-4 max-w-7xl mx-auto space-y-4">
-        {/* Quick Stats */}
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto p-4 space-y-4">
+        {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-                <Users className="w-6 h-6 text-green-600" />
+              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                <Users className="w-5 h-5 text-green-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{activeVisitors.length}</p>
@@ -130,10 +216,11 @@ export default function SecurityDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          
+          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Car className="w-6 h-6 text-blue-600" />
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                <Car className="w-5 h-5 text-blue-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{activeVehicles.length}</p>
@@ -141,10 +228,11 @@ export default function SecurityDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+          
+          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                <HardHat className="w-6 h-6 text-amber-600" />
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                <HardHat className="w-5 h-5 text-amber-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{activeWorkers.length}</p>
@@ -154,226 +242,345 @@ export default function SecurityDashboard() {
           </div>
         </div>
 
-        {/* Verification Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* QR Scanner */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                <QrCode className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">QR Scanner</h2>
-                <p className="text-xs text-slate-500">Scan visitor or worker QR code</p>
-              </div>
+        {/* Info Banner */}
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+              <QrCode className="w-4 h-4 text-indigo-600" />
             </div>
-            <div className="aspect-square max-w-[250px] mx-auto bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-4">
-              <Scan className="w-16 h-16 text-slate-400" />
-              <p className="text-slate-500 text-sm">Camera access required</p>
-              <button className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-sm font-medium hover:bg-indigo-600 transition-colors">
-                Enable Camera
-              </button>
-            </div>
-          </div>
-
-          {/* OTP Verification */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                <KeyRound className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">OTP Verification</h2>
-                <p className="text-xs text-slate-500">Enter visitor's 6-digit OTP</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={otpInput}
-                onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Enter OTP"
-                maxLength={6}
-                className="w-full px-4 py-4 bg-slate-100 border border-slate-200 rounded-xl text-slate-900 text-center text-3xl tracking-[0.5em] placeholder:text-slate-400 placeholder:tracking-normal placeholder:text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={handleOTPVerify}
-                  className="py-4 px-6 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2 text-lg shadow-sm"
-                >
-                  <CheckCircle2 className="w-6 h-6" />
-                  Verify Entry
-                </button>
-                <button
-                  onClick={() => setOtpInput('')}
-                  className="py-4 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition-all flex items-center justify-center gap-2 text-lg border border-slate-200"
-                >
-                  <RefreshCw className="w-6 h-6" />
-                  Clear
-                </button>
-              </div>
+            <div>
+              <h3 className="font-medium text-indigo-900">Visitor Entry Options</h3>
+              <p className="text-sm text-indigo-700 mt-1">
+                <strong>Smartphone visitors:</strong> Click "Show Gate QR" and let them scan it to self-register.<br/>
+                <strong>Button phone visitors:</strong> Click "Add Visitor" to manually enter their details and verify OTP.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Active Entries */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Tabs */}
+        {/* Tabs */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="flex border-b border-slate-200">
             <button
               onClick={() => setActiveTab('visitors')}
-              className={`flex-1 py-4 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'visitors'
-                  ? 'bg-indigo-50 text-indigo-600 border-b-2 border-indigo-500'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <UserCheck className="w-5 h-5" />
+              <Users className="w-4 h-4" />
               Visitors ({activeVisitors.length})
             </button>
             <button
               onClick={() => setActiveTab('vehicles')}
-              className={`flex-1 py-4 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'vehicles'
-                  ? 'bg-indigo-50 text-indigo-600 border-b-2 border-indigo-500'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <CarFront className="w-5 h-5" />
+              <Car className="w-4 h-4" />
               Vehicles ({activeVehicles.length})
             </button>
             <button
               onClick={() => setActiveTab('workers')}
-              className={`flex-1 py-4 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'workers'
-                  ? 'bg-indigo-50 text-indigo-600 border-b-2 border-indigo-500'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <HardHat className="w-5 h-5" />
+              <HardHat className="w-4 h-4" />
               Workers ({activeWorkers.length})
             </button>
           </div>
 
           {/* Search */}
-          <div className="p-4 border-b border-slate-200">
+          <div className="p-3 border-b border-slate-100">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
+                placeholder="Search by name, apartment, or vehicle..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, apartment, or vehicle..."
-                className="w-full pl-12 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
 
-          {/* Content */}
-          <div className="max-h-[400px] overflow-y-auto">
+          {/* List */}
+          <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
             {activeTab === 'visitors' && (
-              <div className="divide-y divide-slate-100">
-                {filteredVisitors.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400">
-                    <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No active visitors</p>
-                  </div>
-                ) : (
-                  filteredVisitors.map((visitor) => (
-                    <div key={visitor.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                          {visitor.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{visitor.name}</p>
-                          <p className="text-sm text-slate-500">{visitor.apartmentNo} • {visitor.purpose}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            <span className="text-xs text-slate-400">Entry: {formatTime(visitor.entryTime)}</span>
-                          </div>
-                        </div>
+              filteredVisitors.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">
+                  <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No visitors inside</p>
+                </div>
+              ) : (
+                filteredVisitors.map((visitor) => (
+                  <div key={visitor.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                        {visitor.name.charAt(0)}
                       </div>
-                      <button
-                        onClick={() => handleCheckout(visitor.id, 'visitor')}
-                        className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors flex items-center gap-2"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Check Out
-                      </button>
+                      <div>
+                        <p className="font-medium text-slate-900">{visitor.name}</p>
+                        <p className="text-xs text-slate-500">{visitor.apartmentNo} • {visitor.purpose}</p>
+                        <p className="text-xs text-slate-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Entry: {formatTime(visitor.entryTime)}
+                        </p>
+                      </div>
                     </div>
-                  ))
-                )}
-              </div>
+                    <button
+                      onClick={() => handleCheckOutVisitor(visitor.id, visitor.name)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <LogIn className="w-4 h-4 rotate-180" />
+                      Check Out
+                    </button>
+                  </div>
+                ))
+              )
             )}
 
             {activeTab === 'vehicles' && (
-              <div className="divide-y divide-slate-100">
-                {filteredVehicles.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400">
-                    <Car className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No active vehicles</p>
-                  </div>
-                ) : (
-                  filteredVehicles.map((vehicle) => (
-                    <div key={vehicle.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                          <Car className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{vehicle.vehicleNo}</p>
-                          <p className="text-sm text-slate-500">{vehicle.ownerName} • {vehicle.apartmentNo}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            <span className="text-xs text-slate-400">Entry: {formatTime(vehicle.entryTime)}</span>
-                          </div>
-                        </div>
+              filteredVehicles.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">
+                  <Car className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No vehicles inside</p>
+                </div>
+              ) : (
+                filteredVehicles.map((vehicle) => (
+                  <div key={vehicle.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                        <Car className="w-5 h-5" />
                       </div>
-                      <button
-                        onClick={() => handleCheckout(vehicle.id, 'vehicle')}
-                        className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors flex items-center gap-2"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Check Out
-                      </button>
+                      <div>
+                        <p className="font-medium text-slate-900">{vehicle.vehicleNo}</p>
+                        <p className="text-xs text-slate-500">{vehicle.type} • {vehicle.apartmentNo}</p>
+                        <p className="text-xs text-slate-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Entry: {formatTime(vehicle.entryTime)}
+                        </p>
+                      </div>
                     </div>
-                  ))
-                )}
-              </div>
+                    <button
+                      onClick={() => handleCheckOutVehicle(vehicle.id, vehicle.vehicleNo)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <LogIn className="w-4 h-4 rotate-180" />
+                      Check Out
+                    </button>
+                  </div>
+                ))
+              )
             )}
 
             {activeTab === 'workers' && (
-              <div className="divide-y divide-slate-100">
-                {activeWorkers.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400">
-                    <HardHat className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No active workers</p>
-                  </div>
-                ) : (
-                  activeWorkers.map((worker) => (
-                    <div key={worker.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 font-bold">
-                          {worker.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{worker.name}</p>
-                          <p className="text-sm text-slate-500">{worker.role} • {worker.apartmentNo}</p>
-                          <p className="text-xs text-slate-400 mt-1">Allowed: {worker.allowedTimings}</p>
-                        </div>
+              filteredWorkers.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">
+                  <HardHat className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No active workers</p>
+                </div>
+              ) : (
+                filteredWorkers.map((worker) => (
+                  <div key={worker.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 font-bold">
+                        {worker.name.charAt(0)}
                       </div>
-                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
-                        Active
-                      </span>
+                      <div>
+                        <p className="font-medium text-slate-900">{worker.name}</p>
+                        <p className="text-xs text-slate-500">{worker.role} • {worker.apartmentNo}</p>
+                        <p className="text-xs text-slate-400">{worker.allowedTimings}</p>
+                      </div>
                     </div>
-                  ))
-                )}
-              </div>
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-medium">
+                      Active
+                    </span>
+                  </div>
+                ))
+              )
             )}
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Gate QR Code Modal */}
+      {showQRModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900 font-[Outfit]">Gate QR Code</h3>
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-white p-4 rounded-xl border-2 border-dashed border-slate-200 inline-block mb-4">
+                <QRCodeSVG value={qrCodeUrl} size={200} />
+              </div>
+              <p className="text-sm text-slate-600 mb-2">
+                Visitors with smartphones can scan this QR code to register themselves.
+              </p>
+              <p className="text-xs text-slate-400">
+                URL: {qrCodeUrl}
+              </p>
+            </div>
+            
+            <button
+              onClick={() => setShowQRModal(false)}
+              className="w-full mt-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Visitor Modal (for button phone visitors) */}
+      {showAddVisitorModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900 font-[Outfit]">Add Visitor</h3>
+              <button
+                onClick={resetAddVisitorForm}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-500 mb-4">
+              For visitors without smartphones. Enter their details and verify OTP.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Visitor Name *</label>
+                <input
+                  type="text"
+                  value={visitorForm.name}
+                  onChange={(e) => setVisitorForm({ ...visitorForm, name: e.target.value })}
+                  placeholder="Enter visitor name"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={otpSent}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number *</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="tel"
+                    value={visitorForm.phone}
+                    onChange={(e) => setVisitorForm({ ...visitorForm, phone: e.target.value })}
+                    placeholder="+91 98765 43210"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={otpSent}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Visiting Apartment *</label>
+                <input
+                  type="text"
+                  value={visitorForm.apartmentNo}
+                  onChange={(e) => setVisitorForm({ ...visitorForm, apartmentNo: e.target.value })}
+                  placeholder="e.g., A-101"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={otpSent}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Purpose of Visit</label>
+                <select
+                  value={visitorForm.purpose}
+                  onChange={(e) => setVisitorForm({ ...visitorForm, purpose: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={otpSent}
+                >
+                  <option value="Personal Visit">Personal Visit</option>
+                  <option value="Delivery">Delivery</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Official">Official</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Vehicle Number (Optional)</label>
+                <input
+                  type="text"
+                  value={visitorForm.vehicleNo}
+                  onChange={(e) => setVisitorForm({ ...visitorForm, vehicleNo: e.target.value })}
+                  placeholder="e.g., KA-01-AB-1234"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={otpSent}
+                />
+              </div>
+
+              {!otpSent ? (
+                <button
+                  onClick={handleSendOTP}
+                  className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <Send className="w-5 h-5" />
+                  Send OTP to Visitor
+                </button>
+              ) : (
+                <>
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                    <div className="flex items-center gap-2 text-green-700">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="text-sm font-medium">OTP sent to {visitorForm.phone}</span>
+                    </div>
+                    <p className="text-xs text-green-600 mt-1">Demo OTP: {generatedOtp}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Enter OTP from Visitor *</label>
+                    <input
+                      type="text"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      placeholder="Enter 6-digit OTP"
+                      maxLength={6}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-lg text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleVerifyAndAddVisitor}
+                    disabled={otp.length !== 6 || isVerifying}
+                    className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    Verify & Log Entry
+                  </button>
+
+                  <button
+                    onClick={() => { setOtpSent(false); setOtp(''); }}
+                    className="w-full py-2 text-slate-500 hover:text-slate-700 text-sm font-medium"
+                  >
+                    ← Back to Edit Details
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
