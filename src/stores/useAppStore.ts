@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { mockVisitors, mockVehicles, mockApartments, mockVendors, mockStaff, mockInventory, mockUtilityTasks, mockComplaints, mockDailyWorkers } from '@/data/mockData';
+import { mockVisitors, mockVehicles, mockApartments, mockVendors, mockStaff, mockInventory, mockUtilityTasks, mockComplaints, mockDailyWorkers, mockEmergencyContacts, type EmergencyContact } from '@/data/mockData';
 import type { Visitor, Vehicle, Apartment, Vendor, Staff, InventoryItem, UtilityTask, Complaint, DailyWorker } from '@/types';
 
 interface AppState {
@@ -13,6 +13,7 @@ interface AppState {
   utilityTasks: UtilityTask[];
   complaints: Complaint[];
   dailyWorkers: DailyWorker[];
+  emergencyContacts: EmergencyContact[];
 
   toggleSidebar: () => void;
   addVisitor: (visitor: Visitor) => void;
@@ -42,6 +43,7 @@ export const useAppStore = create<AppState>((set) => ({
   utilityTasks: mockUtilityTasks,
   complaints: mockComplaints,
   dailyWorkers: mockDailyWorkers,
+  emergencyContacts: mockEmergencyContacts,
 
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 

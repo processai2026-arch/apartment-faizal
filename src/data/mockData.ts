@@ -64,7 +64,7 @@ export const mockStaff: Staff[] = [
   { id: 'S005', name: 'Venkat Swamy', role: 'Electrician', department: 'Maintenance', contact: '+91 55555 66666', joinDate: '2023-11-05', attendance: { '2026-05-10': 'P', '2026-05-09': 'P', '2026-05-08': 'P', '2026-05-07': 'H', '2026-05-06': 'P' } },
   { id: 'S006', name: 'Suresh Kumar', role: 'Plumber', department: 'Maintenance', contact: '+91 66666 77777', joinDate: '2023-12-15', attendance: { '2026-05-10': 'P', '2026-05-09': 'A', '2026-05-08': 'P', '2026-05-07': 'P', '2026-05-06': 'P' } },
   { id: 'S007', name: 'Ganga Devi', role: 'Housekeeping', department: 'Housekeeping', contact: '+91 77777 88888', joinDate: '2024-04-01', attendance: { '2026-05-10': 'P', '2026-05-09': 'P', '2026-05-08': 'H', '2026-05-07': 'P', '2026-05-06': 'A' } },
-  { id: 'S008', name: 'Ravi Shankar', role: 'Gardner', department: 'Maintenance', contact: '+91 88888 99999', joinDate: '2024-02-14', attendance: { '2026-05-10': 'H', '2026-05-09': 'P', '2026-05-08': 'P', '2026-05-07': 'P', '2026-05-06': 'P' } },
+  { id: 'S008', name: 'Ravi Shankar', role: 'Gardener', department: 'Maintenance', contact: '+91 88888 99999', joinDate: '2024-02-14', attendance: { '2026-05-10': 'H', '2026-05-09': 'P', '2026-05-08': 'P', '2026-05-07': 'P', '2026-05-06': 'P' } },
 ];
 
 export const mockInventory: InventoryItem[] = [
@@ -105,6 +105,29 @@ export const mockDailyWorkers: DailyWorker[] = [
   { id: 'DW003', name: 'Raju Milk', role: 'Milkman', apartmentNo: 'All', residentName: 'Multiple', phone: '+91 93333 33333', allowedTimings: '5:30 AM - 7:00 AM', validFrom: '2026-01-01', validUntil: '2026-12-31', status: 'Active', lastEntry: today },
   { id: 'DW004', name: 'Paper Ravi', role: 'Newspaper', apartmentNo: 'All', residentName: 'Multiple', phone: '+91 94444 44444', allowedTimings: '5:00 AM - 6:30 AM', validFrom: '2026-01-01', validUntil: '2026-12-31', status: 'Active', lastEntry: today },
   { id: 'DW005', name: 'Auto Driver Krishnan', role: 'Driver', apartmentNo: 'C-101', residentName: 'Deepak Joshi', phone: '+91 95555 55555', allowedTimings: '8:00 AM - 9:00 AM', validFrom: '2026-03-01', validUntil: '2026-12-31', status: 'Paused' },
+  { id: 'DW006', name: 'Lakshmi', role: 'Maid', apartmentNo: 'A-102', residentName: 'Priya Sharma', phone: '+91 96666 66666', allowedTimings: '8:00 AM - 11:00 AM', validFrom: '2026-01-15', validUntil: '2026-12-31', status: 'Active', lastEntry: today },
+  { id: 'DW007', name: 'Venkat', role: 'Cook', apartmentNo: 'A-102', residentName: 'Priya Sharma', phone: '+91 97777 77777', allowedTimings: '6:30 AM - 8:30 AM', validFrom: '2026-02-01', validUntil: '2026-12-31', status: 'Active', lastEntry: yesterday },
+];
+
+export interface EmergencyContact {
+  id: string;
+  name: string;
+  category: 'Medical' | 'Fire' | 'Police' | 'Utility' | 'Building';
+  phone: string;
+  available: string;
+  icon?: string;
+}
+
+export const mockEmergencyContacts: EmergencyContact[] = [
+  { id: 'E001', name: 'Ambulance', category: 'Medical', phone: '108', available: '24/7' },
+  { id: 'E002', name: 'Fire Service', category: 'Fire', phone: '101', available: '24/7' },
+  { id: 'E003', name: 'Police', category: 'Police', phone: '100', available: '24/7' },
+  { id: 'E004', name: 'Nearby Hospital - Apollo', category: 'Medical', phone: '+91 80 2630 4050', available: '24/7' },
+  { id: 'E005', name: 'Lift Technician - Ravi', category: 'Building', phone: '+91 98765 12345', available: '8 AM - 8 PM' },
+  { id: 'E006', name: 'Electrician - Venkat', category: 'Utility', phone: '+91 98765 23456', available: '7 AM - 9 PM' },
+  { id: 'E007', name: 'Plumber - Suresh', category: 'Utility', phone: '+91 98765 34567', available: '8 AM - 6 PM' },
+  { id: 'E008', name: 'Security Office', category: 'Building', phone: '+91 98765 00001', available: '24/7' },
+  { id: 'E009', name: 'Building Manager', category: 'Building', phone: '+91 98765 00002', available: '9 AM - 6 PM' },
 ];
 
 export const visitorTrendData = [

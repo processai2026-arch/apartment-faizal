@@ -1,11 +1,10 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
   Users, UserPlus, Package, HardHat, AlertTriangle, Car, Wallet,
   Clock, Bell, Home, QrCode, MessageSquare, Phone, ChevronRight,
-  Building2, CreditCard, FileText
+  Building2, CreditCard, FileText, Flame, Shield, Wrench, Ambulance
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -19,7 +18,7 @@ function formatDate(iso: string) {
 
 export default function ResidentDashboard() {
   const navigate = useNavigate();
-  const { visitors, vehicles, dailyWorkers, complaints, apartments } = useAppStore();
+  const { visitors, vehicles, dailyWorkers, complaints, apartments, emergencyContacts } = useAppStore();
   const { user } = useAuthStore();
   const { toast } = useToast();
 
@@ -401,6 +400,59 @@ export default function ResidentDashboard() {
               </div>
             ))
           )}
+        </div>
+      </div>
+
+      {/* Emergency Contacts Section */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900 font-[Outfit]">Emergency Contacts</h3>
+          <span className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-medium">
+            24/7 Available
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-5">
+          {emergencyContacts.map((contact) => {
+            const getIcon = () => {
+              switch (contact.category) {
+                case 'Medical': return <Ambulance className="w-5 h-5" />;
+                case 'Fire': return <Flame className="w-5 h-5" />;
+                case 'Police': return <Shield className="w-5 h-5" />;
+                case 'Utility': return <Wrench className="w-5 h-5" />;
+                case 'Building': return <Building2 className="w-5 h-5" />;
+                default: return <Phone className="w-5 h-5" />;
+              }
+            };
+            
+            const getColor = () => {
+              switch (contact.category) {
+                case 'Medical': return 'bg-red-100 text-red-600';
+                case 'Fire': return 'bg-orange-100 text-orange-600';
+                case 'Police': return 'bg-blue-100 text-blue-600';
+                case 'Utility': return 'bg-amber-100 text-amber-600';
+                case 'Building': return 'bg-indigo-100 text-indigo-600';
+                default: return 'bg-slate-100 text-slate-600';
+              }
+            };
+
+            return (
+              <div key={contact.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${getColor()}`}>
+                  {getIcon()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-slate-900 text-sm truncate">{contact.name}</p>
+                  <p className="text-xs text-slate-500">{contact.available}</p>
+                </div>
+                <a
+                  href={`tel:${contact.phone}`}
+                  className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex-shrink-0"
+                >
+                  <Phone className="w-4 h-4" />
+                </a>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
