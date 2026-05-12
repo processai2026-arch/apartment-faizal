@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Settings, ChevronRight, Palette, LayoutGrid, Columns, Eye } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { toast } from 'sonner';
 
 export default function Profile() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   
   const [form, setForm] = useState({
@@ -34,6 +36,40 @@ export default function Profile() {
 
   return (
     <div className="space-y-6">
+      {/* UI Settings Card */}
+      <div 
+        onClick={() => navigate('/settings')}
+        className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white cursor-pointer hover:shadow-lg transition-all group"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+              <Settings className="w-7 h-7" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold font-[Outfit]">UI Settings</h2>
+              <p className="text-white/80 text-sm mt-1">Customize your dashboard layout and preferences</p>
+            </div>
+          </div>
+          <ChevronRight className="w-6 h-6 text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all" />
+        </div>
+        
+        <div className="flex gap-6 mt-5 pt-5 border-t border-white/20">
+          <div className="flex items-center gap-2 text-sm text-white/80">
+            <LayoutGrid className="w-4 h-4" />
+            <span>Rearrange Cards</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-white/80">
+            <Columns className="w-4 h-4" />
+            <span>Hide Columns</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-white/80">
+            <Eye className="w-4 h-4" />
+            <span>Toggle Buttons</span>
+          </div>
+        </div>
+      </div>
+
       {/* Main Card */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {/* Card Header */}

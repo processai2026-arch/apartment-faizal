@@ -28,6 +28,7 @@ import Reports from "@/pages/Reports";
 import QRCodesPage from "@/pages/QRCodesPage";
 import Profile from "@/pages/Profile";
 import ChangePassword from "@/pages/ChangePassword";
+import Settings from "@/pages/Settings";
 
 // Security Dashboard
 import SecurityDashboard from "@/pages/SecurityDashboard";
@@ -127,6 +128,7 @@ const App = () => (
                   {/* Profile & Settings */}
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/change-password" element={<ChangePassword />} />
+                  <Route path="/settings" element={<Settings />} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>

@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import {
   LayoutDashboard, Building2, UserPlus, UserCheck, Car, CarFront,
   Users, Wrench, HardHat, Package, Droplets, Wallet, BarChart3,
-  ChevronLeft, ShieldCheck, QrCode
+  ChevronLeft, ShieldCheck, QrCode, Settings
 } from 'lucide-react';
 
 interface NavItem {
@@ -45,6 +45,9 @@ const adminNavItems: NavGroup[] = [
   ]},
   { group: 'QR & Access', items: [
     { to: '/qr-codes', label: 'QR Codes & Gates', icon: QrCode },
+  ]},
+  { group: 'Settings', items: [
+    { to: '/settings', label: 'UI Settings', icon: Settings },
   ]},
 ];
 

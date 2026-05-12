@@ -2,12 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useUISettingsStore } from '@/stores/useUISettingsStore';
 import {
   Users, Car, HardHat, LogOut, Search, Clock, QrCode,
-  UserPlus, LogIn, Shield, X, Phone, Send, CheckCircle, Building2
+  UserPlus, LogIn, Shield, X, Phone, Send, CheckCircle, Building2,
+  Eye, EyeOff, Edit3, Save, RotateCcw
 } from 'lucide-react';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { QRCodeSVG } from 'qrcode.react';
+import UICustomizer from '@/components/features/UICustomizer';
+import type { CardConfig } from '@/types/uiSettings';
+import { cn } from '@/lib/utils';
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -17,12 +23,19 @@ export default function SecurityDashboard() {
   const navigate = useNavigate();
   const { visitors, vehicles, dailyWorkers, offices, checkOutVisitor, checkOutVehicle, addVisitor } = useAppStore();
   const { user, logout } = useAuthStore();
+  const { settings, getVisibleCards, updateCardOrder, resetPageSettings } = useUISettingsStore();
   const { toast } = useToast();
   
   const [activeTab, setActiveTab] = useState<'visitors' | 'vehicles' | 'workers'>('visitors');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddVisitorModal, setShowAddVisitorModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [localCards, setLocalCards] = useState<CardConfig[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
   
   // Add Visitor Form State
   const [visitorForm, setVisitorForm] = useState({
@@ -41,6 +54,69 @@ export default function SecurityDashboard() {
   const [otp, setOtp] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const pageSettings = settings.securityDashboard;
+
+  // Initialize local cards when entering edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      setLocalCards([...pageSettings.cards].sort((a, b) => a.order - b.order));
+      setHasChanges(false);
+    }
+  }, [isEditMode, pageSettings.cards]);
+
+  const visibleCards = isEditMode ? localCards : getVisibleCards('securityDashboard');
+
+  // Card visibility helper
+  const isCardVisible = (cardId: string) => {
+    if (isEditMode) {
+      return localCards.find(c => c.id === cardId)?.visible ?? false;
+    }
+    return visibleCards.some(c => c.id === cardId);
+  };
+
+  const getCardConfig = (cardId: string) => {
+    if (isEditMode) {
+      return localCards.find(c => c.id === cardId);
+    }
+    return pageSettings.cards.find(c => c.id === cardId);
+  };
+
+  // Handle card visibility toggle
+  const handleCardVisibilityToggle = (cardId: string) => {
+    setLocalCards(prev => prev.map(card => 
+      card.id === cardId ? { ...card, visible: !card.visible } : card
+    ));
+    setHasChanges(true);
+  };
+
+  // Save changes
+  const handleSave = () => {
+    updateCardOrder('securityDashboard', localCards);
+    setIsEditMode(false);
+    setHasChanges(false);
+    toast({
+      title: 'Settings Saved',
+      description: 'Your layout preferences have been saved',
+    });
+  };
+
+  // Cancel edit mode
+  const handleCancel = () => {
+    setIsEditMode(false);
+    setHasChanges(false);
+  };
+
+  // Reset to default
+  const handleReset = () => {
+    resetPageSettings('securityDashboard');
+    setLocalCards([...settings.securityDashboard.cards].sort((a, b) => a.order - b.order));
+    setHasChanges(true);
+    toast({
+      title: 'Reset Complete',
+      description: 'Layout reset to default',
+    });
+  };
 
   // Filter active entries
   const activeVisitors = visitors.filter(v => v.status === 'Inside');
@@ -180,6 +256,53 @@ export default function SecurityDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Edit Mode Toolbar */}
+      <AnimatePresence>
+        {isEditMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-white rounded-2xl shadow-2xl border border-slate-200 px-6 py-3 flex items-center gap-4"
+          >
+            <div className="flex items-center gap-2 text-indigo-600">
+              <Edit3 className="w-5 h-5" />
+              <span className="font-semibold">Edit Mode</span>
+            </div>
+            <div className="w-px h-6 bg-slate-200" />
+            <p className="text-sm text-slate-500">Click eye to show/hide cards</p>
+            <div className="w-px h-6 bg-slate-200" />
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset
+            </button>
+            <button
+              onClick={handleCancel}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg transition-colors',
+                hasChanges
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              )}
+            >
+              <Save className="w-4 h-4" />
+              Save
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -222,41 +345,112 @@ export default function SecurityDashboard() {
       <main className="max-w-7xl mx-auto p-4 space-y-4">
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                <Users className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{activeVisitors.length}</p>
-                <p className="text-xs text-slate-500">Visitors Inside</p>
-              </div>
-            </div>
-          </div>
+          <AnimatePresence>
+            {(isCardVisible('visitorsInside') || isEditMode) && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={cn(
+                  "bg-white rounded-xl p-4 border border-slate-200 shadow-sm relative",
+                  isEditMode && "ring-2 ring-indigo-400 ring-offset-2",
+                  isEditMode && !getCardConfig('visitorsInside')?.visible && "opacity-40"
+                )}
+              >
+                {isEditMode && (
+                  <button
+                    onClick={() => handleCardVisibilityToggle('visitorsInside')}
+                    className={cn(
+                      'absolute -top-2 -right-2 p-1.5 rounded-full shadow-lg text-white text-xs z-10',
+                      getCardConfig('visitorsInside')?.visible ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-400 hover:bg-slate-500'
+                    )}
+                  >
+                    {getCardConfig('visitorsInside')?.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900">{activeVisitors.length}</p>
+                    <p className="text-xs text-slate-500">Visitors Inside</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           
-          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Car className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{activeVehicles.length}</p>
-                <p className="text-xs text-slate-500">Vehicles Inside</p>
-              </div>
-            </div>
-          </div>
+          <AnimatePresence>
+            {(isCardVisible('vehiclesInside') || isEditMode) && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.05 }}
+                className={cn(
+                  "bg-white rounded-xl p-4 border border-slate-200 shadow-sm relative",
+                  isEditMode && "ring-2 ring-indigo-400 ring-offset-2",
+                  isEditMode && !getCardConfig('vehiclesInside')?.visible && "opacity-40"
+                )}
+              >
+                {isEditMode && (
+                  <button
+                    onClick={() => handleCardVisibilityToggle('vehiclesInside')}
+                    className={cn(
+                      'absolute -top-2 -right-2 p-1.5 rounded-full shadow-lg text-white text-xs z-10',
+                      getCardConfig('vehiclesInside')?.visible ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-400 hover:bg-slate-500'
+                    )}
+                  >
+                    {getCardConfig('vehiclesInside')?.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <Car className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900">{activeVehicles.length}</p>
+                    <p className="text-xs text-slate-500">Vehicles Inside</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           
-          <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                <HardHat className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-900">{activeWorkers.length}</p>
-                <p className="text-xs text-slate-500">Active Workers</p>
-              </div>
-            </div>
-          </div>
+          <AnimatePresence>
+            {(isCardVisible('activeWorkers') || isEditMode) && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1 }}
+                className={cn(
+                  "bg-white rounded-xl p-4 border border-slate-200 shadow-sm relative",
+                  isEditMode && "ring-2 ring-indigo-400 ring-offset-2",
+                  isEditMode && !getCardConfig('activeWorkers')?.visible && "opacity-40"
+                )}
+              >
+                {isEditMode && (
+                  <button
+                    onClick={() => handleCardVisibilityToggle('activeWorkers')}
+                    className={cn(
+                      'absolute -top-2 -right-2 p-1.5 rounded-full shadow-lg text-white text-xs z-10',
+                      getCardConfig('activeWorkers')?.visible ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-400 hover:bg-slate-500'
+                    )}
+                  >
+                    {getCardConfig('activeWorkers')?.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <HardHat className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900">{activeWorkers.length}</p>
+                    <p className="text-xs text-slate-500">Active Workers</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Info Banner */}
@@ -425,6 +619,26 @@ export default function SecurityDashboard() {
           </div>
         </div>
       </main>
+
+      {/* Floating Customize Button */}
+      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+        <AnimatePresence>
+          {!isEditMode && (
+            <motion.button
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsEditMode(true)}
+              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <Edit3 className="w-5 h-5" />
+              <span className="font-medium text-sm">Edit Layout</span>
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Gate QR Code Modal */}
       {showQRModal && (

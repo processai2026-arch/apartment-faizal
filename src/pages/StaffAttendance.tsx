@@ -1,9 +1,12 @@
-import { useState } from 'react';
-import { Download, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Download, Check, Eye, EyeOff, Edit3, Save, RotateCcw, X } from 'lucide-react';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useAppStore } from '@/stores/useAppStore';
+import { useUISettingsStore } from '@/stores/useUISettingsStore';
 import type { Staff } from '@/types';
+import type { CardConfig } from '@/types/uiSettings';
 import { toast } from 'sonner';
-import StatusBadge from '@/components/features/StatusBadge';
+import { cn } from '@/lib/utils';
 
 type AttStatus = 'P' | 'A' | 'H';
 const statusLabels = { P: 'Present', A: 'Absent', H: 'Half-Day' };
@@ -15,6 +18,7 @@ const statusColors = {
 
 export default function StaffAttendance() {
   const { staff, updateStaffAttendance } = useAppStore();
+  const { settings, updateCardOrder, resetPageSettings } = useUISettingsStore();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendance, setAttendance] = useState<Record<string, AttStatus>>(() => {
     const init: Record<string, AttStatus> = {};
@@ -24,6 +28,81 @@ export default function StaffAttendance() {
     });
     return init;
   });
+
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [localCards, setLocalCards] = useState<CardConfig[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const pageSettings = settings.staffAttendance || { cards: [], columns: [], buttons: [], sections: [] };
+
+  // Default cards if none configured
+  const defaultCards: CardConfig[] = [
+    { id: 'presentToday', title: 'Present', visible: true, order: 0, size: 'small', collapsed: false },
+    { id: 'absentToday', title: 'Absent', visible: true, order: 1, size: 'small', collapsed: false },
+    { id: 'halfDay', title: 'Half-Day', visible: true, order: 2, size: 'small', collapsed: false },
+  ];
+
+  // Initialize local cards when entering edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      const cards = pageSettings.cards.length > 0 
+        ? [...pageSettings.cards].sort((a, b) => a.order - b.order)
+        : defaultCards;
+      setLocalCards(cards);
+      setHasChanges(false);
+    }
+  }, [isEditMode, pageSettings.cards]);
+
+  // Card visibility helper
+  const isCardVisible = (cardId: string) => {
+    if (isEditMode) {
+      return localCards.find(c => c.id === cardId)?.visible ?? true;
+    }
+    if (pageSettings.cards.length === 0) return true;
+    const card = pageSettings.cards.find(c => c.id === cardId);
+    return card ? card.visible : true;
+  };
+
+  // Handle card visibility toggle
+  const handleCardVisibilityToggle = (cardId: string) => {
+    setLocalCards(prev => prev.map(card => 
+      card.id === cardId ? { ...card, visible: !card.visible } : card
+    ));
+    setHasChanges(true);
+  };
+
+  // Handle card reorder
+  const handleCardReorder = (newOrder: CardConfig[]) => {
+    const updatedCards = newOrder.map((card, index) => ({
+      ...card,
+      order: index,
+    }));
+    setLocalCards(updatedCards);
+    setHasChanges(true);
+  };
+
+  // Save changes
+  const handleSave = () => {
+    updateCardOrder('staffAttendance', localCards);
+    setIsEditMode(false);
+    setHasChanges(false);
+    toast.success('Layout settings saved!');
+  };
+
+  // Cancel edit mode
+  const handleCancel = () => {
+    setIsEditMode(false);
+    setHasChanges(false);
+  };
+
+  // Reset to default
+  const handleReset = () => {
+    resetPageSettings('staffAttendance');
+    setLocalCards(defaultCards);
+    setHasChanges(true);
+    toast.success('Reset to default layout');
+  };
 
   const handleChange = (staffId: string, status: AttStatus) => {
     setAttendance(prev => ({ ...prev, [staffId]: status }));
@@ -40,8 +119,68 @@ export default function StaffAttendance() {
   const absentCount = Object.values(attendance).filter(s => s === 'A').length;
   const halfCount = Object.values(attendance).filter(s => s === 'H').length;
 
+  // Get ordered cards for display
+  const orderedCards = isEditMode 
+    ? localCards 
+    : (pageSettings.cards.length > 0 
+        ? [...pageSettings.cards].sort((a, b) => a.order - b.order)
+        : defaultCards);
+
+  const cardData: Record<string, { count: number; cls: string }> = {
+    presentToday: { count: presentCount, cls: 'text-green-600 bg-green-50' },
+    absentToday: { count: absentCount, cls: 'text-red-600 bg-red-50' },
+    halfDay: { count: halfCount, cls: 'text-amber-600 bg-amber-50' },
+  };
+
   return (
     <div className="space-y-6">
+      {/* Edit Mode Toolbar */}
+      <AnimatePresence>
+        {isEditMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white rounded-2xl shadow-2xl border border-slate-200 px-6 py-3 flex items-center gap-4"
+          >
+            <div className="flex items-center gap-2 text-indigo-600">
+              <Edit3 className="w-5 h-5" />
+              <span className="font-semibold">Edit Layout</span>
+            </div>
+            <div className="w-px h-6 bg-slate-200" />
+            <p className="text-sm text-slate-500">Drag to reorder • Click eye to show/hide</p>
+            <div className="w-px h-6 bg-slate-200" />
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset
+            </button>
+            <button
+              onClick={handleCancel}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg transition-colors',
+                hasChanges
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              )}
+            >
+              <Save className="w-4 h-4" />
+              Save
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
@@ -53,16 +192,67 @@ export default function StaffAttendance() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        {[['Present', presentCount, 'text-green-600 bg-green-50'], ['Absent', absentCount, 'text-red-600 bg-red-50'], ['Half-Day', halfCount, 'text-amber-600 bg-amber-50']].map(([label, count, cls]) => (
-          <div key={String(label)} className={`rounded-2xl p-4 ${String(cls).split(' ').slice(1).join(' ')} border border-current/10 text-center`}>
-            <p className={`text-3xl font-bold font-[Outfit] ${String(cls).split(' ')[0]}`}>{count}</p>
-            <p className={`text-sm font-medium ${String(cls).split(' ')[0]}`}>{label}</p>
-          </div>
-        ))}
-      </div>
+      {/* Stat Cards with Edit Mode */}
+      {isEditMode ? (
+        <Reorder.Group
+          axis="x"
+          values={localCards}
+          onReorder={handleCardReorder}
+          className="grid grid-cols-3 gap-4"
+        >
+          {localCards.map((card) => {
+            const data = cardData[card.id];
+            return (
+              <Reorder.Item
+                key={card.id}
+                value={card}
+                className={cn(
+                  'relative rounded-2xl p-4 border text-center cursor-grab active:cursor-grabbing',
+                  card.visible ? data?.cls.split(' ').slice(1).join(' ') + ' border-current/10' : 'bg-slate-100 border-slate-200 opacity-50'
+                )}
+                whileDrag={{ scale: 1.02, zIndex: 50 }}
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardVisibilityToggle(card.id);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className={cn(
+                    'absolute -top-2 -right-2 p-1.5 rounded-full shadow-lg text-white z-10',
+                    card.visible ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-400 hover:bg-slate-500'
+                  )}
+                >
+                  {card.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                </button>
+                <p className={cn('text-3xl font-bold font-[Outfit]', card.visible ? data?.cls.split(' ')[0] : 'text-slate-400')}>
+                  {data?.count ?? 0}
+                </p>
+                <p className={cn('text-sm font-medium', card.visible ? data?.cls.split(' ')[0] : 'text-slate-400')}>
+                  {card.title}
+                </p>
+              </Reorder.Item>
+            );
+          })}
+        </Reorder.Group>
+      ) : (
+        <div className="grid grid-cols-3 gap-4">
+          {orderedCards.filter(card => isCardVisible(card.id)).map((card) => {
+            const data = cardData[card.id];
+            return (
+              <div key={card.id} className={`rounded-2xl p-4 ${data?.cls.split(' ').slice(1).join(' ')} border border-current/10 text-center`}>
+                <p className={`text-3xl font-bold font-[Outfit] ${data?.cls.split(' ')[0]}`}>{data?.count ?? 0}</p>
+                <p className={`text-sm font-medium ${data?.cls.split(' ')[0]}`}>{card.title}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className={cn(
+        "bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden",
+        isEditMode && "ring-2 ring-indigo-400 ring-offset-2"
+      )}>
         <div className="p-4 border-b border-slate-100">
           <h3 className="text-base font-semibold font-[Outfit]">Mark Attendance — {selectedDate}</h3>
         </div>
@@ -79,7 +269,7 @@ export default function StaffAttendance() {
               <div className="flex items-center gap-2">
                 {(['P', 'A', 'H'] as AttStatus[]).map(status => (
                   <button key={status} onClick={() => handleChange(s.id, status)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${attendance[s.id] === status ? statusColors[status] + ' ring-2 ring-offset-1 ring-current' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${attendance[s.id] === status ? statusColors[status] : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                     {statusLabels[status]}
                   </button>
                 ))}
@@ -87,11 +277,32 @@ export default function StaffAttendance() {
             </div>
           ))}
         </div>
-        <div className="p-4 border-t border-slate-100">
-          <button onClick={handleSubmit} className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors">
+        <div className="p-4 border-t border-slate-100 flex justify-end">
+          <button onClick={handleSubmit}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors">
             <Check className="w-4 h-4" /> Submit Attendance
           </button>
         </div>
+      </div>
+
+      {/* Floating Edit Button */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <AnimatePresence>
+          {!isEditMode && (
+            <motion.button
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsEditMode(true)}
+              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <Edit3 className="w-5 h-5" />
+              <span className="font-medium text-sm">Edit Layout</span>
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -1,7 +1,12 @@
-import { useState } from 'react';
-import { Search, ChevronLeft, ChevronRight, LogOut, Home } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, ChevronLeft, ChevronRight, LogOut, Home, Eye, EyeOff, Edit3, Save, RotateCcw, X } from 'lucide-react';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useAppStore } from '@/stores/useAppStore';
+import { useUISettingsStore } from '@/stores/useUISettingsStore';
+import UICustomizer from '@/components/features/UICustomizer';
+import type { ColumnConfig } from '@/types/uiSettings';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString('en-US', {
@@ -17,9 +22,78 @@ function formatDateTime(iso: string) {
 
 export default function CheckOutVisitors() {
   const { visitors, checkOutVisitor } = useAppStore();
+  const { settings, getVisibleColumns, updateColumnOrder, resetPageSettings } = useUISettingsStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [localColumns, setLocalColumns] = useState<ColumnConfig[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const pageSettings = settings.checkOutVisitors;
+
+  // Initialize local columns when entering edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      setLocalColumns([...pageSettings.columns].sort((a, b) => a.order - b.order));
+      setHasChanges(false);
+    }
+  }, [isEditMode, pageSettings.columns]);
+
+  const visibleColumns = isEditMode 
+    ? localColumns 
+    : getVisibleColumns('checkOutVisitors');
+
+  // Column visibility helper
+  const isColumnVisible = (columnId: string) => {
+    if (isEditMode) {
+      return localColumns.find(c => c.id === columnId)?.visible ?? false;
+    }
+    return visibleColumns.some(c => c.id === columnId);
+  };
+
+  // Handle column visibility toggle
+  const handleColumnVisibilityToggle = (columnId: string) => {
+    setLocalColumns(prev => prev.map(col => 
+      col.id === columnId ? { ...col, visible: !col.visible } : col
+    ));
+    setHasChanges(true);
+  };
+
+  // Handle column reorder
+  const handleColumnReorder = (newOrder: ColumnConfig[]) => {
+    const updatedColumns = newOrder.map((col, index) => ({
+      ...col,
+      order: index,
+    }));
+    setLocalColumns(updatedColumns);
+    setHasChanges(true);
+  };
+
+  // Save changes
+  const handleSave = () => {
+    updateColumnOrder('checkOutVisitors', localColumns);
+    setIsEditMode(false);
+    setHasChanges(false);
+    toast.success('Column settings saved!');
+  };
+
+  // Cancel edit mode
+  const handleCancel = () => {
+    setIsEditMode(false);
+    setHasChanges(false);
+  };
+
+  // Reset to default
+  const handleReset = () => {
+    resetPageSettings('checkOutVisitors');
+    setLocalColumns([...settings.checkOutVisitors.columns].sort((a, b) => a.order - b.order));
+    setHasChanges(true);
+    toast.success('Reset to default layout');
+  };
 
   // Filter visitors that are currently inside
   const insideVisitors = visitors.filter(v => v.status === 'Inside');
@@ -47,8 +121,116 @@ export default function CheckOutVisitors() {
     toast.success(`${name} checked out successfully`);
   };
 
+  // Get display columns (sorted)
+  const displayColumns = isEditMode 
+    ? localColumns 
+    : [...pageSettings.columns].sort((a, b) => a.order - b.order).filter(c => c.visible);
+
   return (
     <div className="space-y-4">
+      {/* Edit Mode Toolbar */}
+      <AnimatePresence>
+        {isEditMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white rounded-2xl shadow-2xl border border-slate-200 px-6 py-3 flex items-center gap-4"
+          >
+            <div className="flex items-center gap-2 text-indigo-600">
+              <Edit3 className="w-5 h-5" />
+              <span className="font-semibold">Edit Columns</span>
+            </div>
+            <div className="w-px h-6 bg-slate-200" />
+            <p className="text-sm text-slate-500">Drag to reorder • Click eye to show/hide</p>
+            <div className="w-px h-6 bg-slate-200" />
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset
+            </button>
+            <button
+              onClick={handleCancel}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg transition-colors',
+                hasChanges
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              )}
+            >
+              <Save className="w-4 h-4" />
+              Save
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Column Editor Panel (shown in edit mode) */}
+      <AnimatePresence>
+        {isEditMode && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4"
+          >
+            <p className="text-sm font-medium text-indigo-700 mb-3">Drag to reorder columns, click eye to show/hide:</p>
+            <Reorder.Group
+              axis="x"
+              values={localColumns}
+              onReorder={handleColumnReorder}
+              className="flex flex-wrap gap-2"
+            >
+              {localColumns.map((col) => (
+                <Reorder.Item
+                  key={col.id}
+                  value={col}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg cursor-grab active:cursor-grabbing select-none transition-all',
+                    col.visible 
+                      ? 'bg-white border border-indigo-300 shadow-sm' 
+                      : 'bg-slate-100 border border-slate-200 opacity-60'
+                  )}
+                  whileDrag={{ scale: 1.05, zIndex: 50 }}
+                >
+                  <span className={cn(
+                    'text-sm font-medium',
+                    col.visible ? 'text-slate-700' : 'text-slate-400'
+                  )}>
+                    {col.label}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleColumnVisibilityToggle(col.id);
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className={cn(
+                      'p-1 rounded transition-colors',
+                      col.visible 
+                        ? 'text-green-600 hover:bg-green-100' 
+                        : 'text-slate-400 hover:bg-slate-200'
+                    )}
+                  >
+                    {col.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
+                </Reorder.Item>
+              ))}
+            </Reorder.Group>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Breadcrumb */}
       <div className="flex items-center justify-between">
         <div>
@@ -63,7 +245,14 @@ export default function CheckOutVisitors() {
       </div>
 
       {/* Main Card */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          "bg-white rounded-lg border border-slate-200 shadow-sm",
+          isEditMode && "ring-2 ring-indigo-400 ring-offset-2"
+        )}
+      >
         {/* Card Header */}
         <div className="px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-medium text-slate-700">Displaying Visitor's Entry</h2>
@@ -107,94 +296,78 @@ export default function CheckOutVisitors() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">
-                    #
-                    <span className="text-slate-400 text-xs">↕</span>
-                  </div>
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">
-                    Visitor's Name
-                    <span className="text-slate-400 text-xs">↕</span>
-                  </div>
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">
-                    Contact
-                    <span className="text-slate-400 text-xs">↕</span>
-                  </div>
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">
-                    Gender
-                    <span className="text-slate-400 text-xs">↕</span>
-                  </div>
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">
-                    Blook
-                    <span className="text-slate-400 text-xs">↕</span>
-                  </div>
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">
-                    Floor
-                    <span className="text-slate-400 text-xs">↕</span>
-                  </div>
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">
-                    To Visit
-                    <span className="text-slate-400 text-xs">↕</span>
-                  </div>
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">
-                    Entry Time
-                    <span className="text-slate-400 text-xs">↕</span>
-                  </div>
-                </th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">
-                    Action
-                    <span className="text-slate-400 text-xs">↕</span>
-                  </div>
-                </th>
+                {displayColumns.map((col) => (
+                  <th 
+                    key={col.id} 
+                    className={cn(
+                      "text-left px-4 py-3 font-semibold text-slate-700",
+                      isEditMode && !col.visible && "opacity-40"
+                    )}
+                  >
+                    <div className="flex items-center gap-1">
+                      {col.label}
+                      <span className="text-slate-400 text-xs">↕</span>
+                    </div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={displayColumns.length || 5} className="px-4 py-8 text-center text-slate-400">
                     No visitors currently inside
                   </td>
                 </tr>
               ) : (
                 paginatedData.map((visitor, idx) => (
-                  <tr key={visitor.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 text-slate-600">{startIndex + idx + 1}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-indigo-600 hover:underline cursor-pointer">
-                        {visitor.name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{visitor.phone}</td>
-                    <td className="px-4 py-3 text-slate-600">{visitor.gender || 'N/A'}</td>
-                    <td className="px-4 py-3 text-slate-600">{visitor.block || 'N/A'}</td>
-                    <td className="px-4 py-3 text-slate-600">{visitor.floorNumber || 'N/A'}</td>
-                    <td className="px-4 py-3 text-slate-600">{visitor.whomToMeet || 'N/A'}</td>
-                    <td className="px-4 py-3 text-slate-600">{formatDateTime(visitor.entryTime)}</td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => handleCheckout(visitor.id, visitor.name)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600 transition-colors"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Update
-                      </button>
-                    </td>
-                  </tr>
+                  <motion.tr 
+                    key={visitor.id} 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: idx * 0.02 }}
+                    className="hover:bg-slate-50/50 transition-colors"
+                  >
+                    {displayColumns.map((col) => {
+                      if (!col.visible && !isEditMode) return null;
+                      
+                      const cellClass = cn(
+                        "px-4 py-3",
+                        isEditMode && !col.visible && "opacity-40"
+                      );
+                      
+                      switch (col.id) {
+                        case 'visitor':
+                          return (
+                            <td key={col.id} className={cellClass}>
+                              <span className="text-indigo-600 hover:underline cursor-pointer font-medium">
+                                {visitor.name}
+                              </span>
+                            </td>
+                          );
+                        case 'phone':
+                          return <td key={col.id} className={cn(cellClass, "text-slate-600")}>{visitor.phone}</td>;
+                        case 'office':
+                          return <td key={col.id} className={cn(cellClass, "text-slate-600")}>{visitor.block || 'N/A'} - Floor {visitor.floorNumber || 'N/A'}</td>;
+                        case 'entryTime':
+                          return <td key={col.id} className={cn(cellClass, "text-slate-600")}>{formatDateTime(visitor.entryTime)}</td>;
+                        case 'action':
+                          return (
+                            <td key={col.id} className={cellClass}>
+                              <button
+                                onClick={() => handleCheckout(visitor.id, visitor.name)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600 transition-colors"
+                              >
+                                <LogOut className="w-4 h-4" />
+                                Check Out
+                              </button>
+                            </td>
+                          );
+                        default:
+                          return null;
+                      }
+                    })}
+                  </motion.tr>
                 ))
               )}
             </tbody>
@@ -248,7 +421,50 @@ export default function CheckOutVisitors() {
             </button>
           </div>
         </div>
+      </motion.div>
+
+      {/* Floating Customize Buttons */}
+      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+        <AnimatePresence>
+          {!isEditMode && (
+            <>
+              <motion.button
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsEditMode(true)}
+                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
+              >
+                <Edit3 className="w-5 h-5" />
+                <span className="font-medium text-sm">Edit Columns</span>
+              </motion.button>
+              <motion.button
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ delay: 0.05 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsCustomizerOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+              >
+                <Eye className="w-4 h-4" />
+                <span className="font-medium text-sm">Advanced</span>
+              </motion.button>
+            </>
+          )}
+        </AnimatePresence>
       </div>
+
+      {/* Customizer Modal */}
+      <UICustomizer
+        page="checkOutVisitors"
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+        pageTitle="Check Out Visitors"
+      />
     </div>
   );
 }

@@ -34,13 +34,13 @@ export default function Reports() {
   const renderRow = (item: Record<string, unknown>, idx: number) => {
     switch (reportType) {
       case 'Visitor Summary': {
-        const v = item as { id?: string; name?: string; phone?: string; apartmentNo?: string; purpose?: string; status?: string; category?: string };
+        const v = item as { id?: string; name?: string; phone?: string; apartmentNo?: string; companyName?: string; officeNo?: string; purpose?: string; reason?: string; status?: string; category?: string };
         return (
           <tr key={idx} className="hover:bg-slate-50/50 divide-x divide-slate-50">
             <td className="px-4 py-3 font-medium text-slate-900">{v.name}</td>
             <td className="px-4 py-3 text-slate-500">{v.phone}</td>
-            <td className="px-4 py-3 text-slate-700">{v.apartmentNo}</td>
-            <td className="px-4 py-3 text-slate-500">{v.purpose}</td>
+            <td className="px-4 py-3 text-slate-700">{v.companyName || v.officeNo || v.apartmentNo || '—'}</td>
+            <td className="px-4 py-3 text-slate-500">{v.reason || v.purpose || '—'}</td>
             <td className="px-4 py-3"><StatusBadge status={v.status || ''} /></td>
           </tr>
         );
@@ -153,7 +153,7 @@ export default function Reports() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {(data as Record<string, unknown>[]).map((item, idx) => renderRow(item, idx))}
+              {(data as unknown as Record<string, unknown>[]).map((item, idx) => renderRow(item, idx))}
             </tbody>
           </table>
         </div>
