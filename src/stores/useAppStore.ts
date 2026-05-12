@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { mockVisitors, mockVehicles, mockOffices, mockVendors, mockStaff, mockInventory, mockUtilityTasks, mockComplaints, mockDailyWorkers, mockEmergencyContacts, type EmergencyContact } from '@/data/mockData';
-import type { Visitor, Vehicle, Office, Vendor, Staff, InventoryItem, UtilityTask, Complaint, DailyWorker } from '@/types';
+import { mockVisitors, mockVehicles, mockOffices, mockVendors, mockStaff, mockInventory, mockUtilityTasks, mockComplaints, mockDailyWorkers, mockEmergencyContacts, mockApartments, type EmergencyContact } from '@/data/mockData';
+import type { Visitor, Vehicle, Office, Vendor, Staff, InventoryItem, UtilityTask, Complaint, DailyWorker, Apartment } from '@/types';
 
 interface AppState {
   sidebarCollapsed: boolean;
@@ -14,6 +14,7 @@ interface AppState {
   complaints: Complaint[];
   dailyWorkers: DailyWorker[];
   emergencyContacts: EmergencyContact[];
+  apartments: Apartment[];
 
   toggleSidebar: () => void;
   addVisitor: (visitor: Visitor) => void;
@@ -29,6 +30,8 @@ interface AppState {
   addUtilityTask: (task: UtilityTask) => void;
   markUtilityDone: (id: string) => void;
   addComplaint: (complaint: Complaint) => void;
+  markPaymentPaid: (id: string) => void;
+  addApartment: (apartment: Apartment) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -43,6 +46,7 @@ export const useAppStore = create<AppState>((set) => ({
   complaints: mockComplaints,
   dailyWorkers: mockDailyWorkers,
   emergencyContacts: mockEmergencyContacts,
+  apartments: mockApartments,
 
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
@@ -98,6 +102,14 @@ export const useAppStore = create<AppState>((set) => ({
   })),
 
   addComplaint: (complaint) => set((state) => ({ complaints: [complaint, ...state.complaints] })),
+
+  markPaymentPaid: (id) => set((state) => ({
+    apartments: state.apartments.map(a =>
+      a.id === id ? { ...a, paymentStatus: 'Paid' as const, lastPaid: new Date().toISOString().split('T')[0] } : a
+    )
+  })),
+
+  addApartment: (apartment) => set((state) => ({ apartments: [apartment, ...state.apartments] })),
 }));
 
 function calculateDuration(entryTime: string, exitTime: string): string {

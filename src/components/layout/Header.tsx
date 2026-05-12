@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Search, Menu, LogOut, User, Settings, ChevronDown } from 'lucide-react';
+import { Bell, Search, Menu, LogOut, User, Key, Power, ChevronDown, Settings } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -20,6 +20,8 @@ const pageTitles: Record<string, string> = {
   '/financials': 'Financial Tracking',
   '/reports': 'Reports & Analytics',
   '/qr-codes': 'QR Codes & Gates',
+  '/profile': 'My Profile',
+  '/change-password': 'Change Password',
 };
 
 export default function Header() {
@@ -86,16 +88,12 @@ export default function Header() {
         <div className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/25"
           >
-            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold border-2 border-white/20">
+              {user?.name?.charAt(0).toUpperCase() || 'A'}
             </div>
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-medium text-slate-900">{user?.name || 'User'}</p>
-              <p className="text-xs text-slate-500 capitalize">{user?.role || 'Guest'}</p>
-            </div>
-            <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
+            <span className="text-white text-sm font-medium hidden md:block">{user?.name || 'Admin User'}</span>
           </button>
 
           {/* Dropdown Menu */}
@@ -105,50 +103,57 @@ export default function Header() {
                 className="fixed inset-0 z-10" 
                 onClick={() => setShowUserMenu(false)}
               />
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-20">
-                {/* User Info */}
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <p className="text-sm font-medium text-slate-900">{user?.name}</p>
-                  <p className="text-xs text-slate-500">{user?.email}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="px-2 py-0.5 rounded text-xs font-medium capitalize bg-indigo-100 text-indigo-700">
-                      {user?.role}
-                    </span>
+              <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl shadow-2xl z-20 overflow-hidden border border-white/10"
+                style={{
+                  background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #312E81 100%)',
+                  backdropFilter: 'blur(16px)',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.4), 0 0 20px rgba(99,102,241,0.15)'
+                }}
+              >
+                {/* User Info Header */}
+                <div className="px-4 py-5 text-center border-b border-white/10">
+                  <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center overflow-hidden shadow-lg border-3 border-indigo-400/30"
+                    style={{
+                      background: 'linear-gradient(135deg, #7C3AED 0%, #9333EA 50%, #A855F7 100%)',
+                      boxShadow: '0 0 20px rgba(139,92,246,0.4)'
+                    }}
+                  >
+                    <User className="w-8 h-8 text-white" />
                   </div>
+                  <p className="text-white font-semibold text-sm">
+                    {user?.name || 'Admin User'} - {user?.role === 'admin' ? 'Web Developer' : user?.role}
+                  </p>
+                  <p className="text-indigo-300/70 text-xs mt-1">
+                    Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'January 2024'}
+                  </p>
                 </div>
 
                 {/* Menu Items */}
-                <div className="py-1">
+                <div className="flex items-center gap-3 p-4">
                   <button
                     onClick={() => {
                       setShowUserMenu(false);
-                      // Navigate to profile
+                      navigate('/profile');
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="flex-1 py-2.5 px-4 bg-white/10 text-white text-sm font-medium rounded-lg hover:bg-white/20 transition-all border border-white/10 backdrop-blur-sm text-center whitespace-nowrap"
                   >
-                    <User className="w-4 h-4 text-slate-400" />
-                    My Profile
+                    Profile
                   </button>
                   <button
                     onClick={() => {
                       setShowUserMenu(false);
-                      // Navigate to settings
+                      navigate('/change-password');
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="flex-1 py-2.5 px-4 bg-white/10 text-white text-sm font-medium rounded-lg hover:bg-white/20 transition-all border border-white/10 backdrop-blur-sm text-center whitespace-nowrap"
                   >
-                    <Settings className="w-4 h-4 text-slate-400" />
-                    Settings
+                    Change Password
                   </button>
-                </div>
-
-                {/* Logout */}
-                <div className="border-t border-slate-100 pt-1">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-red-500/80 text-white rounded-lg hover:bg-red-500 transition-all shadow-lg shadow-red-500/25"
+                    title="Logout"
                   >
-                    <LogOut className="w-4 h-4" />
-                    Sign Out
+                    <Power className="w-4 h-4" />
                   </button>
                 </div>
               </div>

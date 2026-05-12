@@ -1,21 +1,59 @@
 import { useState } from 'react';
-import { CheckCircle, Download } from 'lucide-react';
+import { CheckCircle, Download, Plus, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import StatusBadge from '@/components/features/StatusBadge';
 import { useAppStore } from '@/stores/useAppStore';
 import { financialTrendData } from '@/data/mockData';
 import { toast } from 'sonner';
+import type { Apartment } from '@/types';
 
 export default function FinancialTracking() {
-  const { apartments, markPaymentPaid } = useAppStore();
+  const { apartments, markPaymentPaid, addApartment } = useAppStore();
   const [filterStatus, setFilterStatus] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('2026-05');
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({
+    unitNo: '',
+    residentName: '',
+    monthlyCharge: 50000,
+    paymentStatus: 'Pending' as 'Paid' | 'Pending' | 'Overdue',
+  });
 
   const filtered = apartments.filter(a => !filterStatus || a.paymentStatus === filterStatus);
 
   const totalCollected = apartments.filter(a => a.paymentStatus === 'Paid').reduce((s, a) => s + (a.monthlyCharge || 0), 0);
   const totalPending = apartments.filter(a => a.paymentStatus === 'Pending').reduce((s, a) => s + (a.monthlyCharge || 0), 0);
   const overdueCount = apartments.filter(a => a.paymentStatus === 'Overdue').length;
+
+  const handleAdd = () => {
+    if (!form.unitNo) {
+      toast.error('Please enter unit number');
+      return;
+    }
+    
+    const newApartment: Apartment = {
+      id: `APT${Date.now()}`,
+      unitNo: form.unitNo,
+      floor: 1,
+      block: 'A',
+      type: 'Office',
+      status: 'Occupied',
+      residentName: form.residentName || undefined,
+      monthlyCharge: form.monthlyCharge,
+      paymentStatus: form.paymentStatus,
+      lastPaid: form.paymentStatus === 'Paid' ? new Date().toISOString().split('T')[0] : undefined,
+    };
+    
+    addApartment(newApartment);
+    toast.success('Payment record added successfully');
+    setShowModal(false);
+    setForm({
+      unitNo: '',
+      residentName: '',
+      monthlyCharge: 50000,
+      paymentStatus: 'Pending',
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -68,10 +106,16 @@ export default function FinancialTracking() {
               <option value="Overdue">Overdue</option>
             </select>
           </div>
-          <button onClick={() => toast.info('Export coming soon')}
-            className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50">
-            <Download className="w-4 h-4" /> Export
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors">
+              <Plus className="w-4 h-4" /> Add Record
+            </button>
+            <button onClick={() => toast.info('Export coming soon')}
+              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50">
+              <Download className="w-4 h-4" /> Export
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -104,6 +148,71 @@ export default function FinancialTracking() {
           </table>
         </div>
       </div>
+
+      {/* Add Record Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold font-[Outfit]">Add Payment Record</h3>
+              <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Unit Number *</label>
+                <input
+                  value={form.unitNo}
+                  onChange={e => setForm(f => ({ ...f, unitNo: e.target.value }))}
+                  placeholder="e.g., A-101, 7th FLOOR-M2K"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Resident/Company Name</label>
+                <input
+                  value={form.residentName}
+                  onChange={e => setForm(f => ({ ...f, residentName: e.target.value }))}
+                  placeholder="e.g., M2K ADVISORS"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Monthly Charge (₹)</label>
+                  <input
+                    type="number"
+                    value={form.monthlyCharge}
+                    onChange={e => setForm(f => ({ ...f, monthlyCharge: Number(e.target.value) }))}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Payment Status</label>
+                  <select
+                    value={form.paymentStatus}
+                    onChange={e => setForm(f => ({ ...f, paymentStatus: e.target.value as 'Paid' | 'Pending' | 'Overdue' }))}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Overdue">Overdue</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">
+                Cancel
+              </button>
+              <button onClick={handleAdd} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+                Add Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

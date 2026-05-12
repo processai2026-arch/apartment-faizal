@@ -1,19 +1,46 @@
-import { Clock, LogOut } from 'lucide-react';
-import StatusBadge from '@/components/features/StatusBadge';
+import { useState } from 'react';
+import { Search, ChevronLeft, ChevronRight, LogOut, Home } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { toast } from 'sonner';
 
-function timeSince(iso: string) {
-  const ms = Date.now() - new Date(iso).getTime();
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).replace(',', '');
 }
 
 export default function CheckOutVisitors() {
   const { visitors, checkOutVisitor } = useAppStore();
-  const inside = visitors.filter(v => v.status === 'Inside');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Filter visitors that are currently inside
+  const insideVisitors = visitors.filter(v => v.status === 'Inside');
+
+  // Filter based on search
+  const filtered = insideVisitors.filter(v => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      v.name.toLowerCase().includes(query) ||
+      v.phone.toLowerCase().includes(query) ||
+      v.block?.toLowerCase().includes(query) ||
+      v.floorNumber?.toLowerCase().includes(query) ||
+      v.whomToMeet?.toLowerCase().includes(query)
+    );
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedData = filtered.slice(startIndex, startIndex + pageSize);
 
   const handleCheckout = (id: string, name: string) => {
     checkOutVisitor(id);
@@ -21,61 +48,207 @@ export default function CheckOutVisitors() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-amber-600" />
-          <span className="text-amber-700 font-semibold text-sm">{inside.length} visitors currently inside</span>
+    <div className="space-y-4">
+      {/* Breadcrumb */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-800">Check Out Visitors</h1>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Home className="w-4 h-4" />
+          <span>Home</span>
+          <span>›</span>
+          <span className="text-indigo-600">Visitors</span>
         </div>
       </div>
 
-      {inside.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-16 text-center">
-          <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <LogOut className="w-7 h-7 text-green-500" />
-          </div>
-          <h3 className="text-lg font-semibold font-[Outfit] text-slate-700 mb-2">All clear!</h3>
-          <p className="text-slate-400 text-sm">No visitors currently inside the premises.</p>
+      {/* Main Card */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+        {/* Card Header */}
+        <div className="px-6 py-4 border-b border-slate-200">
+          <h2 className="text-lg font-medium text-slate-700">Displaying Visitor's Entry</h2>
         </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100">
-            <p className="text-sm text-slate-500">Click "Check Out" to log visitor exit and close their session.</p>
+
+        {/* Table Controls */}
+        <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">Show</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span className="text-sm text-slate-600">entries</span>
           </div>
-          <div className="divide-y divide-slate-50">
-            {inside.map(v => (
-              <div key={v.id} className="flex items-center justify-between p-4 hover:bg-slate-50/50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-sm flex-shrink-0">
-                    {v.name[0]}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900 text-sm">{v.name}</p>
-                    <p className="text-xs text-slate-500">{v.phone} • {v.purpose}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-sm font-medium text-slate-900">{v.apartmentNo}</p>
-                    <p className="text-xs text-slate-400">Apt No.</p>
-                  </div>
-                  <div className="text-right hidden md:block">
-                    <p className="text-sm font-medium text-amber-600">{timeSince(v.entryTime)}</p>
-                    <p className="text-xs text-slate-400">Duration</p>
-                  </div>
-                  <StatusBadge status={v.status} />
-                  <button
-                    onClick={() => handleCheckout(v.id, v.name)}
-                    className="flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" /> Check Out
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">Search:</span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-48"
+            />
           </div>
         </div>
-      )}
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">
+                    #
+                    <span className="text-slate-400 text-xs">↕</span>
+                  </div>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">
+                    Visitor's Name
+                    <span className="text-slate-400 text-xs">↕</span>
+                  </div>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">
+                    Contact
+                    <span className="text-slate-400 text-xs">↕</span>
+                  </div>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">
+                    Gender
+                    <span className="text-slate-400 text-xs">↕</span>
+                  </div>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">
+                    Blook
+                    <span className="text-slate-400 text-xs">↕</span>
+                  </div>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">
+                    Floor
+                    <span className="text-slate-400 text-xs">↕</span>
+                  </div>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">
+                    To Visit
+                    <span className="text-slate-400 text-xs">↕</span>
+                  </div>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">
+                    Entry Time
+                    <span className="text-slate-400 text-xs">↕</span>
+                  </div>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">
+                    Action
+                    <span className="text-slate-400 text-xs">↕</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {paginatedData.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                    No visitors currently inside
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((visitor, idx) => (
+                  <tr key={visitor.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3 text-slate-600">{startIndex + idx + 1}</td>
+                    <td className="px-4 py-3">
+                      <span className="text-indigo-600 hover:underline cursor-pointer">
+                        {visitor.name}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{visitor.phone}</td>
+                    <td className="px-4 py-3 text-slate-600">{visitor.gender || 'N/A'}</td>
+                    <td className="px-4 py-3 text-slate-600">{visitor.block || 'N/A'}</td>
+                    <td className="px-4 py-3 text-slate-600">{visitor.floorNumber || 'N/A'}</td>
+                    <td className="px-4 py-3 text-slate-600">{visitor.whomToMeet || 'N/A'}</td>
+                    <td className="px-4 py-3 text-slate-600">{formatDateTime(visitor.entryTime)}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleCheckout(visitor.id, visitor.name)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded hover:bg-green-600 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Update
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-t border-slate-200">
+          <p className="text-sm text-slate-600">
+            Showing {filtered.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + pageSize, filtered.length)} of {filtered.length} entries
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 border border-slate-300 rounded text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            {totalPages > 0 && Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`px-3 py-1.5 border rounded text-sm font-medium transition-colors ${
+                    currentPage === pageNum
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="px-3 py-1.5 border border-slate-300 rounded text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

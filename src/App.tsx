@@ -26,6 +26,8 @@ import UtilityManagement from "@/pages/UtilityManagement";
 import FinancialTracking from "@/pages/FinancialTracking";
 import Reports from "@/pages/Reports";
 import QRCodesPage from "@/pages/QRCodesPage";
+import Profile from "@/pages/Profile";
+import ChangePassword from "@/pages/ChangePassword";
 
 // Security Dashboard
 import SecurityDashboard from "@/pages/SecurityDashboard";
@@ -121,6 +123,10 @@ const App = () => (
                   {/* Reports & QR */}
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/qr-codes" element={<QRCodesPage />} />
+                  
+                  {/* Profile & Settings */}
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/change-password" element={<ChangePassword />} />
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>
