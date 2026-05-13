@@ -315,6 +315,16 @@ export default function Login() {
                     <p>security123</p>
                   </div>
                 </div>
+                <div className="flex items-center justify-between p-2 bg-white rounded-lg border-2 border-indigo-200">
+                  <div>
+                    <span className="font-medium text-indigo-600">Tenant / Owner</span>
+                    <p className="text-xs text-slate-500">Visitor approvals, payments</p>
+                  </div>
+                  <div className="text-right text-xs text-slate-600">
+                    <p>tenant@officegate.com</p>
+                    <p>tenant123</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

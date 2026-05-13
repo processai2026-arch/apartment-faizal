@@ -33,6 +33,9 @@ import Settings from "@/pages/Settings";
 // Security Dashboard
 import SecurityDashboard from "@/pages/SecurityDashboard";
 
+// Tenant Dashboard
+import TenantDashboard from "@/pages/TenantDashboard";
+
 // Scan Pages (Public)
 import ScanVisitorEntry from "@/pages/scan/ScanVisitorEntry";
 import ScanVisitorCheckout from "@/pages/scan/ScanVisitorCheckout";
@@ -56,6 +59,8 @@ function DashboardRedirect() {
       return <Dashboard />;
     case 'security':
       return <Navigate to="/security" replace />;
+    case 'tenant':
+      return <Navigate to="/tenant" replace />;
     default:
       return <Navigate to="/login" replace />;
   }
@@ -90,6 +95,19 @@ const App = () => (
           <Route path="/security" element={
             <ProtectedRoute allowedRoles={['security']}>
               <SecurityDashboard />
+            </ProtectedRoute>
+          } />
+
+          {/* ── Tenant Dashboard with Layout ── */}
+          <Route path="/tenant/*" element={
+            <ProtectedRoute allowedRoles={['tenant']}>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<TenantDashboard />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/change-password" element={<ChangePassword />} />
+                </Routes>
+              </Layout>
             </ProtectedRoute>
           } />
 

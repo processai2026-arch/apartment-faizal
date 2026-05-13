@@ -98,7 +98,7 @@ export default function Reports() {
   };
 
   const headersByType: Record<ReportType, string[]> = {
-    'Visitor Summary': ['Name', 'Phone', 'Apartment', 'Purpose', 'Status'],
+    'Visitor Summary': ['Name', 'Phone', 'Unit', 'Purpose', 'Status'],
     'Vendor Log': ['Vendor', 'Company', 'Service', 'Last Visit', 'Status'],
     'Staff Attendance': ['Name', 'Role', 'Department', 'Contact', 'Status'],
     'Inventory': ['Item', 'Category', 'Qty', 'Total Cost', 'Vendor'],

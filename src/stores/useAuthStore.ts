@@ -14,7 +14,7 @@ interface AuthStore {
   setLoading: (loading: boolean) => void;
 }
 
-// Mock users - Only Admin and Security
+// Mock users - Admin, Security, and Tenant
 const mockUsers: Record<string, { password: string; user: User }> = {
   'admin@officegate.com': {
     password: 'admin123',
@@ -38,12 +38,24 @@ const mockUsers: Record<string, { password: string; user: User }> = {
       createdAt: '2024-01-15',
     },
   },
+  'tenant@officegate.com': {
+    password: 'tenant123',
+    user: {
+      id: 'U003',
+      email: 'tenant@officegate.com',
+      phone: '+91 98765 22222',
+      name: 'John Tenant',
+      role: 'tenant',
+      createdAt: '2024-02-01',
+    },
+  },
 };
 
 // Mock OTP verification (in real app, this would be server-side)
 const mockOTPs: Record<string, string> = {
   '+91 98765 00000': '123456',
   '+91 98765 11111': '123456',
+  '+91 98765 22222': '123456',
 };
 
 export const useAuthStore = create<AuthStore>()(
@@ -128,6 +140,8 @@ export function getDashboardPath(role: UserRole): string {
       return '/';
     case 'security':
       return '/security';
+    case 'tenant':
+      return '/tenant';
     default:
       return '/';
   }

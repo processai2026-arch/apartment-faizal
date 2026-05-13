@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import {
   LayoutDashboard, Building2, UserPlus, UserCheck, Car, CarFront,
   Users, Wrench, HardHat, Package, Droplets, Wallet, BarChart3,
-  ChevronLeft, ShieldCheck, QrCode, Settings
+  ChevronLeft, ShieldCheck, QrCode, Settings, CreditCard, Bell, User, Home
 } from 'lucide-react';
 
 interface NavItem {
@@ -51,6 +51,17 @@ const adminNavItems: NavGroup[] = [
   ]},
 ];
 
+// Tenant navigation
+const tenantNavItems: NavGroup[] = [
+  { group: 'Main', items: [
+    { to: '/tenant', label: 'Dashboard', icon: Home },
+  ]},
+  { group: 'Account', items: [
+    { to: '/tenant/profile', label: 'My Profile', icon: User },
+    { to: '/tenant/change-password', label: 'Change Password', icon: Settings },
+  ]},
+];
+
 export default function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, visitors, vehicles } = useAppStore();
   const { user } = useAuthStore();
@@ -70,8 +81,8 @@ export default function Sidebar() {
     return null;
   }
 
-  // Only show admin navigation
-  const navItems = adminNavItems;
+  // Show role-specific navigation
+  const navItems = user?.role === 'tenant' ? tenantNavItems : adminNavItems;
 
   return (
     <>

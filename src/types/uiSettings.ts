@@ -80,7 +80,7 @@ export const defaultAdminDashboardSettings: PageSettings = {
   ],
   columns: [
     { id: 'visitor', label: 'Visitor', visible: true, order: 0 },
-    { id: 'office', label: 'Office', visible: true, order: 1 },
+    { id: 'office', label: 'Unit', visible: true, order: 1 },
     { id: 'purpose', label: 'Purpose', visible: true, order: 2 },
     { id: 'entryTime', label: 'Entry Time', visible: true, order: 3 },
     { id: 'status', label: 'Status', visible: true, order: 4 },

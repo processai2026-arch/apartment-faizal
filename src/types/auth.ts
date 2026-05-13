@@ -1,5 +1,5 @@
-// User roles - simplified to Admin and Security only
-export type UserRole = 'admin' | 'security';
+// User roles - Admin, Security, and Tenant/Owner
+export type UserRole = 'admin' | 'security' | 'tenant';
 
 export interface User {
   id: string;
@@ -46,6 +46,18 @@ export const rolePermissions: Record<UserRole, string[]> = {
     'vehicles.view',
     'workers.view',
     'qr.scan',
+  ],
+  tenant: [
+    'tenant.dashboard',
+    'tenant.visitors.approve',
+    'tenant.visitors.view',
+    'tenant.parcels.view',
+    'tenant.parcels.track',
+    'tenant.profile.manage',
+    'tenant.payments.view',
+    'tenant.payments.make',
+    'tenant.complaints.manage',
+    'tenant.workers.manage',
   ],
 };
 
