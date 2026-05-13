@@ -58,14 +58,25 @@ export default function Reports() {
         );
       }
       case 'Staff Attendance': {
-        const s = item as { name?: string; role?: string; department?: string; contact?: string };
+        const s = item as { name?: string; role?: string; department?: string; contact?: string; attendance?: Record<string, string> };
+        const attStatus = s.attendance?.[dateTo];
+        const attLabel = attStatus === 'P' ? 'Present' : attStatus === 'A' ? 'Absent' : attStatus === 'H' ? 'Half-Day' : 'Not Marked';
+        const attCls = attStatus === 'P'
+          ? 'bg-green-100 text-green-700'
+          : attStatus === 'A'
+          ? 'bg-red-100 text-red-700'
+          : attStatus === 'H'
+          ? 'bg-amber-100 text-amber-700'
+          : 'bg-slate-100 text-slate-400';
         return (
           <tr key={idx} className="hover:bg-slate-50/50">
             <td className="px-4 py-3 font-medium text-slate-900">{s.name}</td>
             <td className="px-4 py-3 text-slate-500">{s.role}</td>
             <td className="px-4 py-3 text-slate-700">{s.department}</td>
             <td className="px-4 py-3 text-slate-500">{s.contact}</td>
-            <td className="px-4 py-3"><StatusBadge status="Active" /></td>
+            <td className="px-4 py-3">
+              <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${attCls}`}>{attLabel}</span>
+            </td>
           </tr>
         );
       }
@@ -100,7 +111,7 @@ export default function Reports() {
   const headersByType: Record<ReportType, string[]> = {
     'Visitor Summary': ['Name', 'Phone', 'Unit', 'Purpose', 'Status'],
     'Vendor Log': ['Vendor', 'Company', 'Service', 'Last Visit', 'Status'],
-    'Staff Attendance': ['Name', 'Role', 'Department', 'Contact', 'Status'],
+    'Staff Attendance': ['Name', 'Role', 'Department', 'Contact', `Attendance (${dateTo})`],
     'Inventory': ['Item', 'Category', 'Qty', 'Total Cost', 'Vendor'],
     'Financial': ['Unit', 'Resident', 'Charge', 'Status', 'Last Paid'],
   };

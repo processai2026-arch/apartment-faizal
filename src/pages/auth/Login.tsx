@@ -17,6 +17,12 @@ export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const fillCredentials = (cEmail: string, cPassword: string) => {
+    setLoginMethod('email');
+    setEmail(cEmail);
+    setPassword(cPassword);
+  };
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -293,9 +299,13 @@ export default function Login() {
 
             {/* Demo Credentials */}
             <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Demo Credentials</p>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Demo Credentials — click to auto-fill</p>
               <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between p-2 bg-white rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('admin@officegate.com', 'admin123')}
+                  className="w-full flex items-center justify-between p-2 bg-white rounded-lg hover:bg-indigo-50 hover:border-indigo-200 border border-transparent transition-all cursor-pointer text-left"
+                >
                   <div>
                     <span className="font-medium text-slate-900">Admin</span>
                     <p className="text-xs text-slate-500">Full system access</p>
@@ -304,8 +314,12 @@ export default function Login() {
                     <p>admin@officegate.com</p>
                     <p>admin123</p>
                   </div>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-white rounded-lg">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('security@officegate.com', 'security123')}
+                  className="w-full flex items-center justify-between p-2 bg-white rounded-lg hover:bg-indigo-50 hover:border-indigo-200 border border-transparent transition-all cursor-pointer text-left"
+                >
                   <div>
                     <span className="font-medium text-slate-900">Security</span>
                     <p className="text-xs text-slate-500">Gate operations</p>
@@ -314,8 +328,12 @@ export default function Login() {
                     <p>security@officegate.com</p>
                     <p>security123</p>
                   </div>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-white rounded-lg border-2 border-indigo-200">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillCredentials('tenant@officegate.com', 'tenant123')}
+                  className="w-full flex items-center justify-between p-2 bg-white rounded-lg border-2 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-400 transition-all cursor-pointer text-left"
+                >
                   <div>
                     <span className="font-medium text-indigo-600">Tenant / Owner</span>
                     <p className="text-xs text-slate-500">Visitor approvals, payments</p>
@@ -324,7 +342,7 @@ export default function Login() {
                     <p>tenant@officegate.com</p>
                     <p>tenant123</p>
                   </div>
-                </div>
+                </button>
               </div>
             </div>
           </div>

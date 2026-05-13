@@ -25,6 +25,9 @@ interface AppState {
   updateOffice: (office: Office) => void;
   toggleOfficeStatus: (id: string) => void;
   addVendor: (vendor: Vendor) => void;
+  addStaff: (s: Staff) => void;
+  updateStaff: (s: Staff) => void;
+  removeStaff: (id: string) => void;
   updateStaffAttendance: (staffId: string, date: string, status: 'P' | 'A' | 'H') => void;
   addInventoryItem: (item: InventoryItem) => void;
   addUtilityTask: (task: UtilityTask) => void;
@@ -84,6 +87,10 @@ export const useAppStore = create<AppState>((set) => ({
   })),
 
   addVendor: (vendor) => set((state) => ({ vendors: [vendor, ...state.vendors] })),
+
+  addStaff: (s) => set((state) => ({ staff: [...state.staff, s] })),
+  updateStaff: (s) => set((state) => ({ staff: state.staff.map(x => x.id === s.id ? s : x) })),
+  removeStaff: (id) => set((state) => ({ staff: state.staff.filter(s => s.id !== id) })),
 
   updateStaffAttendance: (staffId, date, status) => set((state) => ({
     staff: state.staff.map(s =>

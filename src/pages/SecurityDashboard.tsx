@@ -6,7 +6,7 @@ import { useUISettingsStore } from '@/stores/useUISettingsStore';
 import {
   Users, Car, HardHat, LogOut, Search, Clock, QrCode,
   UserPlus, LogIn, Shield, X, Phone, Send, CheckCircle, Building2,
-  Eye, EyeOff, Edit3, Save, RotateCcw
+  Eye, EyeOff, Edit3, Save, RotateCcw, ClipboardList
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
@@ -21,12 +21,58 @@ function formatTime(iso: string) {
 
 export default function SecurityDashboard() {
   const navigate = useNavigate();
-  const { visitors, vehicles, dailyWorkers, offices, checkOutVisitor, checkOutVehicle, addVisitor } = useAppStore();
+  const { visitors, vehicles, dailyWorkers, offices, staff, checkOutVisitor, checkOutVehicle, addVisitor, updateStaffAttendance } = useAppStore();
   const { user, logout } = useAuthStore();
   const { settings, getVisibleCards, updateCardOrder, resetPageSettings } = useUISettingsStore();
   const { toast } = useToast();
   
   const [activeTab, setActiveTab] = useState<'visitors' | 'vehicles' | 'workers'>('visitors');
+
+  const today = new Date().toISOString().split('T')[0];
+  type AttStatus = 'P' | 'A' | 'H';
+
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+  const [markedTime, setMarkedTime] = useState<Record<string, string>>({});
+
+  // Live clock
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const [attendance, setAttendance] = useState<Record<string, AttStatus>>(() => {
+    const init: Record<string, AttStatus> = {};
+    staff?.forEach(s => { init[s.id] = (s.attendance?.[today] as AttStatus) || 'P'; });
+    return init;
+  });
+
+  // Reload attendance from store when date changes
+  useEffect(() => {
+    const init: Record<string, AttStatus> = {};
+    staff?.forEach(s => { init[s.id] = (s.attendance?.[selectedDate] as AttStatus) || 'P'; });
+    setAttendance(init);
+    setMarkedTime({});
+  }, [selectedDate, staff]);
+
+  const handleAttendanceChange = (staffId: string, status: AttStatus) => {
+    setAttendance(prev => ({ ...prev, [staffId]: status }));
+    setMarkedTime(prev => ({ ...prev, [staffId]: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) }));
+  };
+
+  const handleSubmitAttendance = () => {
+    Object.entries(attendance).forEach(([id, status]) => updateStaffAttendance(id, selectedDate, status));
+    toast({ title: 'Attendance Saved', description: `Submitted for ${selectedDate} at ${currentTime}` });
+  };
+
+  const attColors = {
+    P: 'bg-green-100 text-green-700 border-green-200',
+    A: 'bg-red-100 text-red-700 border-red-200',
+    H: 'bg-amber-100 text-amber-700 border-amber-200',
+  };
+  const attLabels = { P: 'Present', A: 'Absent', H: 'Half-Day' };
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddVisitorModal, setShowAddVisitorModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -502,8 +548,8 @@ export default function SecurityDashboard() {
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <HardHat className="w-4 h-4" />
-              Workers ({activeWorkers.length})
+              <ClipboardList className="w-4 h-4" />
+              Workers Attendance
             </button>
           </div>
 
@@ -591,29 +637,95 @@ export default function SecurityDashboard() {
             )}
 
             {activeTab === 'workers' && (
-              filteredWorkers.length === 0 ? (
+              staff?.length === 0 ? (
                 <div className="p-8 text-center text-slate-400">
-                  <HardHat className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No active workers</p>
+                  <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No workers found</p>
                 </div>
               ) : (
-                filteredWorkers.map((worker) => (
-                  <div key={worker.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 font-bold">
-                        {worker.name.charAt(0)}
+                <>
+                  {/* Date & Time Header */}
+                  <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        max={today}
+                        onChange={e => setSelectedDate(e.target.value)}
+                        className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      {selectedDate !== today && (
+                        <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                          Viewing past record
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm font-mono font-medium text-slate-700">{currentTime}</span>
+                    </div>
+                  </div>
+
+                  {/* Attendance Summary */}
+                  <div className="grid grid-cols-3 gap-px bg-slate-100">
+                    <div className="bg-green-50 p-3 text-center">
+                      <p className="text-xl font-bold text-green-600">{Object.values(attendance).filter(s => s === 'P').length}</p>
+                      <p className="text-xs text-green-600 font-medium">Present</p>
+                    </div>
+                    <div className="bg-red-50 p-3 text-center">
+                      <p className="text-xl font-bold text-red-600">{Object.values(attendance).filter(s => s === 'A').length}</p>
+                      <p className="text-xs text-red-600 font-medium">Absent</p>
+                    </div>
+                    <div className="bg-amber-50 p-3 text-center">
+                      <p className="text-xl font-bold text-amber-600">{Object.values(attendance).filter(s => s === 'H').length}</p>
+                      <p className="text-xs text-amber-600 font-medium">Half-Day</p>
+                    </div>
+                  </div>
+
+                  {/* Staff List with Attendance */}
+                  {staff?.map(s => (
+                    <div key={s.id} className="p-3 flex items-center justify-between hover:bg-slate-50 border-b border-slate-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-sm">
+                          {s.name[0]}
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-900 text-sm">{s.name}</p>
+                          <p className="text-xs text-slate-500">{s.role} • {s.department}</p>
+                          {markedTime[s.id] && (
+                            <p className="text-xs text-indigo-500 mt-0.5">Marked at {markedTime[s.id]}</p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-slate-900">{worker.name}</p>
-                        <p className="text-xs text-slate-500">{worker.role} • {worker.apartmentNo}</p>
-                        <p className="text-xs text-slate-400">{worker.allowedTimings}</p>
+                      <div className="flex items-center gap-1">
+                        {(['P', 'A', 'H'] as AttStatus[]).map(status => (
+                          <button
+                            key={status}
+                            onClick={() => handleAttendanceChange(s.id, status)}
+                            className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all ${
+                              attendance[s.id] === status ? attColors[status] : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                            }`}
+                          >
+                            {attLabels[status]}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-medium">
-                      Active
-                    </span>
+                  ))}
+
+                  {/* Submit */}
+                  <div className="p-3 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-xs text-slate-400">
+                      {selectedDate === today ? `Today — ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}` : `Date: ${selectedDate}`}
+                    </p>
+                    <button
+                      onClick={handleSubmitAttendance}
+                      className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Submit Attendance
+                    </button>
                   </div>
-                ))
+                </>
               )
             )}
           </div>

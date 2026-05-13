@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Package, Eye, EyeOff, Edit3, Save, RotateCcw } from 'lucide-react';
+import { Plus, X, Package, Eye, EyeOff, Edit3, Save, RotateCcw, Search, Pencil } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import DataTable from '@/components/features/DataTable';
 import StatusBadge from '@/components/features/StatusBadge';
@@ -10,7 +10,103 @@ import type { ColumnConfig } from '@/types/uiSettings';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const MONTHLY_BUDGET = 50000;
+const DEFAULT_BUDGET = 50000;
+
+function ProcurementTable({ inventory, onAdd }: { inventory: InventoryItem[]; onAdd: () => void }) {
+  const [search, setSearch] = useState('');
+  const filtered = inventory.filter(i =>
+    i.itemName.toLowerCase().includes(search.toLowerCase()) ||
+    i.vendor.toLowerCase().includes(search.toLowerCase()) ||
+    i.category.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const categoryColors: Record<string, string> = {
+    Electrical: 'bg-yellow-100 text-yellow-700',
+    Plumbing: 'bg-blue-100 text-blue-700',
+    Cleaning: 'bg-green-100 text-green-700',
+    Safety: 'bg-red-100 text-red-700',
+    General: 'bg-slate-100 text-slate-600',
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      {/* Search */}
+      <div className="p-4 border-b border-slate-100">
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search items..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm table-fixed">
+          <colgroup>
+            <col className="w-[35%]" />
+            <col className="w-[20%]" />
+            <col className="w-[15%]" />
+            <col className="w-[20%]" />
+            <col className="w-[10%]" />
+          </colgroup>
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-100">
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Item</th>
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Category</th>
+              <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Qty</th>
+              <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Total Cost</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {filtered.map(item => (
+              <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                <td className="px-4 py-3">
+                  <p className="font-medium text-slate-900">{item.itemName}</p>
+                  <p className="text-xs text-slate-400">{item.vendor}</p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${categoryColors[item.category] ?? 'bg-slate-100 text-slate-600'}`}>
+                    {item.category}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right font-medium text-slate-700">{item.quantity}</td>
+                <td className="px-4 py-3 text-right font-semibold text-indigo-600">₹{item.totalCost.toLocaleString()}</td>
+                <td className="px-4 py-3 text-right text-xs text-slate-400">{item.date}</td>
+              </tr>
+            ))}
+
+            {/* Add New Row */}
+            <tr
+              onClick={onAdd}
+              className="cursor-pointer hover:bg-indigo-50/60 transition-colors border-t-2 border-dashed border-slate-200"
+            >
+              <td colSpan={5} className="px-4 py-3">
+                <div className="flex items-center gap-2 text-indigo-500 font-medium text-sm">
+                  <Plus className="w-4 h-4" />
+                  Add New Item
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer total */}
+      <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <p className="text-xs text-slate-500">{filtered.length} items</p>
+        <p className="text-sm font-semibold text-slate-700">
+          Grand Total: <span className="text-indigo-600">₹{filtered.reduce((s, i) => s + i.totalCost, 0).toLocaleString()}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
 
 const emptyForm = { itemName: '', category: 'General', quantity: 1, unitCost: 0, vendor: '', date: new Date().toISOString().split('T')[0] };
 
@@ -20,6 +116,32 @@ export default function InventoryAudit() {
   const [activeTab, setActiveTab] = useState<'procurement' | 'usage'>('procurement');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  // Budget state
+  const [monthlyBudget, setMonthlyBudget] = useState(DEFAULT_BUDGET);
+  const [editingBudget, setEditingBudget] = useState(false);
+  const [budgetInput, setBudgetInput] = useState(String(DEFAULT_BUDGET));
+
+  // Month/Year filter
+  const now = new Date();
+  const [selMonth, setSelMonth] = useState(now.getMonth() + 1); // 1-12
+  const [selYear, setSelYear] = useState(now.getFullYear());
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
+
+  const monthKey = `${selYear}-${String(selMonth).padStart(2, '0')}`;
+  const filteredInventory = inventory.filter(i => i.date?.startsWith(monthKey));
+
+  const totalSpent = filteredInventory.reduce((sum, i) => sum + i.totalCost, 0);
+  const budgetPct = Math.min((totalSpent / monthlyBudget) * 100, 100);
+
+  const handleSaveBudget = () => {
+    const val = parseInt(budgetInput.replace(/,/g, ''), 10);
+    if (!isNaN(val) && val > 0) { setMonthlyBudget(val); toast.success('Budget updated'); }
+    else toast.error('Enter a valid amount');
+    setEditingBudget(false);
+  };
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -109,9 +231,6 @@ export default function InventoryAudit() {
     setHasChanges(true);
     toast.success('Reset to default layout');
   };
-
-  const totalSpent = inventory.reduce((sum, i) => sum + i.totalCost, 0);
-  const budgetPct = Math.min((totalSpent / MONTHLY_BUDGET) * 100, 100);
 
   const handleAdd = () => {
     if (!form.itemName || !form.vendor) { toast.error('Please fill all required fields'); return; }
@@ -257,24 +376,77 @@ export default function InventoryAudit() {
         )}
       </AnimatePresence>
 
-      {/* Budget */}
+      {/* Budget Tracker */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+          {/* Left: Title + Budget Edit */}
           <div>
             <h3 className="text-base font-semibold font-[Outfit]">Monthly Budget Tracker</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Budget: ₹{MONTHLY_BUDGET.toLocaleString()} / month</p>
+            <div className="flex items-center gap-2 mt-1">
+              {editingBudget ? (
+                <>
+                  <span className="text-sm text-slate-500">₹</span>
+                  <input
+                    type="number"
+                    value={budgetInput}
+                    onChange={e => setBudgetInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveBudget()}
+                    className="w-32 px-2 py-1 border border-indigo-400 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    autoFocus
+                  />
+                  <span className="text-sm text-slate-400">/ month</span>
+                  <button onClick={handleSaveBudget} className="p-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                    <Save className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => setEditingBudget(false)} className="p-1 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-500">Budget: ₹{monthlyBudget.toLocaleString()} / month</p>
+                  <button onClick={() => { setBudgetInput(String(monthlyBudget)); setEditingBudget(true); }}
+                    className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit budget">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold font-[Outfit] text-indigo-600">₹{totalSpent.toLocaleString()}</p>
-            <p className="text-xs text-slate-500">spent this month</p>
+
+          {/* Right: Month/Year selector + Spent */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50">
+                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              </select>
+              <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50">
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold font-[Outfit] text-indigo-600">₹{totalSpent.toLocaleString()}</p>
+              <p className="text-xs text-slate-500">spent in {MONTHS[selMonth - 1]} {selYear}</p>
+            </div>
           </div>
         </div>
+
+        {/* Progress bar */}
         <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${budgetPct > 80 ? 'bg-red-500' : budgetPct > 60 ? 'bg-amber-500' : 'bg-indigo-500'}`} style={{ width: `${budgetPct}%` }} />
+          <div className={`h-full rounded-full transition-all duration-500 ${budgetPct >= 100 ? 'bg-red-500' : budgetPct > 75 ? 'bg-amber-500' : 'bg-indigo-500'}`}
+            style={{ width: `${budgetPct}%` }} />
         </div>
-        <p className="text-xs text-slate-500 mt-1.5">{budgetPct.toFixed(0)}% of budget used • ₹{(MONTHLY_BUDGET - totalSpent).toLocaleString()} remaining</p>
+        <div className="flex items-center justify-between mt-1.5">
+          <p className="text-xs text-slate-500">{budgetPct.toFixed(0)}% of budget used</p>
+          <p className={`text-xs font-medium ${monthlyBudget - totalSpent < 0 ? 'text-red-500' : 'text-green-600'}`}>
+            {monthlyBudget - totalSpent < 0 ? '⚠ Over by' : '₹'}{Math.abs(monthlyBudget - totalSpent).toLocaleString()} {monthlyBudget - totalSpent >= 0 ? 'remaining' : ''}
+          </p>
+        </div>
       </div>
 
+      {/* Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex bg-white border border-slate-200 rounded-xl p-1">
           {[['procurement', 'Procurement Log'], ['usage', 'Usage Audit']].map(([key, label]) => (
@@ -284,25 +456,16 @@ export default function InventoryAudit() {
             </button>
           ))}
         </div>
-        {activeTab === 'procurement' && (
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700">
-            <Plus className="w-4 h-4" /> Add Item
-          </button>
-        )}
+        <p className="text-xs text-slate-400">{filteredInventory.length} items in {MONTHS[selMonth - 1]} {selYear}</p>
       </div>
 
-      <motion.div
-        className={cn(
-          "transition-all",
-          isEditMode && "ring-2 ring-indigo-400 ring-offset-2 rounded-2xl"
-        )}
-      >
-        {activeTab === 'procurement' ? (
-          <DataTable data={inventory as unknown as Record<string, unknown>[]} columns={procurementCols as never[]} searchKeys={['itemName', 'vendor', 'category'] as never[]} searchPlaceholder="Search items..." />
-        ) : (
-          <DataTable data={inventory as unknown as Record<string, unknown>[]} columns={usageCols as never[]} searchKeys={['itemName', 'location', 'usedBy'] as never[]} searchPlaceholder="Search usage..." />
-        )}
-      </motion.div>
+      {activeTab === 'procurement' ? (
+        <ProcurementTable inventory={filteredInventory} onAdd={() => setShowModal(true)} />
+      ) : (
+        <motion.div className={cn("transition-all", isEditMode && "ring-2 ring-indigo-400 ring-offset-2 rounded-2xl")}>
+          <DataTable data={filteredInventory as unknown as Record<string, unknown>[]} columns={usageCols as never[]} searchKeys={['itemName', 'location', 'usedBy'] as never[]} searchPlaceholder="Search usage..." />
+        </motion.div>
+      )}
 
       {/* Floating Edit Button */}
       <div className="fixed bottom-6 right-6 z-40">
