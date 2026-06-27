@@ -47,15 +47,17 @@ class Visitor extends CrudModel
             $now = db_time();
             $updated = Database::query(
                 'UPDATE visitors
-                 SET public_checkout_used_at = :now,
-                     updated_at = :now
+                 SET public_checkout_used_at = :used_at,
+                     updated_at = :updated_at
                  WHERE id = :id
                    AND status = :status
                    AND public_checkout_token_hash = :hash
                    AND public_checkout_used_at IS NULL
-                   AND public_checkout_token_expires_at > :now',
+                   AND public_checkout_token_expires_at > :expires_after',
                 [
-                    'now' => $now,
+                    'used_at' => $now,
+                    'updated_at' => $now,
+                    'expires_after' => $now,
                     'id' => $id,
                     'status' => 'Inside',
                     'hash' => hash('sha256', $token),

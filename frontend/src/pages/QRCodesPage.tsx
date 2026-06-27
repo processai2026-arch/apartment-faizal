@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QrCode, UserPlus, LogOut, Car, CarFront, Copy, Check, ExternalLink, Smartphone, RefreshCw } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 
 interface QREntry {
@@ -7,6 +8,7 @@ interface QREntry {
   title: string;
   description: string;
   path: string;
+  scope: string;
   icon: React.ElementType;
   color: string;
   bgColor: string;
@@ -19,6 +21,7 @@ const qrItems: QREntry[] = [
     title: 'Visitor Check-In',
     description: 'Visitors scan this to self-register at the gate. Their data reflects instantly in the admin dashboard.',
     path: '/scan/visitor-entry',
+    scope: 'visitor-entry',
     icon: UserPlus,
     color: 'text-indigo-600',
     bgColor: 'bg-indigo-50',
@@ -29,6 +32,7 @@ const qrItems: QREntry[] = [
     title: 'Vehicle Check-In',
     description: 'Drivers scan this to log their vehicle at the gate. Registration is instant and searchable.',
     path: '/scan/vehicle-entry',
+    scope: 'vehicle-entry',
     icon: Car,
     color: 'text-violet-600',
     bgColor: 'bg-violet-50',
@@ -37,37 +41,24 @@ const qrItems: QREntry[] = [
 ];
 
 function QRCodeCanvas({ url, size = 160 }: { url: string; size?: number }) {
-  const [qrDataUrl, setQrDataUrl] = useState<string>('');
-
-  useEffect(() => {
-    // Generate QR using the free QR API (no library needed)
-    const encoded = encodeURIComponent(url);
-    setQrDataUrl(`https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}&bgcolor=ffffff&color=0f172a&qzone=1&format=png`);
-  }, [url, size]);
-
-  if (!qrDataUrl) return <div className="w-40 h-40 bg-slate-100 rounded-xl animate-pulse" />;
-
   return (
-    <img
-      src={qrDataUrl}
-      alt="QR Code"
-      width={size}
-      height={size}
-      className="rounded-xl border border-slate-200"
-    />
+    <div className="rounded-xl border border-slate-200 bg-white p-2">
+      <QRCodeSVG value={url} size={size} bgColor="#ffffff" fgColor="#0f172a" />
+    </div>
   );
 }
 
 export default function QRCodesPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [baseUrl, setBaseUrl] = useState('');
+  const [gateTokens, setGateTokens] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setBaseUrl(window.location.origin);
   }, []);
 
   const copyUrl = async (item: QREntry) => {
-    const url = `${baseUrl}${item.path}`;
+    const url = scanUrl(item);
     try {
       await navigator.clipboard.writeText(url);
       setCopiedId(item.id);
@@ -79,7 +70,14 @@ export default function QRCodesPage() {
   };
 
   const openScanPage = (path: string) => {
-    window.open(`${baseUrl}${path}`, '_blank');
+    const item = qrItems.find((qr) => qr.path === path);
+    window.open(item ? scanUrl(item) : `${baseUrl}${path}`, '_blank');
+  };
+
+  const scanUrl = (item: QREntry) => {
+    const token = gateTokens[item.id]?.trim();
+    const fragment = token ? `#gateToken=${encodeURIComponent(token)}` : '';
+    return `${baseUrl}${item.path}${fragment}`;
   };
 
   return (
@@ -141,7 +139,7 @@ export default function QRCodesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {qrItems.map((item) => {
           const Icon = item.icon;
-          const fullUrl = `${baseUrl}${item.path}`;
+          const fullUrl = scanUrl(item);
           return (
             <div key={item.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${item.borderColor}`}>
               {/* Card Header */}
@@ -170,6 +168,17 @@ export default function QRCodesPage() {
                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-xs text-slate-700 break-all leading-relaxed">
                       {fullUrl}
                     </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Gate Token</p>
+                    <input
+                      type="password"
+                      value={gateTokens[item.id] || ''}
+                      onChange={(event) => setGateTokens((tokens) => ({ ...tokens, [item.id]: event.target.value }))}
+                      placeholder={`${item.scope} token`}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
                   </div>
 
                   <div className="space-y-2">

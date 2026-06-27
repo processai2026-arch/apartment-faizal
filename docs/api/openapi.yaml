@@ -1,0 +1,432 @@
+openapi: 3.0.3
+info:
+  title: OfficeGate API
+  version: 1.0.0
+  description: Secure API for office/building visitor, vehicle, staff, vendor, inventory, utility, finance, dashboard, and QR scan workflows.
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Admin
+  - name: PublicScan
+  - name: Security
+  - name: Tenant
+paths:
+  /health:
+    get:
+      tags: [Auth]
+      security: []
+      summary: Health check
+      responses:
+        '200':
+          description: API is healthy
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: Session issued }
+        '401': { description: Invalid credentials }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Rotate refresh token and issue a new session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200': { description: Session refreshed }
+        '401': { description: Refresh token expired or revoked }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token
+      responses:
+        '200': { description: Logged out }
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current authenticated user
+      responses:
+        '200': { description: Current user }
+  /auth/change-password:
+    put:
+      tags: [Auth]
+      summary: Change password and revoke active refresh sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 10 }
+      responses:
+        '200': { description: Password changed }
+        '422': { description: Current password invalid }
+  /auth/otp/send:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Send OTP
+      responses:
+        '200': { description: OTP sent }
+  /auth/otp/verify:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Verify OTP
+      responses:
+        '200': { description: OTP verified or session issued }
+  /admin/dashboard/summary:
+    get:
+      tags: [Admin]
+      summary: Admin dashboard metrics
+      responses:
+        '200': { description: Dashboard summary }
+  /admin/offices:
+    get:
+      tags: [Admin]
+      summary: List offices
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200': { description: Offices }
+    post:
+      tags: [Admin]
+      summary: Create office
+      responses:
+        '201': { description: Office created }
+  /admin/offices/{id}:
+    get:
+      tags: [Admin]
+      summary: Show office
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Office }
+    put:
+      tags: [Admin]
+      summary: Update office
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Office updated }
+  /admin/offices/{id}/status:
+    patch:
+      tags: [Admin]
+      summary: Change office status
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Office status updated }
+  /admin/visitors:
+    get:
+      tags: [Admin]
+      summary: List visitors
+      responses:
+        '200': { description: Visitors }
+  /admin/visitors/entry:
+    post:
+      tags: [Admin]
+      summary: Create visitor entry
+      responses:
+        '201': { description: Visitor entered }
+  /admin/visitors/active:
+    get:
+      tags: [Admin]
+      summary: List active visitors
+      responses:
+        '200': { description: Active visitors }
+  /admin/visitors/{id}:
+    get:
+      tags: [Admin]
+      summary: Show visitor
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Visitor }
+  /admin/visitors/{id}/checkout:
+    post:
+      tags: [Admin]
+      summary: Checkout visitor
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Visitor checked out }
+        '409': { description: Visitor already exited }
+  /admin/vehicles:
+    get:
+      tags: [Admin]
+      summary: List vehicles
+      responses:
+        '200': { description: Vehicles }
+  /admin/vehicles/entry:
+    post:
+      tags: [Admin]
+      summary: Create vehicle entry
+      responses:
+        '201': { description: Vehicle entered }
+        '409': { description: Vehicle already inside }
+  /admin/vehicles/active:
+    get:
+      tags: [Admin]
+      summary: List active vehicles
+      responses:
+        '200': { description: Active vehicles }
+  /admin/vehicles/{id}:
+    get:
+      tags: [Admin]
+      summary: Show vehicle
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Vehicle }
+  /admin/vehicles/{id}/checkout:
+    post:
+      tags: [Admin]
+      summary: Checkout vehicle
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Vehicle checked out }
+  /admin/vendors:
+    get:
+      tags: [Admin]
+      summary: List vendors
+      responses:
+        '200': { description: Vendors }
+    post:
+      tags: [Admin]
+      summary: Create vendor
+      responses:
+        '201': { description: Vendor created }
+  /admin/vendors/{id}:
+    get:
+      tags: [Admin]
+      summary: Show vendor
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Vendor }
+    put:
+      tags: [Admin]
+      summary: Update vendor
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Vendor updated }
+  /admin/staff:
+    get:
+      tags: [Admin]
+      summary: List staff
+      responses:
+        '200': { description: Staff }
+    post:
+      tags: [Admin]
+      summary: Create staff
+      responses:
+        '201': { description: Staff created }
+  /admin/staff/{id}:
+    put:
+      tags: [Admin]
+      summary: Update staff
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Staff updated }
+  /admin/staff/{id}/attendance:
+    post:
+      tags: [Admin]
+      summary: Mark staff attendance
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Attendance marked }
+  /admin/staff/attendance/summary:
+    get:
+      tags: [Admin]
+      summary: Staff attendance summary
+      responses:
+        '200': { description: Attendance summary }
+  /admin/inventory:
+    get:
+      tags: [Admin]
+      summary: List inventory
+      responses:
+        '200': { description: Inventory }
+    post:
+      tags: [Admin]
+      summary: Create inventory item
+      responses:
+        '201': { description: Item created }
+  /admin/inventory/{id}:
+    put:
+      tags: [Admin]
+      summary: Update inventory item
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Item updated }
+  /admin/inventory/{id}/movements:
+    post:
+      tags: [Admin]
+      summary: Add inventory movement
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Movement recorded }
+  /admin/utilities:
+    get:
+      tags: [Admin]
+      summary: List utility tasks
+      responses:
+        '200': { description: Utility tasks }
+    post:
+      tags: [Admin]
+      summary: Create utility task
+      responses:
+        '201': { description: Utility task created }
+  /admin/utilities/{id}:
+    put:
+      tags: [Admin]
+      summary: Update utility task
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Utility task updated }
+  /admin/utilities/{id}/complete:
+    post:
+      tags: [Admin]
+      summary: Complete utility task
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Utility task completed }
+  /admin/invoices:
+    get:
+      tags: [Admin]
+      summary: List invoices
+      responses:
+        '200': { description: Invoices }
+    post:
+      tags: [Admin]
+      summary: Create invoice
+      responses:
+        '201': { description: Invoice created }
+  /admin/invoices/{id}:
+    put:
+      tags: [Admin]
+      summary: Update invoice
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Invoice updated }
+  /admin/invoices/{id}/payments:
+    post:
+      tags: [Admin]
+      summary: Record invoice payment
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Payment recorded }
+  /admin/financials/summary:
+    get:
+      tags: [Admin]
+      summary: Financial summary
+      responses:
+        '200': { description: Financial summary }
+  /admin/reports/{type}:
+    get:
+      tags: [Admin]
+      summary: Download report data
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string, enum: [visitors, vehicles, staff-attendance, inventory, financials] }
+      responses:
+        '200': { description: Report data }
+  /security/dashboard:
+    get:
+      tags: [Security]
+      summary: Security dashboard
+      responses:
+        '200': { description: Security dashboard }
+  /tenant/dashboard:
+    get:
+      tags: [Tenant]
+      summary: Tenant dashboard
+      responses:
+        '200': { description: Tenant dashboard }
+  /public/scan/visitor-entry:
+    post:
+      tags: [PublicScan]
+      security:
+        - gateToken: []
+      summary: Public QR visitor entry
+      responses:
+        '201': { description: Visitor entry created with one-time checkout token }
+        '401': { description: Invalid gate token }
+  /public/scan/visitor-checkout:
+    post:
+      tags: [PublicScan]
+      security:
+        - gateToken: []
+      summary: Public QR visitor checkout with one-time record token
+      responses:
+        '200': { description: Visitor checked out }
+        '401': { description: Invalid gate token or checkout token }
+  /public/scan/vehicle-entry:
+    post:
+      tags: [PublicScan]
+      security:
+        - gateToken: []
+      summary: Public QR vehicle entry
+      responses:
+        '201': { description: Vehicle entry created with one-time checkout token }
+        '401': { description: Invalid gate token }
+  /public/scan/vehicle-checkout:
+    post:
+      tags: [PublicScan]
+      security:
+        - gateToken: []
+      summary: Public QR vehicle checkout with one-time record token
+      responses:
+        '200': { description: Vehicle checked out }
+        '401': { description: Invalid gate token or checkout token }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    gateToken:
+      type: apiKey
+      in: header
+      name: X-Gate-Token
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPage:
+      name: perPage
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Search:
+      name: search
+      in: query
+      schema: { type: string }

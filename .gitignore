@@ -1,6 +1,15 @@
 # Logs
 logs
 *.log
+.env
+*.env
+backend/.env
+frontend/.env
+backend/storage/logs/*
+backend/storage/rate-limit/*
+backend/storage/backups/*
+backend/storage/database.sqlite
+!backend/storage/backups/.gitkeep
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

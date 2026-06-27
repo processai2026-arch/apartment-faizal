@@ -21,26 +21,42 @@ class AdminInventoryController extends ResourceController
         if ($qty <= 0) {
             throw new AppException('Quantity must be positive', 422);
         }
-        Database::transaction(function () use ($itemId, $item, $type, $qty, $request): void {
-            $newQty = (int) $item['quantity'];
-            $newUsed = (int) $item['used_quantity'];
+        Database::transaction(function () use ($itemId, $type, $qty, $request): void {
             if ($type === 'in') {
-                $newQty += $qty;
+                Database::query(
+                    'UPDATE inventory_items
+                     SET quantity = quantity + :quantity_delta,
+                         updated_at = :now
+                     WHERE id = :id AND deleted_at IS NULL',
+                    ['quantity_delta' => $qty, 'now' => db_time(), 'id' => $itemId]
+                );
             } elseif ($type === 'out') {
-                if ($newQty < $qty) {
+                $updated = Database::query(
+                    'UPDATE inventory_items
+                     SET quantity = quantity - :quantity_delta,
+                         used_quantity = used_quantity + :used_quantity_delta,
+                         updated_at = :now
+                     WHERE id = :id AND deleted_at IS NULL AND quantity >= :minimum_quantity',
+                    [
+                        'quantity_delta' => $qty,
+                        'used_quantity_delta' => $qty,
+                        'minimum_quantity' => $qty,
+                        'now' => db_time(),
+                        'id' => $itemId,
+                    ]
+                )->rowCount();
+                if ($updated !== 1) {
                     throw new AppException('Insufficient stock', 409);
                 }
-                $newQty -= $qty;
-                $newUsed += $qty;
             } else {
-                $newQty = $qty;
+                Database::query(
+                    'UPDATE inventory_items
+                     SET quantity = :quantity,
+                         updated_at = :now
+                     WHERE id = :id AND deleted_at IS NULL',
+                    ['quantity' => $qty, 'now' => db_time(), 'id' => $itemId]
+                );
             }
-            Database::query('UPDATE inventory_items SET quantity = :quantity, used_quantity = :used_quantity, updated_at = :now WHERE id = :id', [
-                'quantity' => $newQty,
-                'used_quantity' => $newUsed,
-                'now' => db_time(),
-                'id' => $itemId,
-            ]);
             Database::query(
                 'INSERT INTO inventory_movements (inventory_item_id, movement_type, quantity, location, used_by, notes, actor_user_id, created_at)
                  VALUES (:inventory_item_id, :movement_type, :quantity, :location, :used_by, :notes, :actor_user_id, :created_at)',

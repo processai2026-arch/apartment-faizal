@@ -22,8 +22,18 @@ abstract class CrudModel
 
     public static function find(int $id): ?array
     {
-        $row = Database::fetch('SELECT * FROM ' . static::$table . ' WHERE id = :id LIMIT 1', ['id' => $id]);
+        $row = Database::fetch('SELECT * FROM ' . static::$table . ' WHERE id = :id AND deleted_at IS NULL LIMIT 1', ['id' => $id]);
         return $row ? static::expose($row) : null;
+    }
+
+    public static function present(array $row): array
+    {
+        return static::expose($row);
+    }
+
+    public static function presentMany(array $rows): array
+    {
+        return array_map(fn (array $row) => static::present($row), $rows);
     }
 
     public static function create(array $data): array
@@ -47,7 +57,7 @@ abstract class CrudModel
         $data['updated_at'] = db_time();
         $sets = array_map(fn ($column) => "{$column} = :{$column}", array_keys($data));
         $data['id'] = $id;
-        Database::query('UPDATE ' . static::$table . ' SET ' . implode(', ', $sets) . ' WHERE id = :id', $data);
+        Database::query('UPDATE ' . static::$table . ' SET ' . implode(', ', $sets) . ' WHERE id = :id AND deleted_at IS NULL', $data);
         return static::find($id);
     }
 

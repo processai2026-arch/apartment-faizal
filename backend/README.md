@@ -7,6 +7,7 @@ Secure custom PHP MVC-style API for the BRILEY ONE / OfficeGate building managem
 ```bash
 cd backend
 cp .env.example .env
+composer install
 php scripts/migrate.php
 php scripts/seed.php
 php -S localhost:8000 -t public
@@ -34,11 +35,12 @@ Health check:
 curl http://localhost:8000/health
 ```
 
-Default seed users use the passwords from `.env`.
+Local seed users use the passwords from `.env`. In production, `scripts/seed.php` refuses default passwords and requires explicit `SEED_GATE_*_TOKEN` values.
 
 ## Architecture
 
 - `public/index.php`: front controller
+- `routes/api.php`: API route table
 - `config/`: environment and database config
 - `core/`: request, response, router, database, bootstrap
 - `middleware/`: auth, roles, rate limiting, security headers
@@ -47,6 +49,30 @@ Default seed users use the passwords from `.env`.
 - `services/`: auth tokens, audit log, OTP, uploads, reporting
 - `database/migrations/`: schema
 - `database/seeds/`: development seed data
+- `tests/`: endpoint suite plus PHPUnit scaffolding
+
+Composer is optional for Hostinger runtime, but `composer.json` is present for PSR-4/classmap metadata, local dev tooling, and CI.
+
+## Tests
+
+```bash
+find . -name '*.php' -not -path './vendor/*' -exec php -l {} +
+php tests/endpoint_security_test.php http://127.0.0.1:8000
+composer test
+```
+
+The endpoint suite is the primary integration/security regression check. PHPUnit covers focused helper/unit behavior when dev dependencies are installed.
+
+## Backup And Restore
+
+Production MySQL backups:
+
+```bash
+php scripts/backup_mysql.php
+php scripts/restore_mysql.php storage/backups/officegate-YYYYMMDD-HHMMSS.sql
+```
+
+Production restore additionally requires `--confirm-production-restore`. Keep generated backups outside the public web root whenever the hosting plan allows it.
 
 ## Security Defaults
 
@@ -62,6 +88,6 @@ Default seed users use the passwords from `.env`.
 - role middleware for `admin`, `security`, and `tenant`
 - file-backed rate limiting for auth and scan endpoints
 - audit log table for sensitive mutations
-- public scan endpoints require a gate token seeded in `gate_tokens`
+- public scan endpoints require a gate token seeded in `gate_tokens`; frontend scan pages receive it through a URL fragment and send it only as the `X-Gate-Token` header
 
 Before production, replace every secret in `.env`, set `APP_ENV=production`, disable `APP_DEBUG`, use MySQL, and put `storage/` outside the public web root.

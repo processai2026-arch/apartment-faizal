@@ -2,7 +2,16 @@
 
 declare(strict_types=1);
 
-$baseUrl = rtrim($argv[1] ?? 'http://127.0.0.1:8010', '/');
+$allowLive = in_array('--allow-live', $argv, true);
+$args = array_values(array_filter(array_slice($argv, 1), fn (string $arg) => $arg !== '--allow-live'));
+$baseUrl = rtrim($args[0] ?? 'http://127.0.0.1:8010', '/');
+$host = parse_url($baseUrl, PHP_URL_HOST) ?: '';
+$localHosts = ['127.0.0.1', 'localhost', '::1'];
+if (!$allowLive && !in_array($host, $localHosts, true)) {
+    fwrite(STDERR, "Refusing to run the destructive endpoint suite against non-local host {$host}. Use --allow-live only for an isolated staging database.\n");
+    exit(1);
+}
+
 $testIp = '10.222.' . random_int(1, 250) . '.' . random_int(1, 250);
 $passed = 0;
 $failed = 0;

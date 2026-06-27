@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { CheckCircle, ShieldCheck, User, Phone, Home, FileText, Car, Send, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
+import { api } from '@/lib/api';
+import { requireGateToken } from '@/lib/gateToken';
 import type { Visitor } from '@/types';
 
 type Step = 'form' | 'otp' | 'success';
@@ -21,7 +23,6 @@ export default function ScanVisitorEntry() {
   const [loading, setLoading] = useState(false);
   
   // OTP State
-  const [generatedOtp, setGeneratedOtp] = useState('');
   const [enteredOtp, setEnteredOtp] = useState('');
   const [otpError, setOtpError] = useState('');
 
@@ -36,23 +37,26 @@ export default function ScanVisitorEntry() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSendOTP = (e: React.FormEvent) => {
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
+    setOtpError('');
 
-    // Simulate sending OTP
-    setTimeout(() => {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedOtp(otp);
+    try {
+      requireGateToken('visitor-entry');
+      await api.sendOtp(form.phone.trim(), 'visitor-entry');
       setStep('otp');
+    } catch (error) {
+      setErrors({ submit: error instanceof Error ? error.message : 'Could not send OTP' });
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const handleVerifyOTP = async () => {
-    if (enteredOtp !== generatedOtp) {
-      setOtpError('Invalid OTP. Please try again.');
+    if (enteredOtp.length !== 6) {
+      setOtpError('Enter the 6-digit OTP.');
       return;
     }
 
@@ -60,6 +64,7 @@ export default function ScanVisitorEntry() {
     setOtpError('');
 
     try {
+      await api.verifyOtp(form.phone.trim(), 'visitor-entry', enteredOtp);
       const visitor: Visitor = {
         id: `V${Date.now()}`,
         name: form.name.trim(),
@@ -76,7 +81,6 @@ export default function ScanVisitorEntry() {
         status: 'Inside',
         entryTime: new Date().toISOString(),
         guardName: 'Self Check-in (QR)',
-        otp: generatedOtp,
       };
       const saved = await addVisitor(visitor) as Visitor | undefined;
       
@@ -96,11 +100,17 @@ export default function ScanVisitorEntry() {
     }
   };
 
-  const handleResendOTP = () => {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(otp);
-    setEnteredOtp('');
+  const handleResendOTP = async () => {
+    setLoading(true);
     setOtpError('');
+    try {
+      await api.sendOtp(form.phone.trim(), 'visitor-entry');
+      setEnteredOtp('');
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not resend OTP');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatTime = (iso: string) =>
@@ -201,7 +211,6 @@ export default function ScanVisitorEntry() {
               <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
               <p className="text-sm text-green-700 font-medium">OTP sent to</p>
               <p className="text-lg font-bold text-green-900">+91 {form.phone}</p>
-              <p className="text-xs text-green-600 mt-2">Demo OTP: <span className="font-mono font-bold">{generatedOtp}</span></p>
             </div>
 
             {/* OTP Input */}
@@ -387,6 +396,7 @@ export default function ScanVisitorEntry() {
                 </>
               )}
             </button>
+            {errors.submit && <p className="text-red-500 text-xs text-center">{errors.submit}</p>}
           </form>
 
           <p className="text-center text-xs text-slate-400">

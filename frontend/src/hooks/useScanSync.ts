@@ -1,6 +1,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/stores/useAppStore';
+import { tokenStorage } from '@/lib/api';
 
 /**
  * Hook that listens for storage events dispatched by scan pages
@@ -17,17 +18,8 @@ export function useScanSync() {
     try {
       channelRef.current = new BroadcastChannel('apartmentos-scan-sync');
       channelRef.current.onmessage = (event) => {
-        if (event.data?.type === 'visitor-entry' && event.data.payload) {
-          store.addVisitor(event.data.payload);
-        }
-        if (event.data?.type === 'visitor-checkout') {
-          store.checkOutVisitor(event.data.payload);
-        }
-        if (event.data?.type === 'vehicle-entry' && event.data.payload) {
-          store.addVehicle(event.data.payload);
-        }
-        if (event.data?.type === 'vehicle-checkout') {
-          store.checkOutVehicle(event.data.payload);
+        if (typeof event.data?.type === 'string' && tokenStorage.getAccessToken()) {
+          void store.loadInitialData();
         }
       };
     } catch {

@@ -10,20 +10,40 @@ class Invoice extends CrudModel
 
     public static function recordPayment(int $invoiceId, float $amount, array $data, int $userId): array
     {
-        $invoice = static::find($invoiceId);
-        if (!$invoice) {
-            throw new AppException('Invoice not found', 404);
-        }
-        if ($invoice['status'] === 'Cancelled') {
-            throw new AppException('Cancelled invoice cannot receive payment', 409);
-        }
         if ($amount <= 0) {
             throw new AppException('Payment amount must be positive', 422);
         }
 
-        return Database::transaction(function () use ($invoice, $invoiceId, $amount, $data, $userId): array {
-            $paid = (float) $invoice['paid_amount'] + $amount;
-            $status = $paid >= (float) $invoice['amount'] ? 'Paid' : 'Pending';
+        return Database::transaction(function () use ($invoiceId, $amount, $data, $userId): array {
+            $updated = Database::query(
+                "UPDATE invoices
+                 SET paid_amount = paid_amount + :amount_delta,
+                     status = CASE
+                         WHEN paid_amount + :amount_for_status >= amount THEN 'Paid'
+                         ELSE 'Pending'
+                     END,
+                     updated_at = :now
+                 WHERE id = :id
+                   AND deleted_at IS NULL
+                   AND status <> 'Cancelled'",
+                [
+                    'amount_delta' => $amount,
+                    'amount_for_status' => $amount,
+                    'now' => db_time(),
+                    'id' => $invoiceId,
+                ]
+            )->rowCount();
+            if ($updated !== 1) {
+                $invoice = static::find($invoiceId);
+                if (!$invoice) {
+                    throw new AppException('Invoice not found', 404);
+                }
+                if ($invoice['status'] === 'Cancelled') {
+                    throw new AppException('Cancelled invoice cannot receive payment', 409);
+                }
+                throw new AppException('Payment could not be recorded', 409);
+            }
+
             Database::query(
                 'INSERT INTO payments (invoice_id, amount, paid_at, mode, reference_no, actor_user_id, created_at)
                  VALUES (:invoice_id, :amount, :paid_at, :mode, :reference_no, :actor_user_id, :created_at)',
@@ -37,12 +57,6 @@ class Invoice extends CrudModel
                     'created_at' => db_time(),
                 ]
             );
-            Database::query('UPDATE invoices SET paid_amount = :paid, status = :status, updated_at = :now WHERE id = :id', [
-                'paid' => $paid,
-                'status' => $status,
-                'now' => db_time(),
-                'id' => $invoiceId,
-            ]);
             return static::find($invoiceId);
         });
     }

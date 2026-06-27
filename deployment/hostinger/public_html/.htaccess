@@ -1,0 +1,25 @@
+Options -Indexes
+LimitRequestBody 10485760
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^api(?:/(.*))?$ api/index.php [QSA,L]
+
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  RewriteRule ^.*$ index.html [L]
+</IfModule>
+
+<FilesMatch "(^\.|\.env|\.log|\.sql|\.sqlite|\.db|\.md)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+  Header always set Content-Security-Policy "default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+</IfModule>

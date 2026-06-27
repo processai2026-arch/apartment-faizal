@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api, tokenStorage } from '@/lib/api';
+import { requireGateToken } from '@/lib/gateToken';
 import { mockApartments, mockComplaints, mockDailyWorkers, mockEmergencyContacts, type EmergencyContact } from '@/data/mockData';
 import type { Apartment, Complaint, DailyWorker, InventoryItem, Office, Staff, UtilityTask, Vehicle, Vendor, Visitor } from '@/types';
 
@@ -98,7 +99,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addVisitor: async (visitor) => {
     try {
-      const saved = tokenStorage.getAccessToken() ? await api.visitors.create(visitor) : await api.visitors.publicEntry(visitor);
+      const saved = tokenStorage.getAccessToken() ? await api.visitors.create(visitor) : await api.visitors.publicEntry(visitor, requireGateToken('visitor-entry'));
       set((state) => ({ visitors: [saved, ...state.visitors.filter((v) => v.id !== saved.id)] }));
       return saved;
     } catch (error) {
@@ -109,7 +110,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   checkOutVisitor: async (id, checkoutToken) => {
     try {
-      const saved = tokenStorage.getAccessToken() ? await api.visitors.checkout(id) : await api.visitors.publicCheckout(id, checkoutToken || '');
+      const saved = tokenStorage.getAccessToken() ? await api.visitors.checkout(id) : await api.visitors.publicCheckout(id, checkoutToken || '', requireGateToken('visitor-checkout'));
       set((state) => ({ visitors: state.visitors.map((v) => (v.id === id ? saved : v)) }));
     } catch (error) {
       console.error(error);
@@ -119,7 +120,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addVehicle: async (vehicle) => {
     try {
-      const saved = tokenStorage.getAccessToken() ? await api.vehicles.create(vehicle) : await api.vehicles.publicEntry(vehicle);
+      const saved = tokenStorage.getAccessToken() ? await api.vehicles.create(vehicle) : await api.vehicles.publicEntry(vehicle, requireGateToken('vehicle-entry'));
       set((state) => ({ vehicles: [saved, ...state.vehicles.filter((v) => v.id !== saved.id)] }));
       return saved;
     } catch (error) {
@@ -130,7 +131,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   checkOutVehicle: async (id, checkoutToken) => {
     try {
-      const saved = tokenStorage.getAccessToken() ? await api.vehicles.checkout(id) : await api.vehicles.publicCheckout(id, checkoutToken || '');
+      const saved = tokenStorage.getAccessToken() ? await api.vehicles.checkout(id) : await api.vehicles.publicCheckout(id, checkoutToken || '', requireGateToken('vehicle-checkout'));
       set((state) => ({ vehicles: state.vehicles.map((v) => (v.id === id ? saved : v)) }));
     } catch (error) {
       console.error(error);

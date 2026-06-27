@@ -53,7 +53,15 @@ class OtpService
             throw new AppException('OTP expired or unavailable', 422);
         }
 
-        Database::query('UPDATE otp_challenges SET attempts = attempts + 1 WHERE id = :id', ['id' => $challenge['id']]);
+        $updated = Database::query(
+            'UPDATE otp_challenges
+             SET attempts = attempts + 1
+             WHERE id = :id AND verified_at IS NULL AND attempts < 5',
+            ['id' => $challenge['id']]
+        )->rowCount();
+        if ($updated !== 1) {
+            throw new AppException('OTP expired or unavailable', 422);
+        }
         if (!password_verify($code, $challenge['code_hash'])) {
             throw new AppException('Invalid OTP', 422);
         }

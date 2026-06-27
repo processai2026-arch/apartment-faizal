@@ -1,8 +1,12 @@
 .env
+vendor/
+.phpunit.cache/
 storage/database.sqlite
+storage/backups/*
 storage/rate-limit/*
 storage/logs/*
 storage/uploads/*
+!storage/backups/.gitkeep
 !storage/logs/.gitkeep
 !storage/rate-limit/.gitkeep
 !storage/uploads/.htaccess

@@ -2,7 +2,14 @@
 
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 require_once dirname(__DIR__) . '/core/bootstrap.php';
+
+$isProduction = config('app.env') === 'production';
 
 function insert_if_missing(string $table, string $whereColumn, mixed $whereValue, array $data): int
 {
@@ -34,17 +41,77 @@ function insert_office_if_missing(array $data): int
 
 function public_seed_token(string $scope): string
 {
+    global $isProduction;
+
     $envKey = 'SEED_GATE_' . strtoupper(str_replace('-', '_', $scope)) . '_TOKEN';
     $configured = (string) env($envKey, '');
     if ($configured !== '') {
         return $configured;
     }
 
-    if (config('app.env') === 'production') {
-        return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+    if ($isProduction) {
+        throw new RuntimeException("{$envKey} is required in production seed.");
     }
 
     return 'dev-' . $scope . '-token';
+}
+
+function seed_password(string $key): string
+{
+    global $isProduction;
+
+    $password = (string) env($key, $isProduction ? '' : 'ChangeMe@12345');
+    if (!$isProduction) {
+        return $password;
+    }
+
+    $unsafe = $password === ''
+        || $password === 'ChangeMe@12345'
+        || strlen($password) < 10
+        || str_starts_with(strtolower($password), 'replace');
+    if ($unsafe) {
+        throw new RuntimeException("{$key} must be set to a strong non-default password in production.");
+    }
+
+    return $password;
+}
+
+function upsert_gate_token(string $scope, string $token, bool $isProduction, string $now): void
+{
+    $name = ($isProduction ? 'Production ' : 'Development ') . $scope;
+    $existing = Database::fetch(
+        'SELECT id FROM gate_tokens WHERE name = :name AND scope = :scope LIMIT 1',
+        ['name' => $name, 'scope' => $scope]
+    );
+    if ($existing) {
+        Database::query(
+            'UPDATE gate_tokens
+             SET token_hash = :token_hash,
+                 status = :status,
+                 expires_at = :expires_at
+             WHERE id = :id',
+            [
+                'token_hash' => hash('sha256', $token),
+                'status' => 'active',
+                'expires_at' => db_time(strtotime('+1 year')),
+                'id' => $existing['id'],
+            ]
+        );
+        return;
+    }
+
+    Database::query(
+        'INSERT INTO gate_tokens (name, scope, token_hash, status, expires_at, created_at)
+         VALUES (:name, :scope, :token_hash, :status, :expires_at, :created_at)',
+        [
+            'name' => $name,
+            'scope' => $scope,
+            'token_hash' => hash('sha256', $token),
+            'status' => 'active',
+            'expires_at' => db_time(strtotime('+1 year')),
+            'created_at' => $now,
+        ]
+    );
 }
 
 $now = db_time();
@@ -64,9 +131,9 @@ $officeId = insert_office_if_missing([
 ]);
 
 $users = [
-    [env('SEED_ADMIN_EMAIL', 'admin@officegate.com'), env('SEED_ADMIN_PASSWORD', 'ChangeMe@12345'), 'Admin User', '+919876500000', 'admin', null],
-    [env('SEED_SECURITY_EMAIL', 'security@officegate.com'), env('SEED_SECURITY_PASSWORD', 'ChangeMe@12345'), 'Security Guard', '+919876511111', 'security', null],
-    [env('SEED_TENANT_EMAIL', 'tenant@officegate.com'), env('SEED_TENANT_PASSWORD', 'ChangeMe@12345'), 'Tenant User', '+919876522222', 'tenant', $officeId],
+    [env('SEED_ADMIN_EMAIL', 'admin@officegate.com'), seed_password('SEED_ADMIN_PASSWORD'), 'Admin User', '+919876500000', 'admin', null],
+    [env('SEED_SECURITY_EMAIL', 'security@officegate.com'), seed_password('SEED_SECURITY_PASSWORD'), 'Security Guard', '+919876511111', 'security', null],
+    [env('SEED_TENANT_EMAIL', 'tenant@officegate.com'), seed_password('SEED_TENANT_PASSWORD'), 'Tenant User', '+919876522222', 'tenant', $officeId],
 ];
 
 foreach ($users as [$email, $password, $name, $phone, $role, $userOfficeId]) {
@@ -158,15 +225,8 @@ insert_if_missing('utility_tasks', 'description', 'Monthly lift maintenance', [
 
 foreach (['visitor-entry', 'visitor-checkout', 'vehicle-entry', 'vehicle-checkout'] as $scope) {
     $token = public_seed_token($scope);
-    insert_if_missing('gate_tokens', 'token_hash', hash('sha256', $token), [
-        'name' => 'Development ' . $scope,
-        'scope' => $scope,
-        'token_hash' => hash('sha256', $token),
-        'status' => 'active',
-        'expires_at' => db_time(strtotime('+1 year')),
-        'created_at' => $now,
-    ]);
-    echo "gate token {$scope}: {$token}\n";
+    upsert_gate_token($scope, $token, $isProduction, $now);
+    echo $isProduction ? "gate token {$scope}: configured\n" : "gate token {$scope}: {$token}\n";
 }
 
 echo "seed complete\n";

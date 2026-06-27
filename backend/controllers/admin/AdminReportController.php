@@ -17,6 +17,11 @@ class AdminReportController
             'inventory' => Database::fetchAll('SELECT * FROM inventory_items WHERE deleted_at IS NULL ORDER BY item_name'),
             'financials' => Database::fetchAll('SELECT * FROM invoices WHERE deleted_at IS NULL ORDER BY due_date DESC'),
         };
+        if ($type === 'visitors') {
+            $data = Visitor::presentMany($data);
+        } elseif ($type === 'vehicles') {
+            $data = Vehicle::presentMany($data);
+        }
 
         Response::success(['type' => $type, 'from' => $from, 'to' => $to, 'rows' => $data]);
     }

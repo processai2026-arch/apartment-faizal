@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
 export default function ChangePassword() {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
   
   const [form, setForm] = useState({
     existingPassword: '',
@@ -13,8 +16,9 @@ export default function ChangePassword() {
   
   const [showExisting, setShowExisting] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!form.existingPassword || !form.newPassword) {
@@ -22,14 +26,23 @@ export default function ChangePassword() {
       return;
     }
     
-    if (form.newPassword.length < 6) {
-      toast.error('New password must be at least 6 characters');
+    if (form.newPassword.length < 10) {
+      toast.error('New password must be at least 10 characters');
       return;
     }
     
-    // In a real app, this would verify existing password and update via API
-    toast.success('Password changed successfully!');
-    setForm({ existingPassword: '', newPassword: '' });
+    setSaving(true);
+    try {
+      await api.changePassword(form.existingPassword, form.newPassword);
+      toast.success('Password changed. Please sign in again.');
+      setForm({ existingPassword: '', newPassword: '' });
+      logout();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not change password');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const formatDate = (dateString?: string) => {
@@ -121,9 +134,10 @@ export default function ChangePassword() {
           <div className="mt-8">
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-red-500 to-red-600 text-white text-base font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition-all shadow-lg"
+              disabled={saving}
+              className="w-full py-3 bg-gradient-to-r from-red-500 to-red-600 text-white text-base font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transition-all shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Make Changes
+              {saving ? 'Saving...' : 'Make Changes'}
             </button>
           </div>
         </form>

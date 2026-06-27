@@ -156,15 +156,15 @@ export const api = {
     list: () => unwrapList<VisitorDto>('/admin/visitors?perPage=100').then((rows) => rows.map(toVisitor)),
     create: (visitor: Partial<Visitor>) => request<VisitorDto>('/admin/visitors/entry', { method: 'POST', body: JSON.stringify(fromVisitor(visitor)) }).then(toVisitor),
     checkout: (id: string) => request<VisitorDto>(`/admin/visitors/${id}/checkout`, { method: 'POST', body: JSON.stringify({}) }).then(toVisitor),
-    publicEntry: (visitor: Partial<Visitor>) => request<VisitorDto>('/public/scan/visitor-entry', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VISITOR_ENTRY_TOKEN || 'dev-visitor-entry-token'), body: JSON.stringify(fromVisitor(visitor)) }).then(toVisitor),
-    publicCheckout: (id: string, checkoutToken: string) => request<VisitorDto>('/public/scan/visitor-checkout', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VISITOR_CHECKOUT_TOKEN || 'dev-visitor-checkout-token'), body: JSON.stringify({ visitor_id: id, checkout_token: checkoutToken }) }).then(toVisitor),
+    publicEntry: (visitor: Partial<Visitor>, gateToken: string) => request<VisitorDto>('/public/scan/visitor-entry', { method: 'POST', headers: gateHeaders(gateToken), body: JSON.stringify(fromVisitor(visitor)) }).then(toVisitor),
+    publicCheckout: (id: string, checkoutToken: string, gateToken: string) => request<VisitorDto>('/public/scan/visitor-checkout', { method: 'POST', headers: gateHeaders(gateToken), body: JSON.stringify({ visitor_id: id, checkout_token: checkoutToken }) }).then(toVisitor),
   },
   vehicles: {
     list: () => unwrapList<VehicleDto>('/admin/vehicles?perPage=100').then((rows) => rows.map(toVehicle)),
     create: (vehicle: Partial<Vehicle>) => request<VehicleDto>('/admin/vehicles/entry', { method: 'POST', body: JSON.stringify(fromVehicle(vehicle)) }).then(toVehicle),
     checkout: (id: string) => request<VehicleDto>(`/admin/vehicles/${id}/checkout`, { method: 'POST', body: JSON.stringify({}) }).then(toVehicle),
-    publicEntry: (vehicle: Partial<Vehicle>) => request<VehicleDto>('/public/scan/vehicle-entry', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VEHICLE_ENTRY_TOKEN || 'dev-vehicle-entry-token'), body: JSON.stringify(fromVehicle(vehicle)) }).then(toVehicle),
-    publicCheckout: (id: string, checkoutToken: string) => request<VehicleDto>('/public/scan/vehicle-checkout', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VEHICLE_CHECKOUT_TOKEN || 'dev-vehicle-checkout-token'), body: JSON.stringify({ vehicle_id: id, checkout_token: checkoutToken }) }).then(toVehicle),
+    publicEntry: (vehicle: Partial<Vehicle>, gateToken: string) => request<VehicleDto>('/public/scan/vehicle-entry', { method: 'POST', headers: gateHeaders(gateToken), body: JSON.stringify(fromVehicle(vehicle)) }).then(toVehicle),
+    publicCheckout: (id: string, checkoutToken: string, gateToken: string) => request<VehicleDto>('/public/scan/vehicle-checkout', { method: 'POST', headers: gateHeaders(gateToken), body: JSON.stringify({ vehicle_id: id, checkout_token: checkoutToken }) }).then(toVehicle),
   },
   vendors: {
     list: () => unwrapList<VendorDto>('/admin/vendors?perPage=100').then((rows) => rows.map(toVendor)),
@@ -187,13 +187,14 @@ export const api = {
   },
 };
 
-type OfficeDto = Record<string, any>;
-type VisitorDto = Record<string, any>;
-type VehicleDto = Record<string, any>;
-type VendorDto = Record<string, any>;
-type StaffDto = Record<string, any>;
-type InventoryDto = Record<string, any>;
-type UtilityDto = Record<string, any>;
+type DtoValue = string | number | boolean | null | undefined;
+type OfficeDto = Record<string, DtoValue>;
+type VisitorDto = Record<string, DtoValue>;
+type VehicleDto = Record<string, DtoValue>;
+type VendorDto = Record<string, DtoValue>;
+type StaffDto = Record<string, DtoValue>;
+type InventoryDto = Record<string, DtoValue>;
+type UtilityDto = Record<string, DtoValue>;
 
 function toOffice(row: OfficeDto): Office {
   return {

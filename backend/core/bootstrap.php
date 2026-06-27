@@ -5,6 +5,11 @@ declare(strict_types=1);
 define('BASE_PATH', dirname(__DIR__));
 define('STORAGE_PATH', BASE_PATH . '/storage');
 
+$composerAutoload = BASE_PATH . '/vendor/autoload.php';
+if (is_file($composerAutoload)) {
+    require_once $composerAutoload;
+}
+
 spl_autoload_register(function (string $class): void {
     $paths = [
         BASE_PATH . '/core/' . $class . '.php',

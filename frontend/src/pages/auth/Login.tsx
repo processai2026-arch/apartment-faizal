@@ -17,6 +17,7 @@ export default function Login() {
   const { login, loginWithOTP, isLoading } = useAuthStore();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const showDemoCredentials = import.meta.env.DEV;
 
   const fillCredentials = (cEmail: string, cPassword: string) => {
     setLoginMethod('email');
@@ -306,7 +307,7 @@ export default function Login() {
               </form>
             )}
 
-            {/* Demo Credentials */}
+            {showDemoCredentials && (
             <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Demo Credentials — click to auto-fill</p>
               <div className="space-y-2 text-sm">
@@ -354,6 +355,7 @@ export default function Login() {
                 </button>
               </div>
             </div>
+            )}
           </div>
         </div>
       </div>

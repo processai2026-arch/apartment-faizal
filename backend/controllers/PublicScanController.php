@@ -7,10 +7,25 @@ class PublicScanController
     public function visitorEntry(Request $request): void
     {
         Validator::require($request->all(), ['name', 'phone', 'company_name', 'whom_to_meet', 'reason']);
-        $data = $request->all();
-        $data['phone'] = Validator::phone($data['phone']);
+        $data = $request->only([
+            'name',
+            'phone',
+            'gender',
+            'address',
+            'city',
+            'pincode',
+            'block',
+            'floor_number',
+            'company_name',
+            'whom_to_meet',
+            'reason',
+            'vehicle_type',
+            'vehicle_no',
+        ]);
+        $data['phone'] = Validator::phone((string) $data['phone']);
         $data['status'] = 'Inside';
         $data['entry_time'] = db_time();
+        $data['guard_name'] = 'Self Check-in';
         $row = Visitor::create($data);
         $row = Visitor::issuePublicCheckoutToken((int) $row['id']);
         AuditService::log(null, 'public_scan.visitor_entry', 'visitor', (int) $row['id']);
@@ -27,7 +42,16 @@ class PublicScanController
     public function vehicleEntry(Request $request): void
     {
         Validator::require($request->all(), ['vehicle_no', 'vehicle_type']);
-        $data = $request->all();
+        $data = $request->only([
+            'vehicle_no',
+            'vehicle_type',
+            'vehicle_model',
+            'owner_name',
+            'block',
+            'floor_number',
+            'company_name',
+        ]);
+        $data['parking_user_type'] = 'Visitor';
         $data['status'] = 'Inside';
         $data['entry_time'] = db_time();
         $row = Vehicle::create($data);

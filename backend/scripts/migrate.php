@@ -2,7 +2,17 @@
 
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 require_once dirname(__DIR__) . '/core/bootstrap.php';
+
+if (Database::driver() !== 'sqlite') {
+    fwrite(STDERR, "The PHP migration runner is SQLite-only. Import database/officegate_production.sql for MySQL.\n");
+    exit(1);
+}
 
 $pdo = Database::pdo();
 $pdo->exec('CREATE TABLE IF NOT EXISTS migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, migration TEXT NOT NULL UNIQUE, ran_at TEXT NOT NULL)');

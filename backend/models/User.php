@@ -6,17 +6,17 @@ class User
 {
     public static function findByEmail(string $email): ?array
     {
-        return Database::fetch('SELECT * FROM users WHERE email = :email LIMIT 1', ['email' => strtolower($email)]);
+        return Database::fetch('SELECT * FROM users WHERE email = :email AND deleted_at IS NULL LIMIT 1', ['email' => strtolower($email)]);
     }
 
     public static function findByPhone(string $phone): ?array
     {
-        return Database::fetch('SELECT * FROM users WHERE phone = :phone LIMIT 1', ['phone' => $phone]);
+        return Database::fetch('SELECT * FROM users WHERE phone = :phone AND deleted_at IS NULL LIMIT 1', ['phone' => $phone]);
     }
 
     public static function findById(int $id): ?array
     {
-        return Database::fetch('SELECT * FROM users WHERE id = :id LIMIT 1', ['id' => $id]);
+        return Database::fetch('SELECT * FROM users WHERE id = :id AND deleted_at IS NULL LIMIT 1', ['id' => $id]);
     }
 
     public static function public(array $user): array

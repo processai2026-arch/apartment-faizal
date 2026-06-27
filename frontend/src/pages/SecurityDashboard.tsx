@@ -14,6 +14,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import UICustomizer from '@/components/features/UICustomizer';
 import type { CardConfig } from '@/types/uiSettings';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -106,7 +107,6 @@ export default function SecurityDashboard() {
   });
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
   const pageSettings = settings.securityDashboard;
@@ -233,7 +233,7 @@ export default function SecurityDashboard() {
   const selectedOffice = offices.find(o => o.id === visitorForm.officeId);
 
   // Send OTP to visitor
-  const handleSendOTP = () => {
+  const handleSendOTP = async () => {
     if (!visitorForm.name || !visitorForm.phone || !visitorForm.officeId || !visitorForm.whomToMeet) {
       toast({
         title: 'Missing Information',
@@ -243,53 +243,59 @@ export default function SecurityDashboard() {
       return;
     }
 
-    // Generate a random 6-digit OTP
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(newOtp);
-    setOtpSent(true);
-    
-    toast({
-      title: 'OTP Sent',
-      description: `OTP ${newOtp} sent to ${visitorForm.phone} (Demo: OTP shown for testing)`,
-    });
+    setIsVerifying(true);
+    try {
+      await api.sendOtp(visitorForm.phone, 'visitor-entry');
+      setOtpSent(true);
+      toast({
+        title: 'OTP Sent',
+        description: `OTP sent to ${visitorForm.phone}`,
+      });
+    } catch (error) {
+      toast({
+        title: 'OTP Failed',
+        description: error instanceof Error ? error.message : 'Could not send OTP',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   // Verify OTP and add visitor
   const handleVerifyAndAddVisitor = async () => {
-    if (otp !== generatedOtp) {
+    if (otp.length !== 6) {
       toast({
         title: 'Invalid OTP',
-        description: 'The OTP entered is incorrect',
+        description: 'Enter the 6-digit OTP',
         variant: 'destructive',
       });
       return;
     }
 
     setIsVerifying(true);
-    
-    // Add visitor to the system
-    const newVisitor = {
-      id: `V${Date.now()}`,
-      name: visitorForm.name,
-      phone: visitorForm.phone,
-      gender: visitorForm.gender,
-      address: visitorForm.address,
-      city: visitorForm.city,
-      pincode: visitorForm.pincode,
-      block: selectedOffice?.block || '',
-      floorNumber: selectedOffice?.floorNumber || '',
-      companyName: selectedOffice?.companyName || '',
-      whomToMeet: visitorForm.whomToMeet,
-      reason: visitorForm.reason,
-      category: 'Guest' as const,
-      status: 'Inside' as const,
-      entryTime: new Date().toISOString(),
-      guardName: user?.name || 'Security',
-      otp: generatedOtp,
-      vehicleNo: visitorForm.vehicleNo || undefined,
-    };
 
     try {
+      await api.verifyOtp(visitorForm.phone, 'visitor-entry', otp);
+      const newVisitor = {
+        id: `V${Date.now()}`,
+        name: visitorForm.name,
+        phone: visitorForm.phone,
+        gender: visitorForm.gender,
+        address: visitorForm.address,
+        city: visitorForm.city,
+        pincode: visitorForm.pincode,
+        block: selectedOffice?.block || '',
+        floorNumber: selectedOffice?.floorNumber || '',
+        companyName: selectedOffice?.companyName || '',
+        whomToMeet: visitorForm.whomToMeet,
+        reason: visitorForm.reason,
+        category: 'Guest' as const,
+        status: 'Inside' as const,
+        entryTime: new Date().toISOString(),
+        guardName: user?.name || 'Security',
+        vehicleNo: visitorForm.vehicleNo || undefined,
+      };
       await addVisitor(newVisitor);
       toast({
         title: 'Visitor Entry Logged',
@@ -323,7 +329,6 @@ export default function SecurityDashboard() {
     });
     setOtpSent(false);
     setOtp('');
-    setGeneratedOtp('');
     setIsVerifying(false);
     setShowAddVisitorModal(false);
   };
@@ -981,7 +986,8 @@ export default function SecurityDashboard() {
               {!otpSent ? (
                 <button
                   onClick={handleSendOTP}
-                  className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                  disabled={isVerifying}
+                  className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-5 h-5" />
                   Send OTP to Visitor
@@ -993,7 +999,6 @@ export default function SecurityDashboard() {
                       <CheckCircle className="w-5 h-5" />
                       <span className="text-sm font-medium">OTP sent to {visitorForm.phone}</span>
                     </div>
-                    <p className="text-xs text-green-600 mt-1">Demo OTP: {generatedOtp}</p>
                   </div>
 
                   <div>

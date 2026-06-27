@@ -1,0 +1,42 @@
+{
+  "name": "officegate/backend",
+  "description": "OfficeGate secure PHP API for building, visitor, vehicle, staff, utility, and finance operations.",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": ">=8.2",
+    "ext-fileinfo": "*",
+    "ext-json": "*",
+    "ext-pdo": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "OfficeGate\\": "./"
+    },
+    "classmap": [
+      "config/",
+      "controllers/",
+      "core/",
+      "helpers/",
+      "middleware/",
+      "models/",
+      "services/"
+    ]
+  },
+  "autoload-dev": {
+    "classmap": [
+      "tests/"
+    ]
+  },
+  "scripts": {
+    "lint": "find . -name '*.php' -not -path './vendor/*' -exec php -l {} +",
+    "test": "phpunit --configuration phpunit.xml"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+}
