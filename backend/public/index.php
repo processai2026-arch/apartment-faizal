@@ -31,9 +31,9 @@ if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['POST', 'PUT', 'PATCH'], true
     }
 }
 
+$isProduction = config('app.env') === 'production';
 foreach (['app.jwt_access_secret', 'app.jwt_refresh_secret'] as $secretKey) {
     $secret = (string) config($secretKey);
-    $isProduction = config('app.env') === 'production';
     $unsafeProductionSecret = $isProduction && (
         str_starts_with($secret, 'dev-only') ||
         str_starts_with(strtolower($secret), 'replace-with') ||
@@ -42,6 +42,9 @@ foreach (['app.jwt_access_secret', 'app.jwt_refresh_secret'] as $secretKey) {
     if (strlen($secret) < 32 || str_starts_with($secret, 'change-this') || $unsafeProductionSecret) {
         throw new AppException('JWT secrets must be configured with strong values', 500);
     }
+}
+if ($isProduction && config('app.otp_driver') === 'log') {
+    throw new AppException('OTP_DRIVER=log is not allowed in production', 500);
 }
 
 $router = new Router();
@@ -54,7 +57,7 @@ $router->post('/auth/otp/verify', [AuthController::class, 'verifyOtp'], ['RateLi
 $router->post('/auth/refresh', [AuthController::class, 'refresh'], ['RateLimitMiddleware:30,300']);
 $router->post('/auth/logout', [AuthController::class, 'logout'], ['AuthMiddleware']);
 $router->get('/auth/me', [AuthController::class, 'me'], ['AuthMiddleware']);
-$router->put('/auth/change-password', [AuthController::class, 'changePassword'], ['AuthMiddleware']);
+$router->put('/auth/change-password', [AuthController::class, 'changePassword'], ['AuthMiddleware', 'RateLimitMiddleware:5,300']);
 $router->get('/ui-settings', [UiSettingsController::class, 'show'], ['AuthMiddleware']);
 $router->put('/ui-settings', [UiSettingsController::class, 'update'], ['AuthMiddleware']);
 $router->post('/uploads', [UploadController::class, 'store'], ['RoleMiddleware:admin,security']);

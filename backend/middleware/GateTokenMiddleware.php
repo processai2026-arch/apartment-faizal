@@ -6,12 +6,7 @@ class GateTokenMiddleware
 {
     public function handle(Request $request, ?string $argument = null): void
     {
-        $token = (string) (
-            $request->headers['x-gate-token']
-            ?? $request->input('gateToken')
-            ?? $request->input('token')
-            ?? ''
-        );
+        $token = (string) ($request->headers['x-gate-token'] ?? '');
         if ($token === '') {
             throw new AppException('Gate token required', 401);
         }

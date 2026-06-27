@@ -24,9 +24,9 @@ interface AppState {
   loadInitialData: () => Promise<void>;
   resetBackendState: () => void;
   addVisitor: (visitor: Visitor) => Promise<Visitor | void>;
-  checkOutVisitor: (id: string) => Promise<void>;
+  checkOutVisitor: (id: string, checkoutToken?: string) => Promise<void>;
   addVehicle: (vehicle: Vehicle) => Promise<Vehicle | void>;
-  checkOutVehicle: (id: string) => Promise<void>;
+  checkOutVehicle: (id: string, checkoutToken?: string) => Promise<void>;
   addOffice: (office: Office) => Promise<Office | void>;
   updateOffice: (office: Office) => Promise<void>;
   toggleOfficeStatus: (id: string) => Promise<void>;
@@ -107,9 +107,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  checkOutVisitor: async (id) => {
+  checkOutVisitor: async (id, checkoutToken) => {
     try {
-      const saved = tokenStorage.getAccessToken() ? await api.visitors.checkout(id) : await api.visitors.publicCheckout(id);
+      const saved = tokenStorage.getAccessToken() ? await api.visitors.checkout(id) : await api.visitors.publicCheckout(id, checkoutToken || '');
       set((state) => ({ visitors: state.visitors.map((v) => (v.id === id ? saved : v)) }));
     } catch (error) {
       console.error(error);
@@ -128,9 +128,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  checkOutVehicle: async (id) => {
+  checkOutVehicle: async (id, checkoutToken) => {
     try {
-      const saved = tokenStorage.getAccessToken() ? await api.vehicles.checkout(id) : await api.vehicles.publicCheckout(id);
+      const saved = tokenStorage.getAccessToken() ? await api.vehicles.checkout(id) : await api.vehicles.publicCheckout(id, checkoutToken || '');
       set((state) => ({ vehicles: state.vehicles.map((v) => (v.id === id ? saved : v)) }));
     } catch (error) {
       console.error(error);

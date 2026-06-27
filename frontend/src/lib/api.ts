@@ -157,14 +157,14 @@ export const api = {
     create: (visitor: Partial<Visitor>) => request<VisitorDto>('/admin/visitors/entry', { method: 'POST', body: JSON.stringify(fromVisitor(visitor)) }).then(toVisitor),
     checkout: (id: string) => request<VisitorDto>(`/admin/visitors/${id}/checkout`, { method: 'POST', body: JSON.stringify({}) }).then(toVisitor),
     publicEntry: (visitor: Partial<Visitor>) => request<VisitorDto>('/public/scan/visitor-entry', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VISITOR_ENTRY_TOKEN || 'dev-visitor-entry-token'), body: JSON.stringify(fromVisitor(visitor)) }).then(toVisitor),
-    publicCheckout: (id: string) => request<VisitorDto>('/public/scan/visitor-checkout', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VISITOR_CHECKOUT_TOKEN || 'dev-visitor-checkout-token'), body: JSON.stringify({ visitor_id: id }) }).then(toVisitor),
+    publicCheckout: (id: string, checkoutToken: string) => request<VisitorDto>('/public/scan/visitor-checkout', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VISITOR_CHECKOUT_TOKEN || 'dev-visitor-checkout-token'), body: JSON.stringify({ visitor_id: id, checkout_token: checkoutToken }) }).then(toVisitor),
   },
   vehicles: {
     list: () => unwrapList<VehicleDto>('/admin/vehicles?perPage=100').then((rows) => rows.map(toVehicle)),
     create: (vehicle: Partial<Vehicle>) => request<VehicleDto>('/admin/vehicles/entry', { method: 'POST', body: JSON.stringify(fromVehicle(vehicle)) }).then(toVehicle),
     checkout: (id: string) => request<VehicleDto>(`/admin/vehicles/${id}/checkout`, { method: 'POST', body: JSON.stringify({}) }).then(toVehicle),
     publicEntry: (vehicle: Partial<Vehicle>) => request<VehicleDto>('/public/scan/vehicle-entry', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VEHICLE_ENTRY_TOKEN || 'dev-vehicle-entry-token'), body: JSON.stringify(fromVehicle(vehicle)) }).then(toVehicle),
-    publicCheckout: (id: string) => request<VehicleDto>('/public/scan/vehicle-checkout', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VEHICLE_CHECKOUT_TOKEN || 'dev-vehicle-checkout-token'), body: JSON.stringify({ vehicle_id: id }) }).then(toVehicle),
+    publicCheckout: (id: string, checkoutToken: string) => request<VehicleDto>('/public/scan/vehicle-checkout', { method: 'POST', headers: gateHeaders(import.meta.env.VITE_GATE_VEHICLE_CHECKOUT_TOKEN || 'dev-vehicle-checkout-token'), body: JSON.stringify({ vehicle_id: id, checkout_token: checkoutToken }) }).then(toVehicle),
   },
   vendors: {
     list: () => unwrapList<VendorDto>('/admin/vendors?perPage=100').then((rows) => rows.map(toVendor)),
@@ -247,6 +247,8 @@ function toVisitor(row: VisitorDto): Visitor {
     duration: exitTime ? calculateDuration(entryTime, exitTime) : undefined,
     guardName: row.guard_name || row.guardName || undefined,
     remarks: row.remarks || undefined,
+    checkoutToken: row.checkout_token || row.checkoutToken || undefined,
+    checkoutTokenExpiresAt: row.checkout_token_expires_at || row.checkoutTokenExpiresAt || undefined,
     apartmentNo: row.apartmentNo,
     purpose: row.reason || row.purpose,
   };
@@ -288,6 +290,8 @@ function toVehicle(row: VehicleDto): Vehicle {
     status: row.status,
     entryTime: row.entry_time || row.entryTime,
     exitTime: row.exit_time || undefined,
+    checkoutToken: row.checkout_token || row.checkoutToken || undefined,
+    checkoutTokenExpiresAt: row.checkout_token_expires_at || row.checkoutTokenExpiresAt || undefined,
     apartmentNo: row.floor_number || row.apartmentNo || undefined,
     type: row.vehicle_type || row.type || undefined,
   };

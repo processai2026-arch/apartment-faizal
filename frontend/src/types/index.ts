@@ -46,6 +46,8 @@ export interface Visitor {
   otp?: string;
   photoUrl?: string;
   remarks?: string;
+  checkoutToken?: string;
+  checkoutTokenExpiresAt?: string;
   
   // Legacy compatibility
   apartmentNo?: string;
@@ -72,6 +74,8 @@ export interface Vehicle {
   status: 'Inside' | 'Exited';
   entryTime: string;
   exitTime?: string;
+  checkoutToken?: string;
+  checkoutTokenExpiresAt?: string;
   
   // Legacy compatibility
   apartmentNo?: string;

@@ -116,6 +116,9 @@ CREATE TABLE IF NOT EXISTS visitors (
   exit_time DATETIME NULL,
   guard_name VARCHAR(160) NULL,
   remarks TEXT NULL,
+  public_checkout_token_hash CHAR(64) NULL,
+  public_checkout_token_expires_at DATETIME NULL,
+  public_checkout_used_at DATETIME NULL,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NULL,
   deleted_at DATETIME NULL,
@@ -124,6 +127,7 @@ CREATE TABLE IF NOT EXISTS visitors (
   KEY idx_visitors_phone (phone),
   KEY idx_visitors_office (office_id),
   KEY idx_visitors_company (company_name),
+  KEY idx_visitors_public_checkout_token (public_checkout_token_hash, public_checkout_used_at, public_checkout_token_expires_at),
   CONSTRAINT fk_visitors_office FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -156,6 +160,9 @@ CREATE TABLE IF NOT EXISTS vehicles (
   status ENUM('Inside','Exited') NOT NULL DEFAULT 'Inside',
   entry_time DATETIME NOT NULL,
   exit_time DATETIME NULL,
+  public_checkout_token_hash CHAR(64) NULL,
+  public_checkout_token_expires_at DATETIME NULL,
+  public_checkout_used_at DATETIME NULL,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NULL,
   deleted_at DATETIME NULL,
@@ -163,6 +170,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   KEY idx_vehicles_status (status, entry_time),
   KEY idx_vehicles_active_no (vehicle_no_normalized, status),
   KEY idx_vehicles_office (office_id),
+  KEY idx_vehicles_public_checkout_token (public_checkout_token_hash, public_checkout_used_at, public_checkout_token_expires_at),
   CONSTRAINT fk_vehicles_office FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

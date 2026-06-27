@@ -32,6 +32,21 @@ function insert_office_if_missing(array $data): int
     return Database::insert('INSERT INTO offices (' . implode(',', $columns) . ') VALUES (:' . implode(',:', $columns) . ')', $data);
 }
 
+function public_seed_token(string $scope): string
+{
+    $envKey = 'SEED_GATE_' . strtoupper(str_replace('-', '_', $scope)) . '_TOKEN';
+    $configured = (string) env($envKey, '');
+    if ($configured !== '') {
+        return $configured;
+    }
+
+    if (config('app.env') === 'production') {
+        return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+    }
+
+    return 'dev-' . $scope . '-token';
+}
+
 $now = db_time();
 
 $officeId = insert_office_if_missing([
@@ -142,7 +157,7 @@ insert_if_missing('utility_tasks', 'description', 'Monthly lift maintenance', [
 ]);
 
 foreach (['visitor-entry', 'visitor-checkout', 'vehicle-entry', 'vehicle-checkout'] as $scope) {
-    $token = 'dev-' . $scope . '-token';
+    $token = public_seed_token($scope);
     insert_if_missing('gate_tokens', 'token_hash', hash('sha256', $token), [
         'name' => 'Development ' . $scope,
         'scope' => $scope,

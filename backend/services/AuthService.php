@@ -58,22 +58,32 @@ class AuthService
             throw new AppException('Invalid refresh token', 401);
         }
 
-        $hash = hash('sha256', $refreshToken);
-        $session = Database::fetch(
-            'SELECT * FROM refresh_tokens WHERE token_hash = :hash AND revoked_at IS NULL AND expires_at > :now',
-            ['hash' => $hash, 'now' => db_time()]
-        );
-        if (!$session) {
-            throw new AppException('Refresh token revoked or expired', 401);
-        }
+        return Database::transaction(function () use ($refreshToken, $payload, $request): array {
+            $now = db_time();
+            $updated = Database::query(
+                'UPDATE refresh_tokens
+                 SET revoked_at = :now
+                 WHERE token_hash = :hash
+                   AND user_id = :user_id
+                   AND revoked_at IS NULL
+                   AND expires_at > :now',
+                [
+                    'now' => $now,
+                    'hash' => hash('sha256', $refreshToken),
+                    'user_id' => (int) $payload['sub'],
+                ]
+            )->rowCount();
+            if ($updated !== 1) {
+                throw new AppException('Refresh token revoked or expired', 401);
+            }
 
-        Database::query('UPDATE refresh_tokens SET revoked_at = :now WHERE id = :id', ['now' => db_time(), 'id' => $session['id']]);
-        $user = User::findById((int) $payload['sub']);
-        if (!$user || $user['status'] !== 'active') {
-            throw new AppException('User unavailable', 401);
-        }
+            $user = User::findById((int) $payload['sub']);
+            if (!$user || $user['status'] !== 'active') {
+                throw new AppException('User unavailable', 401);
+            }
 
-        return $this->issueTokens($user, $request);
+            return $this->issueTokens($user, $request);
+        });
     }
 
     public function logout(?string $refreshToken, ?int $userId): void

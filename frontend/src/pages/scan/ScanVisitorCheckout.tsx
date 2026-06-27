@@ -18,7 +18,7 @@ export default function ScanVisitorCheckout() {
 
   const handleCheckout = async (visitor: Visitor) => {
     try {
-      await checkOutVisitor(visitor.id);
+      await checkOutVisitor(visitor.id, visitor.checkoutToken);
     } catch {
       return;
     }

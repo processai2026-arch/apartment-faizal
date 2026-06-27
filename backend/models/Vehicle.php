@@ -7,6 +7,7 @@ class Vehicle extends CrudModel
     protected static string $table = 'vehicles';
     protected static array $columns = ['vehicle_no', 'vehicle_no_normalized', 'vehicle_type', 'vehicle_model', 'owner_name', 'office_id', 'block', 'floor_number', 'company_name', 'parking_user_type', 'status', 'entry_time', 'exit_time'];
     protected static array $searchColumns = ['vehicle_no', 'vehicle_no_normalized', 'owner_name', 'company_name', 'vehicle_model'];
+    protected static array $hidden = ['public_checkout_token_hash', 'public_checkout_token_expires_at', 'public_checkout_used_at'];
 
     public static function create(array $data): array
     {
@@ -19,6 +20,67 @@ class Vehicle extends CrudModel
             throw new AppException('Vehicle is already inside', 409);
         }
         return parent::create($data);
+    }
+
+    public static function issuePublicCheckoutToken(int $id): array
+    {
+        $token = self::newPublicCheckoutToken();
+        $expiresAt = db_time(time() + 86400);
+        Database::query(
+            'UPDATE vehicles
+             SET public_checkout_token_hash = :hash,
+                 public_checkout_token_expires_at = :expires_at,
+                 public_checkout_used_at = NULL,
+                 updated_at = :now
+             WHERE id = :id',
+            [
+                'hash' => hash('sha256', $token),
+                'expires_at' => $expiresAt,
+                'now' => db_time(),
+                'id' => $id,
+            ]
+        );
+
+        $row = static::find($id);
+        if (!$row) {
+            throw new AppException('Vehicle not found', 404);
+        }
+        $row['checkout_token'] = $token;
+        $row['checkout_token_expires_at'] = $expiresAt;
+        return $row;
+    }
+
+    public static function publicCheckout(int $id, string $token): array
+    {
+        if ($token === '') {
+            throw new AppException('Checkout token required', 422);
+        }
+
+        return Database::transaction(function () use ($id, $token): array {
+            $now = db_time();
+            $updated = Database::query(
+                'UPDATE vehicles
+                 SET public_checkout_used_at = :now,
+                     updated_at = :now
+                 WHERE id = :id
+                   AND status = :status
+                   AND public_checkout_token_hash = :hash
+                   AND public_checkout_used_at IS NULL
+                   AND public_checkout_token_expires_at > :now',
+                [
+                    'now' => $now,
+                    'id' => $id,
+                    'status' => 'Inside',
+                    'hash' => hash('sha256', $token),
+                ]
+            )->rowCount();
+
+            if ($updated !== 1) {
+                throw new AppException('Invalid or expired checkout token', 401);
+            }
+
+            return static::checkout($id);
+        });
     }
 
     public static function checkout(int $id, ?int $userId = null): array
@@ -45,5 +107,10 @@ class Vehicle extends CrudModel
             Office::updateUsedVehicleCount((int) $vehicle['office_id']);
         }
         return static::find($id);
+    }
+
+    private static function newPublicCheckoutToken(): string
+    {
+        return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
     }
 }

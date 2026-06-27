@@ -95,6 +95,18 @@ function expect_header_contains(string $label, array $result, string $headerName
     echo "FAIL {$label}: missing {$expected} in {$headerName}\n";
 }
 
+function expect_data_key_absent(string $label, array $result, string $key): void
+{
+    global $passed, $failed;
+    if (!array_key_exists($key, $result['json']['data'] ?? [])) {
+        $passed++;
+        echo "PASS {$label}\n";
+        return;
+    }
+    $failed++;
+    echo "FAIL {$label}: {$key} was exposed\n";
+}
+
 function expect_multipart(string $label, string $path, array $fields, string $fieldName, string $filePath, int $expected, ?string $token = null): array
 {
     global $passed, $failed;
@@ -356,6 +368,21 @@ expect_status('public invalid gate token rejected', 'POST', '/public/scan/visito
     'whom_to_meet' => 'Invalid',
     'reason' => 'Invalid',
 ]);
+expect_status('public query gate token rejected', 'POST', '/public/scan/visitor-entry?token=dev-visitor-entry-token', 401, [
+    'name' => 'Invalid',
+    'phone' => '+919812345679',
+    'company_name' => 'Invalid',
+    'whom_to_meet' => 'Invalid',
+    'reason' => 'Invalid',
+]);
+expect_status('public body gate token rejected', 'POST', '/public/scan/visitor-entry', 401, [
+    'token' => 'dev-visitor-entry-token',
+    'name' => 'Invalid',
+    'phone' => '+919812345680',
+    'company_name' => 'Invalid',
+    'whom_to_meet' => 'Invalid',
+    'reason' => 'Invalid',
+]);
 
 $publicVisitorEntryHeaders = ['X-Gate-Token: dev-visitor-entry-token'];
 $publicVisitorCheckoutHeaders = ['X-Gate-Token: dev-visitor-checkout-token'];
@@ -369,7 +396,11 @@ $publicVisitor = expect_status('public visitor entry', 'POST', '/public/scan/vis
     'whom_to_meet' => 'Reception',
     'reason' => 'Public endpoint validation',
 ], null, $publicVisitorEntryHeaders);
-expect_status('public visitor checkout', 'POST', '/public/scan/visitor-checkout', 200, ['visitor_id' => data_id($publicVisitor)], null, $publicVisitorCheckoutHeaders);
+$publicVisitorCheckoutToken = (string) ($publicVisitor['json']['data']['checkout_token'] ?? '');
+expect_data_key_absent('public visitor token hash hidden', $publicVisitor, 'public_checkout_token_hash');
+expect_status('public visitor checkout wrong token rejected', 'POST', '/public/scan/visitor-checkout', 401, ['visitor_id' => data_id($publicVisitor), 'checkout_token' => 'wrong-token'], null, $publicVisitorCheckoutHeaders);
+expect_status('public visitor checkout', 'POST', '/public/scan/visitor-checkout', 200, ['visitor_id' => data_id($publicVisitor), 'checkout_token' => $publicVisitorCheckoutToken], null, $publicVisitorCheckoutHeaders);
+expect_status('public visitor checkout replay rejected', 'POST', '/public/scan/visitor-checkout', 401, ['visitor_id' => data_id($publicVisitor), 'checkout_token' => $publicVisitorCheckoutToken], null, $publicVisitorCheckoutHeaders);
 
 $publicVehicleNo = 'TNPU' . substr($suffix, -8);
 $publicVehicle = expect_status('public vehicle entry', 'POST', '/public/scan/vehicle-entry', 201, [
@@ -377,11 +408,15 @@ $publicVehicle = expect_status('public vehicle entry', 'POST', '/public/scan/veh
     'vehicle_type' => '2-Wheeler',
     'owner_name' => 'Public Driver',
 ], null, $publicVehicleEntryHeaders);
+$publicVehicleCheckoutToken = (string) ($publicVehicle['json']['data']['checkout_token'] ?? '');
+expect_data_key_absent('public vehicle token hash hidden', $publicVehicle, 'public_checkout_token_hash');
 expect_status('public duplicate vehicle rejected', 'POST', '/public/scan/vehicle-entry', 409, [
     'vehicle_no' => $publicVehicleNo,
     'vehicle_type' => '2-Wheeler',
 ], null, $publicVehicleEntryHeaders);
-expect_status('public vehicle checkout', 'POST', '/public/scan/vehicle-checkout', 200, ['vehicle_id' => data_id($publicVehicle)], null, $publicVehicleCheckoutHeaders);
+expect_status('public vehicle checkout wrong token rejected', 'POST', '/public/scan/vehicle-checkout', 401, ['vehicle_id' => data_id($publicVehicle), 'checkout_token' => 'wrong-token'], null, $publicVehicleCheckoutHeaders);
+expect_status('public vehicle checkout', 'POST', '/public/scan/vehicle-checkout', 200, ['vehicle_id' => data_id($publicVehicle), 'checkout_token' => $publicVehicleCheckoutToken], null, $publicVehicleCheckoutHeaders);
+expect_status('public vehicle checkout replay rejected', 'POST', '/public/scan/vehicle-checkout', 401, ['vehicle_id' => data_id($publicVehicle), 'checkout_token' => $publicVehicleCheckoutToken], null, $publicVehicleCheckoutHeaders);
 
 expect_status('logout', 'POST', '/auth/logout', 200, ['refreshToken' => $adminRefresh], $adminToken);
 

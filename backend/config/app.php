@@ -14,4 +14,6 @@ return [
     'jwt_refresh_ttl' => (int) env('JWT_REFRESH_TTL_SECONDS', 1209600),
     'otp_ttl' => (int) env('OTP_TTL_SECONDS', 300),
     'otp_driver' => env('OTP_DRIVER', 'log'),
+    'otp_webhook_url' => env('OTP_WEBHOOK_URL', ''),
+    'otp_webhook_token' => env('OTP_WEBHOOK_TOKEN', ''),
 ];

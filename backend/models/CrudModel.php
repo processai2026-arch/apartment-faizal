@@ -7,6 +7,7 @@ abstract class CrudModel
     protected static string $table;
     protected static array $columns = [];
     protected static array $searchColumns = [];
+    protected static array $hidden = [];
 
     public static function list(Request $request): array
     {
@@ -14,14 +15,15 @@ abstract class CrudModel
         [$where, $params] = static::filters($request);
         $order = static::orderBy();
         $total = (int) Database::fetch("SELECT COUNT(*) AS total FROM " . static::$table . " {$where}", $params)['total'];
-        $rows = Database::fetchAll("SELECT * FROM " . static::$table . " {$where} {$order} LIMIT {$perPage} OFFSET {$offset}", $params);
+        $rows = array_map(fn (array $row) => static::expose($row), Database::fetchAll("SELECT * FROM " . static::$table . " {$where} {$order} LIMIT {$perPage} OFFSET {$offset}", $params));
 
         return [$rows, $total, $page, $perPage];
     }
 
     public static function find(int $id): ?array
     {
-        return Database::fetch('SELECT * FROM ' . static::$table . ' WHERE id = :id LIMIT 1', ['id' => $id]);
+        $row = Database::fetch('SELECT * FROM ' . static::$table . ' WHERE id = :id LIMIT 1', ['id' => $id]);
+        return $row ? static::expose($row) : null;
     }
 
     public static function create(array $data): array
@@ -77,5 +79,14 @@ abstract class CrudModel
     protected static function clean(array $data): array
     {
         return array_intersect_key($data, array_flip(static::$columns));
+    }
+
+    protected static function expose(array $row): array
+    {
+        if (!static::$hidden) {
+            return $row;
+        }
+
+        return array_diff_key($row, array_flip(static::$hidden));
     }
 }

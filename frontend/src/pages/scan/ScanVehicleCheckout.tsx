@@ -17,7 +17,7 @@ export default function ScanVehicleCheckout() {
 
   const handleCheckout = async (vehicle: Vehicle) => {
     try {
-      await checkOutVehicle(vehicle.id);
+      await checkOutVehicle(vehicle.id, vehicle.checkoutToken);
     } catch {
       return;
     }
