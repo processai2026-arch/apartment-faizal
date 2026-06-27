@@ -1,0 +1,8 @@
+.env
+storage/database.sqlite
+storage/rate-limit/*
+storage/logs/*
+storage/uploads/*
+!storage/logs/.gitkeep
+!storage/rate-limit/.gitkeep
+!storage/uploads/.htaccess

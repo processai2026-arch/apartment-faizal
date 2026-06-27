@@ -1,0 +1,33 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # API gateway. Keep backend internals outside public routing and expose only /api/*.
+  RewriteRule ^api(?:/(.*))?$ backend/public/index.php [QSA,L]
+
+  # Block source, config, storage, docs, database dumps, and dependency folders.
+  RewriteRule ^backend/(config|core|controllers|database|helpers|middleware|models|scripts|services|storage|tests)(/|$) - [F,L]
+  RewriteRule ^(database|docs|node_modules|src|frontend/src|frontend/node_modules)(/|$) - [F,L]
+  RewriteRule ^(package(-lock)?\.json|bun\.lock|tsconfig.*\.json|vite\.config\..*|tailwind\.config\..*|postcss\.config\..*|eslint\.config\..*)$ - [F,L]
+
+  # Serve built frontend assets from frontend/dist when this repo is the Apache web root.
+  RewriteCond %{DOCUMENT_ROOT}/frontend/dist/$1 -f
+  RewriteRule ^(.+)$ frontend/dist/$1 [L]
+
+  # Single-page app fallback.
+  RewriteCond %{DOCUMENT_ROOT}/frontend/dist/index.html -f
+  RewriteRule ^.*$ frontend/dist/index.html [L]
+</IfModule>
+
+<FilesMatch "(^\.|\.env|\.log|\.sql|\.sqlite|\.db|\.md)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+  Header always set Content-Security-Policy "default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+</IfModule>

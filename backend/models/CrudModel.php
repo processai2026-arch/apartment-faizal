@@ -1,0 +1,81 @@
+<?php
+
+declare(strict_types=1);
+
+abstract class CrudModel
+{
+    protected static string $table;
+    protected static array $columns = [];
+    protected static array $searchColumns = [];
+
+    public static function list(Request $request): array
+    {
+        [$page, $perPage, $offset] = Validator::page($request);
+        [$where, $params] = static::filters($request);
+        $order = static::orderBy();
+        $total = (int) Database::fetch("SELECT COUNT(*) AS total FROM " . static::$table . " {$where}", $params)['total'];
+        $rows = Database::fetchAll("SELECT * FROM " . static::$table . " {$where} {$order} LIMIT {$perPage} OFFSET {$offset}", $params);
+
+        return [$rows, $total, $page, $perPage];
+    }
+
+    public static function find(int $id): ?array
+    {
+        return Database::fetch('SELECT * FROM ' . static::$table . ' WHERE id = :id LIMIT 1', ['id' => $id]);
+    }
+
+    public static function create(array $data): array
+    {
+        $data = static::clean($data);
+        $data['created_at'] = db_time();
+        $data['updated_at'] = db_time();
+
+        $columns = array_keys($data);
+        $sql = 'INSERT INTO ' . static::$table . ' (' . implode(',', $columns) . ') VALUES (:' . implode(',:', $columns) . ')';
+        $id = Database::insert($sql, $data);
+        return static::find($id);
+    }
+
+    public static function update(int $id, array $data): array
+    {
+        if (!static::find($id)) {
+            throw new AppException('Record not found', 404);
+        }
+        $data = static::clean($data);
+        $data['updated_at'] = db_time();
+        $sets = array_map(fn ($column) => "{$column} = :{$column}", array_keys($data));
+        $data['id'] = $id;
+        Database::query('UPDATE ' . static::$table . ' SET ' . implode(', ', $sets) . ' WHERE id = :id', $data);
+        return static::find($id);
+    }
+
+    protected static function filters(Request $request): array
+    {
+        $where = ['deleted_at IS NULL'];
+        $params = [];
+        if (($request->query['status'] ?? '') !== '') {
+            $where[] = 'status = :status';
+            $params['status'] = $request->query['status'];
+        }
+        if (($request->query['search'] ?? '') !== '' && static::$searchColumns) {
+            $parts = [];
+            foreach (static::$searchColumns as $index => $column) {
+                $key = 'search' . $index;
+                $parts[] = "{$column} LIKE :{$key}";
+                $params[$key] = '%' . $request->query['search'] . '%';
+            }
+            $where[] = '(' . implode(' OR ', $parts) . ')';
+        }
+        return [$where ? 'WHERE ' . implode(' AND ', $where) : '', $params];
+    }
+
+    protected static function orderBy(): string
+    {
+        return 'ORDER BY id DESC';
+    }
+
+    protected static function clean(array $data): array
+    {
+        return array_intersect_key($data, array_flip(static::$columns));
+    }
+}

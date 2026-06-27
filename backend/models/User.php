@@ -1,0 +1,35 @@
+<?php
+
+declare(strict_types=1);
+
+class User
+{
+    public static function findByEmail(string $email): ?array
+    {
+        return Database::fetch('SELECT * FROM users WHERE email = :email LIMIT 1', ['email' => strtolower($email)]);
+    }
+
+    public static function findByPhone(string $phone): ?array
+    {
+        return Database::fetch('SELECT * FROM users WHERE phone = :phone LIMIT 1', ['phone' => $phone]);
+    }
+
+    public static function findById(int $id): ?array
+    {
+        return Database::fetch('SELECT * FROM users WHERE id = :id LIMIT 1', ['id' => $id]);
+    }
+
+    public static function public(array $user): array
+    {
+        return [
+            'id' => (int) $user['id'],
+            'name' => $user['name'],
+            'email' => $user['email'],
+            'phone' => $user['phone'],
+            'role' => $user['role'],
+            'officeId' => isset($user['office_id']) ? ($user['office_id'] ? (int) $user['office_id'] : null) : null,
+            'status' => $user['status'],
+            'createdAt' => $user['created_at'],
+        ];
+    }
+}
