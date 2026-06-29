@@ -3,6 +3,13 @@ LimitRequestBody 10485760
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+
+  RewriteRule (^|/)\. - [F,L]
+
+  # Never serve private source, secrets, database dumps, or generated deployment folders.
+  RewriteRule ^(backend|database|docs|deployment|frontend|node_modules|scratch|server)(/|$) - [F,L]
+  RewriteRule (^|/)(\.env|.*\.env|.*\.log|.*\.sql|.*\.sqlite|.*\.db|.*\.md)$ - [F,L]
+
   RewriteRule ^api(?:/(.*))?$ api/index.php [QSA,L]
 
   RewriteCond %{REQUEST_FILENAME} -f [OR]

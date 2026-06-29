@@ -8,8 +8,14 @@ import type { Visitor } from '@/types';
 import type { ColumnConfig } from '@/types/uiSettings';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { checkVisitorFace, type VisitorFaceCheck } from '@/lib/visitorFaceDetection';
 
 const MOCK_OTP = '123456';
+const INITIAL_FACE_CHECK: VisitorFaceCheck = {
+  canCapture: false,
+  status: 'loading',
+  message: 'Start camera to verify visitor face.',
+};
 
 export default function EntryVisitors() {
   const { addVisitor, offices } = useAppStore();
@@ -20,7 +26,10 @@ export default function EntryVisitors() {
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const faceCheckIntervalRef = useRef<number | null>(null);
+  const faceCheckBusyRef = useRef(false);
   const [cameraActive, setCameraActive] = useState(false);
+  const [faceCheck, setFaceCheck] = useState<VisitorFaceCheck>(INITIAL_FACE_CHECK);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   
   // Edit mode state
@@ -149,20 +158,89 @@ export default function EntryVisitors() {
     toast.success('OTP verified successfully!');
   };
 
-  const startCamera = async () => {
+  const stopCamera = () => {
+    if (faceCheckIntervalRef.current !== null) {
+      window.clearInterval(faceCheckIntervalRef.current);
+      faceCheckIntervalRef.current = null;
+    }
+    faceCheckBusyRef.current = false;
+
+    const stream = videoRef.current?.srcObject as MediaStream | null;
+    stream?.getTracks().forEach(track => track.stop());
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    setCameraActive(false);
+  };
+
+  const runFaceCheck = async () => {
+    if (faceCheckBusyRef.current || !videoRef.current) {
+      return;
+    }
+
+    faceCheckBusyRef.current = true;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setCameraActive(true);
-      }
-    } catch (err) {
-      toast.error('Unable to access camera');
+      setFaceCheck(await checkVisitorFace(videoRef.current));
+    } catch {
+      setFaceCheck({
+        canCapture: false,
+        status: 'error',
+        message: 'Face verification failed. Try restarting the camera.',
+      });
+    } finally {
+      faceCheckBusyRef.current = false;
     }
   };
 
-  const takeSnapshot = () => {
+  const startCamera = async () => {
+    try {
+      stopCamera();
+      setSnapshot(null);
+      setFaceCheck({
+        canCapture: false,
+        status: 'loading',
+        message: 'Loading face detector...',
+      });
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+        audio: false,
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        setCameraActive(true);
+        faceCheckIntervalRef.current = window.setInterval(() => {
+          void runFaceCheck();
+        }, 700);
+        window.setTimeout(() => {
+          void runFaceCheck();
+        }, 250);
+      }
+    } catch (err) {
+      toast.error('Unable to access camera');
+      setFaceCheck({
+        canCapture: false,
+        status: 'error',
+        message: 'Camera permission is required for visitor photo.',
+      });
+    }
+  };
+
+  const takeSnapshot = async () => {
     if (videoRef.current && canvasRef.current) {
+      const latestFaceCheck = await checkVisitorFace(videoRef.current);
+      setFaceCheck(latestFaceCheck);
+      if (!latestFaceCheck.canCapture) {
+        toast.error(latestFaceCheck.message);
+        return;
+      }
+
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
         canvasRef.current.width = videoRef.current.videoWidth;
@@ -170,14 +248,16 @@ export default function EntryVisitors() {
         ctx.drawImage(videoRef.current, 0, 0);
         const dataUrl = canvasRef.current.toDataURL('image/jpeg');
         setSnapshot(dataUrl);
-        
-        // Stop camera
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream?.getTracks().forEach(track => track.stop());
-        setCameraActive(false);
+        stopCamera();
       }
     }
   };
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   const handleSubmit = async () => {
     if (!form.name || !form.phone || !form.block || !form.floor) {
@@ -936,10 +1016,37 @@ export default function EntryVisitors() {
                         </div>
                       ) : cameraActive ? (
                         <div className="space-y-3">
-                          <video ref={videoRef} autoPlay className="w-48 h-48 object-cover rounded-xl mx-auto" />
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            muted
+                            playsInline
+                            className={cn(
+                              "w-48 h-48 object-cover rounded-xl mx-auto border-4 transition-colors",
+                              faceCheck.status === 'ready' ? 'border-emerald-500' :
+                                faceCheck.status === 'error' ? 'border-red-400' :
+                                'border-amber-300'
+                            )}
+                          />
+                          <p
+                            className={cn(
+                              "text-xs font-medium",
+                              faceCheck.status === 'ready' ? 'text-emerald-700' :
+                                faceCheck.status === 'error' ? 'text-red-600' :
+                                'text-amber-700'
+                            )}
+                          >
+                            {faceCheck.message}
+                          </p>
                           <button
                             onClick={takeSnapshot}
-                            className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 mx-auto"
+                            disabled={!faceCheck.canCapture}
+                            className={cn(
+                              "px-4 py-2 text-white text-sm rounded-lg transition-colors flex items-center gap-2 mx-auto",
+                              faceCheck.canCapture
+                                ? "bg-indigo-600 hover:bg-indigo-700"
+                                : "bg-slate-400 cursor-not-allowed"
+                            )}
                           >
                             <Camera className="w-4 h-4" /> Capture
                           </button>

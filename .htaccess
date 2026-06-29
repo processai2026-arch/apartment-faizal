@@ -4,6 +4,9 @@ LimitRequestBody 10485760
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Deny hidden files/directories before any SPA fallback can rewrite them.
+  RewriteRule (^|/)\. - [F,L]
+
   # API gateway. Keep backend internals outside public routing and expose only /api/*.
   RewriteRule ^api(?:/(.*))?$ backend/public/index.php [QSA,L]
 

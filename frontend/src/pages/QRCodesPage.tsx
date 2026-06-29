@@ -71,7 +71,7 @@ export default function QRCodesPage() {
 
   const openScanPage = (path: string) => {
     const item = qrItems.find((qr) => qr.path === path);
-    window.open(item ? scanUrl(item) : `${baseUrl}${path}`, '_blank');
+    window.open(item ? scanUrl(item) : `${baseUrl}${path}`, '_blank', 'noopener,noreferrer');
   };
 
   const scanUrl = (item: QREntry) => {
