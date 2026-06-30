@@ -74,9 +74,10 @@ export const defaultAdminDashboardSettings: PageSettings = {
     { id: 'currentlyInside', title: 'Currently Inside', visible: true, order: 1, size: 'small', collapsed: false },
     { id: 'totalOffices', title: 'Total Offices', visible: true, order: 2, size: 'small', collapsed: false },
     { id: 'companies', title: 'Companies', visible: true, order: 3, size: 'small', collapsed: false },
-    { id: 'visitorTrend', title: 'Visitor Trend', visible: true, order: 4, size: 'large', collapsed: false },
-    { id: 'occupancyStatus', title: 'Occupancy Status', visible: true, order: 5, size: 'medium', collapsed: false },
-    { id: 'recentActivity', title: 'Recent Visitor Activity', visible: true, order: 6, size: 'full', collapsed: false },
+    { id: 'openComplaints', title: 'Open Complaints', visible: true, order: 4, size: 'small', collapsed: false },
+    { id: 'visitorTrend', title: 'Visitor Trend', visible: true, order: 5, size: 'large', collapsed: false },
+    { id: 'occupancyStatus', title: 'Occupancy Status', visible: true, order: 6, size: 'medium', collapsed: false },
+    { id: 'recentActivity', title: 'Recent Visitor Activity', visible: true, order: 7, size: 'full', collapsed: false },
   ],
   columns: [
     { id: 'visitor', label: 'Visitor', visible: true, order: 0 },

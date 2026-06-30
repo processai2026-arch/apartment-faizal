@@ -32,6 +32,21 @@ const statusConfig: Record<string, { bg: string; text: string; dot: string }> = 
   'On Leave': { bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
   Present: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
   Absent: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
+  Requested: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  Confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
+  Cancelled: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
+  Hidden: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
+  // P9-10 Rental
+  'In Review': { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  // P11 Business Ads
+  Expired: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
+  // P12 Announcements
+  Draft: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
+  Published: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  Scheduled: { bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+  Archived: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
+  // P14 Attendance
+  'Half Day': { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
 };
 
 interface StatusBadgeProps {

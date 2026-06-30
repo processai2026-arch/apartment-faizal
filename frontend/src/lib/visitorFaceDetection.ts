@@ -16,9 +16,17 @@ export function loadVisitorFaceDetector(): Promise<FaceApiModule> {
   if (!detectorLoad) {
     detectorLoad = (async () => {
       const faceapi = await import('@vladmandic/face-api');
+      const tf = faceapi.tf as typeof faceapi.tf & {
+        setBackend?: (backend: string) => Promise<unknown> | unknown;
+        ready?: () => Promise<unknown> | unknown;
+      };
 
-      await faceapi.tf.setBackend('webgl').catch(() => faceapi.tf.setBackend('cpu'));
-      await faceapi.tf.ready();
+      if (tf.setBackend) {
+        await Promise.resolve(tf.setBackend('webgl')).catch(() => Promise.resolve(tf.setBackend?.('cpu')));
+      }
+      if (tf.ready) {
+        await Promise.resolve(tf.ready());
+      }
       await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
       return faceapi;
     })();

@@ -8,6 +8,15 @@ class AdminUtilityController extends ResourceController
     protected array $requiredCreate = ['description', 'type', 'scheduled_date'];
     protected string $entityType = 'utility_task';
 
+    public function store(Request $request): void
+    {
+        Validator::require($request->all(), $this->requiredCreate);
+        $row = $this->model::create($this->prepare($request->all(), $request));
+        AuditService::log((int) $request->user['id'], $this->entityType . '.create', $this->entityType, (int) $row['id']);
+        NotificationService::notifyMaintenanceReminder($row, (int) $request->user['id']);
+        Response::success($row, 'Created', 201);
+    }
+
     public function complete(Request $request): void
     {
         $row = UtilityTask::update((int) $request->params['id'], [
@@ -18,3 +27,4 @@ class AdminUtilityController extends ResourceController
         Response::success($row, 'Task completed');
     }
 }
+

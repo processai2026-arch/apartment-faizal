@@ -95,6 +95,97 @@ export interface Vendor {
   status: 'Active' | 'Inactive';
 }
 
+// Vendor Marketplace
+export interface MarketplaceVendor {
+  id: string;
+  name: string;
+  company: string;
+  serviceType: string;
+  category: string;
+  categoryId?: string;
+  contact: string;
+  description?: string;
+  serviceArea?: string;
+  availability?: string;
+  ratingAvg: number;
+  reviewCount: number;
+  bookingCount: number;
+  isVerified: boolean;
+  isFeatured: boolean;
+  status: 'Active' | 'Inactive';
+  // Hydrated on detail fetch
+  services?: VendorService[];
+  gallery?: VendorGalleryItem[];
+  reviews?: VendorReview[];
+  reviewDistribution?: Record<string, number>;
+}
+
+export interface VendorCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  icon?: string;
+}
+
+export interface VendorService {
+  id: string;
+  vendorId: string;
+  name: string;
+  description?: string;
+  price?: number;
+  unit?: string;
+  isActive: boolean;
+}
+
+export interface VendorGalleryItem {
+  id: string;
+  vendorId: string;
+  attachmentId?: string;
+  caption?: string;
+  sortOrder: number;
+}
+
+export interface VendorReview {
+  id: string;
+  vendorId: string;
+  userId: string;
+  bookingId?: string;
+  rating: number;
+  title?: string;
+  comment?: string;
+  attachmentId?: string;
+  status: 'Pending' | 'Approved' | 'Hidden';
+  createdAt: string;
+}
+
+export interface VendorBooking {
+  id: string;
+  vendorId: string;
+  userId: string;
+  officeId?: string;
+  serviceId?: string;
+  title: string;
+  description?: string;
+  scheduledFor?: string;
+  status: 'Requested' | 'Confirmed' | 'In Progress' | 'Completed' | 'Cancelled';
+  completedAt?: string;
+  createdAt: string;
+}
+
+export interface VendorMarketplaceStats {
+  vendors: { total: number; verified: number; featured: number; avgRating: number };
+  bookingsByStatus: { status: string; count: number }[];
+  reviewsByStatus: { status: string; count: number }[];
+}
+
+export interface VendorMarketplaceDashboard {
+  stats: VendorMarketplaceStats;
+  topRated: { id: string; name: string; company: string; rating_avg: number; review_count: number }[];
+  mostBooked: { id: string; name: string; company: string; booking_count: number }[];
+  recentReviews: VendorReview[];
+}
+
 // Staff
 export interface Staff {
   id: string;
@@ -153,6 +244,92 @@ export interface Complaint {
   apartmentNo?: string;
 }
 
+// Complaint ticket backed by the real complaints API (tenant + admin module).
+export interface ComplaintTicket {
+  id: string;
+  tenantId: string;
+  officeId: string;
+  category: string;
+  subject: string;
+  description: string;
+  priority: 'Low' | 'Medium' | 'High' | 'Emergency';
+  status: 'Open' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed';
+  assignedVendorId?: string;
+  attachmentId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  history?: ComplaintUpdate[];
+}
+
+export interface ComplaintUpdate {
+  id: string;
+  complaintId: string;
+  updatedBy?: string;
+  oldStatus?: string;
+  newStatus: string;
+  remarks?: string;
+  createdAt: string;
+}
+
+// Maintenance request backed by the real maintenance-requests API (tenant + admin module).
+export interface MaintenanceRequestTicket {
+  id: string;
+  tenantId: string;
+  officeId: string;
+  category: string;
+  title: string;
+  description: string;
+  priority: 'Low' | 'Medium' | 'High' | 'Emergency';
+  status: 'Open' | 'Assigned' | 'In Progress' | 'Completed' | 'Cancelled';
+  assignedVendorId?: string;
+  assignedStaffId?: string;
+  attachmentId?: string;
+  expectedCompletion?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+  history?: MaintenanceUpdate[];
+}
+
+export interface MaintenanceUpdate {
+  id: string;
+  maintenanceRequestId: string;
+  updatedBy?: string;
+  oldStatus?: string;
+  newStatus: string;
+  remarks?: string;
+  createdAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  officeId?: string;
+  invoiceNo: string;
+  description?: string;
+  amount: number;
+  paidAmount: number;
+  dueDate?: string;
+  status: 'Pending' | 'Paid' | 'Overdue' | 'Cancelled';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface FinancialSummary {
+  invoiceCount: number;
+  billed: number;
+  collected: number;
+  pending: number;
+  byStatus: { status: string; count: number; amount: number; paid: number }[];
+}
+
+export interface EmergencyContact {
+  id: string;
+  name: string;
+  category: 'Medical' | 'Fire' | 'Police' | 'Utility' | 'Building';
+  phone: string;
+  available: string;
+}
+
 // Daily Worker (for building maintenance)
 export interface DailyWorker {
   id: string;
@@ -189,4 +366,208 @@ export interface Apartment {
   monthlyCharge?: number;
   paymentStatus?: 'Paid' | 'Pending' | 'Overdue';
   lastPaid?: string;
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: string;
+  category: string;
+  priority: 'Low' | 'Medium' | 'High' | 'Emergency';
+  isRead: boolean;
+  actionUrl?: string;
+  referenceType?: string;
+  referenceId?: string;
+  createdBy?: string;
+  createdByName?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface NotificationSummary {
+  totalCount: number;
+  unreadCount: number;
+  todayCount: number;
+  highPriorityCount: number;
+}
+
+// ── Rental Marketplace (P9/P10) ───────────────────────────────────────────────
+export interface RentalListing {
+  id: string;
+  officeId?: string;
+  ownerId: string;
+  title: string;
+  description?: string;
+  listingType: 'Rent' | 'Sale';
+  propertyType: 'Office' | 'Apartment' | 'Shop' | 'Parking';
+  price?: number;
+  deposit?: number;
+  areaSqft?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  furnishing?: string;
+  availableFrom?: string;
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Active' | 'Closed';
+  featured: boolean;
+  contactName?: string;
+  contactPhone?: string;
+  adminNotes?: string;
+  viewCount: number;
+  favoriteCount: number;
+  isFavorite?: boolean;
+  images?: ListingImage[];
+  history?: ListingStatusHistory[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ListingImage {
+  id: string;
+  listingId: string;
+  attachmentId?: string;
+  caption?: string;
+  sortOrder: number;
+}
+
+export interface ListingStatusHistory {
+  id: string;
+  listingId: string;
+  changedBy: string;
+  changedByName?: string;
+  fromStatus?: string;
+  toStatus: string;
+  comment?: string;
+  createdAt: string;
+}
+
+export interface RentalDashboard {
+  stats: {
+    total: number;
+    pending: number;
+    active: number;
+    approved: number;
+    rejected: number;
+    featured: number;
+    totalViews: number;
+    totalFavorites: number;
+  };
+  byType: { listing_type: string; count: number }[];
+  byProperty: { property_type: string; count: number }[];
+  recentPending: RentalListing[];
+  mostViewed: RentalListing[];
+}
+
+// ── Local Business Ads (P11) ──────────────────────────────────────────────────
+export interface BusinessCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string;
+}
+
+export interface BusinessAd {
+  id: string;
+  categoryId?: string;
+  businessName: string;
+  description?: string;
+  offer?: string;
+  website?: string;
+  phone?: string;
+  whatsapp?: string;
+  address?: string;
+  logoAttachmentId?: string;
+  bannerAttachmentId?: string;
+  featured: boolean;
+  priority: number;
+  status: 'Pending' | 'Active' | 'Rejected' | 'Expired' | 'Inactive';
+  expiresAt?: string;
+  viewCount: number;
+  clickCount: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BusinessAdDashboard {
+  stats: {
+    total: number;
+    active: number;
+    pending: number;
+    expired: number;
+    featured: number;
+    totalViews: number;
+    totalClicks: number;
+  };
+  byCategory: { name: string; count: number }[];
+  mostClicked: BusinessAd[];
+}
+
+// ── Announcements (P12) ───────────────────────────────────────────────────────
+export interface Announcement {
+  id: string;
+  title: string;
+  description: string;
+  priority: 'Low' | 'Medium' | 'High' | 'Emergency';
+  audience: 'All' | 'Tenants' | 'Security' | 'Admin';
+  attachmentId?: string;
+  publishAt?: string;
+  expiresAt?: string;
+  status: 'Draft' | 'Published' | 'Scheduled' | 'Expired' | 'Archived';
+  createdBy: string;
+  isRead?: boolean;
+  readCount?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ── Emergency Contacts (P13) ──────────────────────────────────────────────────
+export interface EmergencyContact {
+  id: string;
+  name: string;
+  category: string;
+  phone: string;
+  alternatePhone?: string;
+  email?: string;
+  address?: string;
+  priority: number;
+  available24h: boolean;
+  isPinned: boolean;
+  status: 'Active' | 'Inactive';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ── Daily Workers (P14) ───────────────────────────────────────────────────────
+export interface DailyWorker {
+  id: string;
+  name: string;
+  phone?: string;
+  workerType: string;
+  photoAttachmentId?: string;
+  idProofAttachmentId?: string;
+  address?: string;
+  officeId?: string;
+  status: 'Active' | 'Inactive' | 'Blacklisted';
+  qrCode?: string;
+  attendance?: WorkerAttendance[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface WorkerAttendance {
+  id: string;
+  workerId: string;
+  workDate: string;
+  entryTime?: string;
+  exitTime?: string;
+  status: 'Present' | 'Absent' | 'Half Day' | 'Leave';
+  markedBy?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface WorkerTodaySummary {
+  summary: { Present: number; Absent: number; 'Half Day': number; Leave: number };
+  total: number;
 }

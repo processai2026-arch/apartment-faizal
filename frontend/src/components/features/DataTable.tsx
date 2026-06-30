@@ -34,7 +34,7 @@ interface DataTableProps<T> {
   empty?: ReactNode;
 }
 
-export default function DataTable<T extends Record<string, unknown>>({
+export default function DataTable<T extends object>({
   data,
   columns,
   pageSize = 10,

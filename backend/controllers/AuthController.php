@@ -26,7 +26,7 @@ class AuthController
         Validator::require($request->all(), ['phone', 'purpose', 'otp']);
         $phone = Validator::phone((string) $request->input('phone'));
         $purpose = Validator::enum((string) $request->input('purpose'), ['login', 'visitor-entry', 'visitor-checkout'], 'purpose');
-        (new OtpService())->verify($phone, $purpose, (string) $request->input('otp'));
+        (new OtpService())->verify($phone, $purpose, (string) $request->input('otp'), $request->user ? (int) $request->user['id'] : null);
 
         if ($purpose === 'login') {
             $user = User::findByPhone($phone);

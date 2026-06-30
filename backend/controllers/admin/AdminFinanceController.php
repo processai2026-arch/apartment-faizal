@@ -21,11 +21,22 @@ class AdminFinanceController extends ResourceController
         Response::success($totals);
     }
 
+    public function store(Request $request): void
+    {
+        Validator::require($request->all(), $this->requiredCreate);
+        $row = $this->model::create($this->prepare($request->all(), $request));
+        AuditService::log((int) $request->user['id'], $this->entityType . '.create', $this->entityType, (int) $row['id']);
+        NotificationService::notifyInvoiceGenerated($row, (int) $request->user['id']);
+        Response::success($row, 'Created', 201);
+    }
+
     public function payment(Request $request): void
     {
         Validator::require($request->all(), ['amount']);
         $row = Invoice::recordPayment((int) $request->params['id'], (float) $request->input('amount'), $request->all(), (int) $request->user['id']);
         AuditService::log((int) $request->user['id'], 'invoice.payment', 'invoice', (int) $row['id'], ['amount' => (float) $request->input('amount')]);
+        NotificationService::notifyPaymentReceived($row, (float) $request->input('amount'), (int) $request->user['id']);
         Response::success($row, 'Payment recorded');
     }
 }
+

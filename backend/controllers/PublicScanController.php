@@ -27,8 +27,13 @@ class PublicScanController
         $data['entry_time'] = db_time();
         $data['guard_name'] = 'Self Check-in';
         $row = Visitor::create($data);
+        Database::query(
+            'INSERT INTO visitor_movements (visitor_id, movement_type, occurred_at, actor_user_id, created_at) VALUES (:visitor_id, :movement_type, :occurred_at, :actor_user_id, :created_at)',
+            ['visitor_id' => (int) $row['id'], 'movement_type' => 'entry', 'occurred_at' => $row['entry_time'], 'actor_user_id' => null, 'created_at' => db_time()]
+        );
         $row = Visitor::issuePublicCheckoutToken((int) $row['id']);
         AuditService::log(null, 'public_scan.visitor_entry', 'visitor', (int) $row['id']);
+        NotificationService::notifyVisitorEntered($row, null);
         Response::success($row, 'Visitor entry submitted', 201);
     }
 
@@ -36,6 +41,7 @@ class PublicScanController
     {
         Validator::require($request->all(), ['visitor_id', 'checkout_token']);
         $row = Visitor::publicCheckout((int) $request->input('visitor_id'), (string) $request->input('checkout_token'));
+        NotificationService::notifyVisitorExited($row, null);
         Response::success($row, 'Visitor checked out');
     }
 
@@ -67,3 +73,4 @@ class PublicScanController
         Response::success($row, 'Vehicle checked out');
     }
 }
+

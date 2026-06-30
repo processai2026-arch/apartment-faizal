@@ -14,7 +14,7 @@ class TenantController
                 'visitors' => [],
                 'vehicles' => [],
                 'invoices' => [],
-                'summary' => ['pendingApprovals' => 0, 'visitorsThisMonth' => 0, 'pendingPayments' => 0, 'pendingPaymentsAmount' => 0],
+                'summary' => ['pendingApprovals' => 0, 'visitorsThisMonth' => 0, 'pendingPayments' => 0, 'pendingPaymentsAmount' => 0, 'recentNotifications' => 0],
             ]);
             return;
         }
@@ -53,7 +53,11 @@ class TenantController
                 'visitorsThisMonth' => $visitorsThisMonth,
                 'pendingPayments' => count($pendingPayments),
                 'pendingPaymentsAmount' => round($pendingAmount, 2),
+                'recentNotifications' => Notification::summaryForUser((int) $request->user['id'])['unreadCount'] ?? 0,
             ],
         ]);
     }
 }
+
+
+

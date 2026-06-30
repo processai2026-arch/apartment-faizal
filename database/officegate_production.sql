@@ -393,4 +393,432 @@ CREATE TABLE IF NOT EXISTS migrations (
   UNIQUE KEY uq_migrations_name (migration)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS complaints (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  tenant_id BIGINT UNSIGNED NOT NULL,
+  office_id BIGINT UNSIGNED NOT NULL,
+  category VARCHAR(80) NOT NULL,
+  subject VARCHAR(190) NOT NULL,
+  description TEXT NOT NULL,
+  priority ENUM('Low','Medium','High','Emergency') NOT NULL DEFAULT 'Low',
+  status ENUM('Open','Assigned','In Progress','Resolved','Closed') NOT NULL DEFAULT 'Open',
+  assigned_vendor_id BIGINT UNSIGNED NULL,
+  attachment_id BIGINT UNSIGNED NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_complaints_status (status, created_at),
+  KEY idx_complaints_tenant (tenant_id),
+  KEY idx_complaints_office (office_id),
+  KEY idx_complaints_vendor (assigned_vendor_id),
+  CONSTRAINT fk_complaints_tenant FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_complaints_office FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE CASCADE,
+  CONSTRAINT fk_complaints_vendor FOREIGN KEY (assigned_vendor_id) REFERENCES vendors(id) ON DELETE SET NULL,
+  CONSTRAINT fk_complaints_attachment FOREIGN KEY (attachment_id) REFERENCES attachments(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS complaint_updates (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  complaint_id BIGINT UNSIGNED NOT NULL,
+  updated_by BIGINT UNSIGNED NULL,
+  old_status VARCHAR(40) NULL,
+  new_status VARCHAR(40) NOT NULL,
+  remarks TEXT NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_complaint_updates_complaint (complaint_id),
+  CONSTRAINT fk_complaint_updates_complaint FOREIGN KEY (complaint_id) REFERENCES complaints(id) ON DELETE CASCADE,
+  CONSTRAINT fk_complaint_updates_user FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS maintenance_requests (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  tenant_id BIGINT UNSIGNED NOT NULL,
+  office_id BIGINT UNSIGNED NOT NULL,
+  category VARCHAR(80) NOT NULL,
+  title VARCHAR(190) NOT NULL,
+  description TEXT NOT NULL,
+  priority ENUM('Low','Medium','High','Emergency') NOT NULL DEFAULT 'Low',
+  status ENUM('Open','Assigned','In Progress','Completed','Cancelled') NOT NULL DEFAULT 'Open',
+  assigned_vendor_id BIGINT UNSIGNED NULL,
+  assigned_staff_id BIGINT UNSIGNED NULL,
+  attachment_id BIGINT UNSIGNED NULL,
+  expected_completion DATETIME NULL,
+  completed_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_maintenance_requests_status (status, created_at),
+  KEY idx_maintenance_requests_tenant (tenant_id),
+  KEY idx_maintenance_requests_office (office_id),
+  KEY idx_maintenance_requests_vendor (assigned_vendor_id),
+  KEY idx_maintenance_requests_staff (assigned_staff_id),
+  CONSTRAINT fk_maintenance_requests_tenant FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_maintenance_requests_office FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE CASCADE,
+  CONSTRAINT fk_maintenance_requests_vendor FOREIGN KEY (assigned_vendor_id) REFERENCES vendors(id) ON DELETE SET NULL,
+  CONSTRAINT fk_maintenance_requests_staff FOREIGN KEY (assigned_staff_id) REFERENCES staff(id) ON DELETE SET NULL,
+  CONSTRAINT fk_maintenance_requests_attachment FOREIGN KEY (attachment_id) REFERENCES attachments(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS maintenance_updates (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  maintenance_request_id BIGINT UNSIGNED NOT NULL,
+  updated_by BIGINT UNSIGNED NULL,
+  old_status VARCHAR(40) NULL,
+  new_status VARCHAR(40) NOT NULL,
+  remarks TEXT NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_maintenance_updates_request (maintenance_request_id),
+  CONSTRAINT fk_maintenance_updates_request FOREIGN KEY (maintenance_request_id) REFERENCES maintenance_requests(id) ON DELETE CASCADE,
+  CONSTRAINT fk_maintenance_updates_user FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Vendor Marketplace: extend existing vendors table + supporting tables
+ALTER TABLE vendors
+  ADD COLUMN description TEXT NULL,
+  ADD COLUMN service_area VARCHAR(190) NULL,
+  ADD COLUMN availability VARCHAR(190) NULL,
+  ADD COLUMN rating_avg DECIMAL(3,2) NOT NULL DEFAULT 0,
+  ADD COLUMN review_count INT NOT NULL DEFAULT 0,
+  ADD COLUMN booking_count INT NOT NULL DEFAULT 0,
+  ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN is_featured TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN category_id BIGINT UNSIGNED NULL,
+  ADD KEY idx_vendors_featured (is_featured, rating_avg),
+  ADD KEY idx_vendors_category_id (category_id);
+
+CREATE TABLE IF NOT EXISTS vendor_categories (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  slug VARCHAR(140) NOT NULL,
+  description TEXT NULL,
+  icon VARCHAR(80) NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_vendor_categories_slug (slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS vendor_services (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  vendor_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(160) NOT NULL,
+  description TEXT NULL,
+  price DECIMAL(12,2) NULL,
+  unit VARCHAR(40) NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_vendor_services_vendor (vendor_id),
+  CONSTRAINT fk_vendor_services_vendor FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS vendor_gallery (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  vendor_id BIGINT UNSIGNED NOT NULL,
+  attachment_id BIGINT UNSIGNED NULL,
+  caption VARCHAR(190) NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_vendor_gallery_vendor (vendor_id),
+  CONSTRAINT fk_vendor_gallery_vendor FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vendor_gallery_attachment FOREIGN KEY (attachment_id) REFERENCES attachments(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS vendor_bookings (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  vendor_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  office_id BIGINT UNSIGNED NULL,
+  service_id BIGINT UNSIGNED NULL,
+  title VARCHAR(190) NOT NULL,
+  description TEXT NULL,
+  scheduled_for DATETIME NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'Requested',
+  completed_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_vendor_bookings_vendor (vendor_id, status),
+  KEY idx_vendor_bookings_user (user_id),
+  CONSTRAINT fk_vendor_bookings_vendor FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vendor_bookings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vendor_bookings_office FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL,
+  CONSTRAINT fk_vendor_bookings_service FOREIGN KEY (service_id) REFERENCES vendor_services(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS vendor_reviews (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  vendor_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  booking_id BIGINT UNSIGNED NULL,
+  rating TINYINT NOT NULL,
+  title VARCHAR(190) NULL,
+  comment TEXT NULL,
+  attachment_id BIGINT UNSIGNED NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'Pending',
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_vendor_reviews_vendor (vendor_id, status),
+  KEY idx_vendor_reviews_user (user_id),
+  CONSTRAINT fk_vendor_reviews_vendor FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vendor_reviews_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vendor_reviews_booking FOREIGN KEY (booking_id) REFERENCES vendor_bookings(id) ON DELETE SET NULL,
+  CONSTRAINT fk_vendor_reviews_attachment FOREIGN KEY (attachment_id) REFERENCES attachments(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── Rental Marketplace (P9/P10) ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS rental_listings (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  office_id BIGINT UNSIGNED NULL,
+  owner_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  description TEXT NULL,
+  listing_type ENUM('Rent','Sale') NOT NULL DEFAULT 'Rent',
+  property_type ENUM('Office','Apartment','Shop','Parking') NOT NULL DEFAULT 'Office',
+  price DECIMAL(12,2) NULL,
+  deposit DECIMAL(12,2) NULL,
+  area_sqft DECIMAL(10,2) NULL,
+  bedrooms TINYINT NULL,
+  bathrooms TINYINT NULL,
+  furnishing VARCHAR(60) NULL,
+  available_from DATE NULL,
+  status ENUM('Pending','Approved','Rejected','Active','Closed') NOT NULL DEFAULT 'Pending',
+  featured TINYINT(1) NOT NULL DEFAULT 0,
+  contact_name VARCHAR(160) NULL,
+  contact_phone VARCHAR(32) NULL,
+  admin_notes TEXT NULL,
+  view_count INT NOT NULL DEFAULT 0,
+  favorite_count INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_rental_listings_status (status),
+  KEY idx_rental_listings_type (listing_type, property_type),
+  KEY idx_rental_listings_owner (owner_id),
+  CONSTRAINT fk_rental_listings_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rental_listings_office FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS listing_images (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  listing_id BIGINT UNSIGNED NOT NULL,
+  attachment_id BIGINT UNSIGNED NULL,
+  caption VARCHAR(255) NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_listing_images_listing (listing_id),
+  CONSTRAINT fk_listing_images_listing FOREIGN KEY (listing_id) REFERENCES rental_listings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS listing_views (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  listing_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NULL,
+  ip_address VARCHAR(45) NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_listing_views_listing (listing_id),
+  CONSTRAINT fk_listing_views_listing FOREIGN KEY (listing_id) REFERENCES rental_listings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS listing_favorites (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  listing_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_listing_favorites (listing_id, user_id),
+  CONSTRAINT fk_listing_favorites_listing FOREIGN KEY (listing_id) REFERENCES rental_listings(id) ON DELETE CASCADE,
+  CONSTRAINT fk_listing_favorites_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS listing_status_history (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  listing_id BIGINT UNSIGNED NOT NULL,
+  changed_by BIGINT UNSIGNED NOT NULL,
+  from_status VARCHAR(40) NULL,
+  to_status VARCHAR(40) NOT NULL,
+  comment TEXT NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_lsh_listing (listing_id),
+  CONSTRAINT fk_lsh_listing FOREIGN KEY (listing_id) REFERENCES rental_listings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── Local Business Ads (P11) ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS business_categories (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  slug VARCHAR(120) NOT NULL,
+  icon VARCHAR(80) NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_business_categories_slug (slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS business_ads (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  category_id BIGINT UNSIGNED NULL,
+  business_name VARCHAR(190) NOT NULL,
+  description TEXT NULL,
+  offer TEXT NULL,
+  website VARCHAR(255) NULL,
+  phone VARCHAR(32) NULL,
+  whatsapp VARCHAR(32) NULL,
+  address TEXT NULL,
+  logo_attachment_id BIGINT UNSIGNED NULL,
+  banner_attachment_id BIGINT UNSIGNED NULL,
+  featured TINYINT(1) NOT NULL DEFAULT 0,
+  priority INT NOT NULL DEFAULT 0,
+  status ENUM('Pending','Active','Rejected','Expired','Inactive') NOT NULL DEFAULT 'Pending',
+  expires_at DATETIME NULL,
+  view_count INT NOT NULL DEFAULT 0,
+  click_count INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_business_ads_status (status),
+  KEY idx_business_ads_featured (featured),
+  CONSTRAINT fk_business_ads_category FOREIGN KEY (category_id) REFERENCES business_categories(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ad_clicks (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  ad_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NULL,
+  click_type VARCHAR(20) NOT NULL DEFAULT 'view',
+  ip_address VARCHAR(45) NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_ad_clicks_ad (ad_id),
+  CONSTRAINT fk_ad_clicks_ad FOREIGN KEY (ad_id) REFERENCES business_ads(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── Announcements (P12) ───────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS announcements (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  title VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  priority ENUM('Low','Medium','High','Emergency') NOT NULL DEFAULT 'Medium',
+  audience ENUM('All','Tenants','Security','Admin') NOT NULL DEFAULT 'All',
+  attachment_id BIGINT UNSIGNED NULL,
+  publish_at DATETIME NULL,
+  expires_at DATETIME NULL,
+  status ENUM('Draft','Published','Scheduled','Expired','Archived') NOT NULL DEFAULT 'Draft',
+  created_by BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_announcements_status (status),
+  KEY idx_announcements_audience (audience),
+  CONSTRAINT fk_announcements_created_by FOREIGN KEY (created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS announcement_reads (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  announcement_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  read_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_announcement_reads (announcement_id, user_id),
+  CONSTRAINT fk_ann_reads_ann FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ann_reads_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── Emergency Contacts (P13) ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS emergency_contacts (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(160) NOT NULL,
+  category VARCHAR(60) NOT NULL DEFAULT 'Other',
+  phone VARCHAR(32) NOT NULL,
+  alternate_phone VARCHAR(32) NULL,
+  email VARCHAR(190) NULL,
+  address TEXT NULL,
+  priority INT NOT NULL DEFAULT 0,
+  available_24h TINYINT(1) NOT NULL DEFAULT 0,
+  is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+  status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_emergency_contacts_category (category),
+  KEY idx_emergency_contacts_pinned (is_pinned, priority)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── Daily Workers (P14) ───────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS daily_workers (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(160) NOT NULL,
+  phone VARCHAR(32) NULL,
+  worker_type VARCHAR(60) NOT NULL DEFAULT 'General',
+  photo_attachment_id BIGINT UNSIGNED NULL,
+  id_proof_attachment_id BIGINT UNSIGNED NULL,
+  address TEXT NULL,
+  office_id BIGINT UNSIGNED NULL,
+  status ENUM('Active','Inactive','Blacklisted') NOT NULL DEFAULT 'Active',
+  qr_code VARCHAR(40) NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_daily_workers_qr (qr_code),
+  KEY idx_daily_workers_type (worker_type),
+  KEY idx_daily_workers_status (status),
+  CONSTRAINT fk_daily_workers_office FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS worker_attendance (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  worker_id BIGINT UNSIGNED NOT NULL,
+  work_date DATE NOT NULL,
+  entry_time DATETIME NULL,
+  exit_time DATETIME NULL,
+  status ENUM('Present','Absent','Half Day','Leave') NOT NULL DEFAULT 'Present',
+  marked_by BIGINT UNSIGNED NULL,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_worker_attendance (worker_id, work_date),
+  KEY idx_worker_attendance_date (work_date),
+  CONSTRAINT fk_worker_attendance_worker FOREIGN KEY (worker_id) REFERENCES daily_workers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS worker_visits (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  worker_id BIGINT UNSIGNED NOT NULL,
+  office_id BIGINT UNSIGNED NULL,
+  entry_time DATETIME NOT NULL,
+  exit_time DATETIME NULL,
+  authorized_by BIGINT UNSIGNED NULL,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_worker_visits_worker (worker_id),
+  KEY idx_worker_visits_date (entry_time),
+  CONSTRAINT fk_worker_visits_worker FOREIGN KEY (worker_id) REFERENCES daily_workers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

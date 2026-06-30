@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { CheckCircle, Phone, Camera, Clock, Building2, Users, Car, Eye, EyeOff, Edit3, Save, RotateCcw, X } from 'lucide-react';
+import { Phone, Camera, Clock, Building2, Users, Car, Eye, EyeOff, Edit3, Save, RotateCcw, X } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useAppStore } from '@/stores/useAppStore';
 import { useUISettingsStore } from '@/stores/useUISettingsStore';
@@ -9,8 +9,8 @@ import type { ColumnConfig } from '@/types/uiSettings';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { checkVisitorFace, type VisitorFaceCheck } from '@/lib/visitorFaceDetection';
+import OtpVerification from '@/components/features/OtpVerification';
 
-const MOCK_OTP = '123456';
 const INITIAL_FACE_CHECK: VisitorFaceCheck = {
   canCapture: false,
   status: 'loading',
@@ -20,9 +20,7 @@ const INITIAL_FACE_CHECK: VisitorFaceCheck = {
 export default function EntryVisitors() {
   const { addVisitor, offices } = useAppStore();
   const { settings, getVisibleColumns, updateColumnOrder, resetPageSettings } = useUISettingsStore();
-  const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
-  const [otp, setOtp] = useState('');
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -140,24 +138,6 @@ export default function EntryVisitors() {
     .filter(o => o.block === form.block && o.floorNumber === form.floor)
     .map(o => o.companyName)
     .filter(Boolean);
-
-  const handleSendOTP = () => {
-    if (!form.phone || form.phone.length < 10) {
-      toast.error('Please enter a valid phone number');
-      return;
-    }
-    setOtpSent(true);
-    toast.success('OTP sent successfully! Use 123456 for demo');
-  };
-
-  const handleVerifyOTP = () => {
-    if (otp !== MOCK_OTP) {
-      toast.error('Invalid OTP. Use 123456 for demo');
-      return;
-    }
-    setOtpVerified(true);
-    toast.success('OTP verified successfully!');
-  };
 
   const stopCamera = () => {
     if (faceCheckIntervalRef.current !== null) {
@@ -306,6 +286,10 @@ export default function EntryVisitors() {
       toast.error('Please fill all required fields');
       return;
     }
+    if (!otpVerified) {
+      toast.error('Please verify the visitor phone via OTP before logging entry');
+      return;
+    }
 
     const newVisitor: Visitor = {
       id: `V${Date.now()}`,
@@ -326,7 +310,7 @@ export default function EntryVisitors() {
       status: 'Inside',
       entryTime: new Date().toISOString(),
       guardName: 'Guard on Duty',
-      otp: MOCK_OTP,
+      otp: 'verified',
       photoUrl: snapshot || undefined,
     };
 
@@ -338,9 +322,7 @@ export default function EntryVisitors() {
         vehicleType: '', vehicleNo: '', block: '', floor: '', company: '',
         whomToMeet: '', reason: '',
       });
-      setOtpSent(false);
       setOtpVerified(false);
-      setOtp('');
       setSnapshot(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not log visitor');
@@ -523,35 +505,15 @@ export default function EntryVisitors() {
                         className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
                       />
                     </div>
-                    {!otpSent ? (
-                      <button
-                        onClick={handleSendOTP}
-                        className="mt-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Send OTP
-                      </button>
-                    ) : !otpVerified ? (
-                      <div className="mt-2 flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Enter OTP"
-                          value={otp}
-                          onChange={e => setOtp(e.target.value)}
-                          maxLength={6}
-                          className="w-32 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <button
-                          onClick={handleVerifyOTP}
-                          className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          Verify
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-sm text-green-600 flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" /> OTP Verified
-                      </p>
-                    )}
+                    <div className="mt-2">
+                      <OtpVerification
+                        phone={form.phone}
+                        purpose="visitor-entry"
+                        verified={otpVerified}
+                        onVerified={() => setOtpVerified(true)}
+                        validatePhone={() => (!form.phone || form.phone.replace(/\D/g, '').length < 10 ? 'Please enter a valid phone number first' : null)}
+                      />
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Users, Building2, UserCheck, Home, Clock, Package, X, Save, RotateCcw, Edit3, ClipboardList, UserPlus, Pencil, Trash2, Phone } from 'lucide-react';
+import { Users, Building2, UserCheck, Home, Clock, Package, X, Save, RotateCcw, Edit3, ClipboardList, UserPlus, Pencil, Trash2, Phone, MessageSquareWarning } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import StatCard from '@/components/features/StatCard';
 import StatusBadge from '@/components/features/StatusBadge';
 import { useAppStore } from '@/stores/useAppStore';
 import { useUISettingsStore } from '@/stores/useUISettingsStore';
-import { visitorTrendData, occupancyData } from '@/data/mockData';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -17,7 +16,11 @@ function formatTime(iso: string) {
 }
 
 export default function Dashboard() {
-  const { visitors, offices, vehicles, staff, addStaff, updateStaff, removeStaff } = useAppStore();
+  const { visitors, offices, vehicles, staff, addStaff, updateStaff, removeStaff, complaintTickets, loadAdminComplaints } = useAppStore();
+
+  useEffect(() => {
+    loadAdminComplaints().catch(() => { /* dashboard stat is best-effort */ });
+  }, [loadAdminComplaints]);
   const todayStr = new Date().toISOString().split('T')[0];
   const [attDate, setAttDate] = useState(todayStr);
 
@@ -90,6 +93,27 @@ export default function Dashboard() {
   const totalOffices = offices?.length || 0;
   const totalCompanies = offices?.reduce((acc, o) => acc + (o.companyName ? 1 : 0), 0) || 0;
   const recentVisitors = visitors.slice(0, 8);
+  const openComplaintsCount = complaintTickets.filter(c => c.status !== 'Resolved' && c.status !== 'Closed').length;
+
+  const visitorTrendData = useMemo(() => {
+    const days: { day: string; visitors: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const count = visitors.filter(v => new Date(v.entryTime).toDateString() === date.toDateString()).length;
+      days.push({ day: date.toLocaleDateString('en-US', { weekday: 'short' }), visitors: count });
+    }
+    return days;
+  }, [visitors]);
+
+  const occupancyData = useMemo(() => {
+    const active = offices.filter(o => o.status === 'Active').length;
+    const vacant = offices.filter(o => o.status !== 'Active').length;
+    return [
+      { name: 'Active Offices', value: active, color: '#22C55E' },
+      { name: 'Vacant', value: vacant, color: '#EF4444' },
+    ];
+  }, [offices]);
 
   // Card visibility helpers
   const isCardVisible = (cardId: string) => {
@@ -182,6 +206,8 @@ export default function Dashboard() {
           return <StatCard label="Total Offices" value={totalOffices} icon={Home} trend={{ value: 5, positive: true }} color="blue" />;
         case 'companies':
           return <StatCard label="Companies" value={totalCompanies} icon={Building2} color="red" subtitle="Registered companies" />;
+        case 'openComplaints':
+          return <StatCard label="Open Complaints" value={openComplaintsCount} icon={MessageSquareWarning} color="amber" subtitle="Unresolved tickets" />;
         default:
           return null;
       }
@@ -215,7 +241,7 @@ export default function Dashboard() {
   };
 
   // Stat card IDs
-  const statCardIds = ['totalVisitors', 'currentlyInside', 'totalOffices', 'companies'];
+  const statCardIds = ['totalVisitors', 'currentlyInside', 'totalOffices', 'companies', 'openComplaints'];
   const sortedStatCards = statCardIds
     .map(id => displayCards.find(c => c.id === id))
     .filter((c): c is CardConfig => c !== undefined)

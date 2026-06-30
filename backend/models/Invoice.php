@@ -8,6 +8,19 @@ class Invoice extends CrudModel
     protected static array $columns = ['office_id', 'invoice_no', 'description', 'amount', 'paid_amount', 'due_date', 'status'];
     protected static array $searchColumns = ['invoice_no', 'description', 'status'];
 
+    protected static function filters(Request $request): array
+    {
+        [$where, $params] = parent::filters($request);
+        $conditions = $where !== '' ? [substr($where, 6)] : [];
+
+        if (($request->query['office_id'] ?? '') !== '') {
+            $conditions[] = 'office_id = :office_id';
+            $params['office_id'] = (int) $request->query['office_id'];
+        }
+
+        return [$conditions ? 'WHERE ' . implode(' AND ', $conditions) : '', $params];
+    }
+
     public static function recordPayment(int $invoiceId, float $amount, array $data, int $userId): array
     {
         if ($amount <= 0) {

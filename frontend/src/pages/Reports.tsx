@@ -9,7 +9,7 @@ type ReportType = 'Visitor Summary' | 'Vendor Log' | 'Staff Attendance' | 'Inven
 const reportTypes: ReportType[] = ['Visitor Summary', 'Vendor Log', 'Staff Attendance', 'Inventory', 'Financial'];
 
 export default function Reports() {
-  const { visitors, vendors, staff, inventory, apartments } = useAppStore();
+  const { visitors, vendors, staff, inventory, invoices } = useAppStore();
   const [reportType, setReportType] = useState<ReportType>('Visitor Summary');
   const [dateFrom, setDateFrom] = useState('2026-05-01');
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
@@ -20,7 +20,7 @@ export default function Reports() {
       case 'Vendor Log': return vendors;
       case 'Staff Attendance': return staff;
       case 'Inventory': return inventory;
-      case 'Financial': return apartments.filter(a => a.paymentStatus);
+      case 'Financial': return invoices;
       default: return [];
     }
   };
@@ -93,14 +93,15 @@ export default function Reports() {
         );
       }
       case 'Financial': {
-        const a = item as { unitNo?: string; residentName?: string; monthlyCharge?: number; paymentStatus?: string; lastPaid?: string };
+        const inv = item as { invoiceNo?: string; description?: string; amount?: number; paidAmount?: number; status?: string; dueDate?: string };
         return (
           <tr key={idx} className="hover:bg-slate-50/50">
-            <td className="px-4 py-3 font-semibold text-slate-900">{a.unitNo}</td>
-            <td className="px-4 py-3 text-slate-700">{a.residentName || '—'}</td>
-            <td className="px-4 py-3 font-medium text-indigo-600">₹{a.monthlyCharge?.toLocaleString()}</td>
-            <td className="px-4 py-3"><StatusBadge status={a.paymentStatus || 'Pending'} /></td>
-            <td className="px-4 py-3 text-slate-500">{a.lastPaid || '—'}</td>
+            <td className="px-4 py-3 font-semibold text-slate-900">{inv.invoiceNo}</td>
+            <td className="px-4 py-3 text-slate-700">{inv.description || '—'}</td>
+            <td className="px-4 py-3 font-medium text-indigo-600">₹{inv.amount?.toLocaleString()}</td>
+            <td className="px-4 py-3 text-green-600">₹{inv.paidAmount?.toLocaleString()}</td>
+            <td className="px-4 py-3"><StatusBadge status={inv.status || 'Pending'} /></td>
+            <td className="px-4 py-3 text-slate-500">{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
           </tr>
         );
       }
@@ -113,7 +114,7 @@ export default function Reports() {
     'Vendor Log': ['Vendor', 'Company', 'Service', 'Last Visit', 'Status'],
     'Staff Attendance': ['Name', 'Role', 'Department', 'Contact', `Attendance (${dateTo})`],
     'Inventory': ['Item', 'Category', 'Qty', 'Total Cost', 'Vendor'],
-    'Financial': ['Unit', 'Resident', 'Charge', 'Status', 'Last Paid'],
+    'Financial': ['Invoice', 'Description', 'Amount', 'Paid', 'Status', 'Due Date'],
   };
 
   return (

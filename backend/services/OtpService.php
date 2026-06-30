@@ -6,6 +6,9 @@ class OtpService
 {
     public function send(string $phone, string $purpose, ?int $userId = null): array
     {
+        $this->assertNotLocked($phone, $purpose, $userId);
+        $this->assertResendAllowed($phone, $purpose);
+
         $code = (string) random_int(100000, 999999);
         $expiresAt = db_time(time() + config('app.otp_ttl'));
         Database::query(
@@ -37,11 +40,20 @@ class OtpService
 
         AuditService::log($userId, 'otp.send', 'otp', null, ['phone' => $phone, 'purpose' => $purpose]);
 
-        return ['phone' => $phone, 'purpose' => $purpose, 'expiresAt' => $expiresAt];
+        return [
+            'phone' => $phone,
+            'purpose' => $purpose,
+            'expiresAt' => $expiresAt,
+            'expiresInSeconds' => (int) config('app.otp_ttl'),
+            'resendAvailableInSeconds' => (int) config('app.otp_resend_cooldown'),
+        ];
     }
 
-    public function verify(string $phone, string $purpose, string $code): void
+    public function verify(string $phone, string $purpose, string $code, ?int $userId = null): void
     {
+        $this->assertNotLocked($phone, $purpose, $userId);
+
+        $maxAttempts = (int) config('app.otp_max_attempts');
         $challenge = Database::fetch(
             'SELECT * FROM otp_challenges
              WHERE phone = :phone AND purpose = :purpose AND verified_at IS NULL AND expires_at > :now
@@ -49,24 +61,88 @@ class OtpService
             ['phone' => $phone, 'purpose' => $purpose, 'now' => db_time()]
         );
 
-        if (!$challenge || (int) $challenge['attempts'] >= 5) {
-            throw new AppException('OTP expired or unavailable', 422);
+        if (!$challenge || (int) $challenge['attempts'] >= $maxAttempts) {
+            throw new AppException('OTP expired or unavailable. Please request a new code.', 422);
         }
 
         $updated = Database::query(
             'UPDATE otp_challenges
              SET attempts = attempts + 1
-             WHERE id = :id AND verified_at IS NULL AND attempts < 5',
-            ['id' => $challenge['id']]
+             WHERE id = :id AND verified_at IS NULL AND attempts < :max',
+            ['id' => $challenge['id'], 'max' => $maxAttempts]
         )->rowCount();
         if ($updated !== 1) {
-            throw new AppException('OTP expired or unavailable', 422);
+            throw new AppException('OTP expired or unavailable. Please request a new code.', 422);
         }
+
         if (!password_verify($code, $challenge['code_hash'])) {
-            throw new AppException('Invalid OTP', 422);
+            $attemptsUsed = (int) $challenge['attempts'] + 1;
+            $remaining = max(0, $maxAttempts - $attemptsUsed);
+            // Exhausting this challenge contributes toward the lockout threshold.
+            if ($remaining === 0) {
+                $this->assertNotLocked($phone, $purpose, $userId);
+            }
+            throw new AppException(
+                $remaining > 0
+                    ? "Invalid OTP. {$remaining} attempt(s) remaining."
+                    : 'Invalid OTP. This code is now locked — please request a new one.',
+                422
+            );
         }
 
         Database::query('UPDATE otp_challenges SET verified_at = :now WHERE id = :id', ['now' => db_time(), 'id' => $challenge['id']]);
+        AuditService::log($userId, 'otp.verify', 'otp', (int) $challenge['id'], ['phone' => $phone, 'purpose' => $purpose]);
+    }
+
+    /**
+     * Lockout: if too many fully-exhausted (max-attempt) challenges exist for this
+     * phone+purpose within the lockout window, block further sends/verifies.
+     */
+    private function assertNotLocked(string $phone, string $purpose, ?int $userId): void
+    {
+        $threshold = (int) config('app.otp_lockout_threshold');
+        $window = (int) config('app.otp_lockout_window');
+        $maxAttempts = (int) config('app.otp_max_attempts');
+        $since = db_time(time() - $window);
+
+        $exhausted = (int) Database::fetch(
+            'SELECT COUNT(*) AS c FROM otp_challenges
+             WHERE phone = :phone AND purpose = :purpose AND verified_at IS NULL
+               AND attempts >= :max AND created_at >= :since',
+            ['phone' => $phone, 'purpose' => $purpose, 'max' => $maxAttempts, 'since' => $since]
+        )['c'];
+
+        if ($exhausted >= $threshold) {
+            AuditService::log($userId, 'otp.lockout', 'otp', null, ['phone' => $phone, 'purpose' => $purpose, 'exhausted' => $exhausted]);
+            throw new AppException('Too many failed attempts. Please try again later.', 429);
+        }
+    }
+
+    /**
+     * Resend cooldown: reject a new send if the most recent challenge for this
+     * phone+purpose was created within the cooldown window.
+     */
+    private function assertResendAllowed(string $phone, string $purpose): void
+    {
+        $cooldown = (int) config('app.otp_resend_cooldown');
+        if ($cooldown <= 0) {
+            return;
+        }
+
+        $last = Database::fetch(
+            'SELECT created_at FROM otp_challenges
+             WHERE phone = :phone AND purpose = :purpose
+             ORDER BY id DESC LIMIT 1',
+            ['phone' => $phone, 'purpose' => $purpose]
+        );
+        if (!$last) {
+            return;
+        }
+
+        $elapsed = time() - strtotime((string) $last['created_at']);
+        if ($elapsed < $cooldown) {
+            throw new AppException('Please wait ' . ($cooldown - $elapsed) . ' seconds before requesting a new OTP.', 429);
+        }
     }
 
     private function sendWebhook(string $phone, string $purpose, string $code, string $expiresAt): void
