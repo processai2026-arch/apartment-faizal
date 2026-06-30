@@ -768,26 +768,6 @@ export default function SecurityDashboard() {
         </div>
       </main>
 
-      {/* Floating Customize Button */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
-        <AnimatePresence>
-          {!isEditMode && (
-            <motion.button
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsEditMode(true)}
-              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
-            >
-              <Edit3 className="w-5 h-5" />
-              <span className="font-medium text-sm">Edit Layout</span>
-            </motion.button>
-          )}
-        </AnimatePresence>
-      </div>
-
       {/* Gate QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

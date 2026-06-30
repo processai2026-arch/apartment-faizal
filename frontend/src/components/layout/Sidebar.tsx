@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import {
   LayoutDashboard, Building2, UserPlus, UserCheck, Car, CarFront,
   Users, Wrench, HardHat, Package, Droplets, Wallet, BarChart3,
-  ChevronLeft, ShieldCheck, QrCode, Settings, CreditCard, Bell, User, Home
+  ChevronLeft, ShieldCheck, QrCode, Settings, CreditCard, Bell, User, Home, UserCog
 } from 'lucide-react';
 
 interface NavItem {
@@ -25,6 +25,7 @@ const adminNavItems: NavGroup[] = [
   { group: 'Main', items: [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/offices', label: 'Manage Offices', icon: Building2 },
+    { to: '/users', label: 'User Management', icon: UserCog },
   ]},
   { group: 'Visitor & Security', items: [
     { to: '/visitors/entry', label: 'Entry Visitors', icon: UserPlus },

@@ -10,6 +10,18 @@ export interface User {
   createdAt: string;
 }
 
+// A user account managed by the admin (security / tenant logins)
+export interface ManagedUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: 'security' | 'tenant';
+  status: 'active' | 'inactive';
+  officeId?: number | null;
+  createdAt?: string;
+}
+
 export interface LoginCredentials {
   email?: string;
   phone?: string;

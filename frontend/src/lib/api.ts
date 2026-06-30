@@ -1,5 +1,5 @@
 import type { InventoryItem, Office, Staff, UtilityTask, Vehicle, Vendor, Visitor } from '@/types';
-import type { User } from '@/types/auth';
+import type { User, ManagedUser } from '@/types/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8010';
 
@@ -186,6 +186,19 @@ export const api = {
     create: (task: Partial<UtilityTask>) => request<UtilityDto>('/admin/utilities', { method: 'POST', body: JSON.stringify(fromUtility(task)) }).then(toUtility),
     complete: (id: string) => request<UtilityDto>(`/admin/utilities/${id}/complete`, { method: 'POST', body: JSON.stringify({}) }).then(toUtility),
   },
+  tenant: {
+    dashboard: () => request<TenantDashboardDto>('/tenant/dashboard'),
+  },
+  users: {
+    list: () => unwrapList<UserDto>('/admin/users?perPage=100').then((rows) => rows.map(toManagedUser)),
+    create: (payload: { name: string; email: string; phone?: string; password: string; role: 'security' | 'tenant'; officeId?: number | null }) =>
+      request<UserDto>('/admin/users', { method: 'POST', body: JSON.stringify({
+        name: payload.name, email: payload.email, phone: payload.phone, password: payload.password, role: payload.role, officeId: payload.officeId ?? null,
+      }) }).then(toManagedUser),
+    update: (id: string, payload: { name?: string; email?: string; phone?: string; password?: string; status?: 'active' | 'inactive' }) =>
+      request<UserDto>(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) }).then(toManagedUser),
+    remove: (id: string) => request<{ id: number | string }>(`/admin/users/${id}`, { method: 'DELETE' }),
+  },
 };
 
 type DtoValue = string | number | boolean | null | undefined;
@@ -196,6 +209,43 @@ type VendorDto = Record<string, DtoValue>;
 type StaffDto = Record<string, DtoValue>;
 type InventoryDto = Record<string, DtoValue>;
 type UtilityDto = Record<string, DtoValue>;
+type UserDto = Record<string, DtoValue>;
+
+export interface TenantInvoice {
+  id: number;
+  invoice_no: string;
+  description: string | null;
+  amount: string | number;
+  paid_amount: string | number;
+  due_date: string | null;
+  status: 'Pending' | 'Paid' | 'Overdue' | 'Cancelled';
+  created_at: string;
+}
+export interface TenantDashboardDto {
+  office: Record<string, DtoValue> | null;
+  visitors: Array<Record<string, DtoValue>>;
+  vehicles: Array<Record<string, DtoValue>>;
+  invoices: TenantInvoice[];
+  summary: {
+    pendingApprovals: number;
+    visitorsThisMonth: number;
+    pendingPayments: number;
+    pendingPaymentsAmount: number;
+  };
+}
+
+function toManagedUser(row: UserDto): ManagedUser {
+  return {
+    id: String(row.id),
+    name: String(row.name ?? ''),
+    email: String(row.email ?? ''),
+    phone: row.phone ? String(row.phone) : undefined,
+    role: (row.role === 'tenant' ? 'tenant' : 'security'),
+    status: (row.status === 'inactive' ? 'inactive' : 'active'),
+    officeId: row.officeId != null ? Number(row.officeId) : (row.office_id != null ? Number(row.office_id) : null),
+    createdAt: row.createdAt ? String(row.createdAt) : (row.created_at ? String(row.created_at) : undefined),
+  };
+}
 
 function toOffice(row: OfficeDto): Office {
   return {

@@ -222,7 +222,7 @@ export default function Header() {
                   <button
                     onClick={() => {
                       setShowUserMenu(false);
-                      navigate('/profile');
+                      navigate(user?.role === 'tenant' ? '/tenant/profile' : '/profile');
                     }}
                     className="flex-1 py-2.5 px-4 bg-white/10 text-white text-sm font-medium rounded-lg hover:bg-white/20 transition-all border border-white/10 backdrop-blur-sm text-center whitespace-nowrap"
                   >
@@ -231,7 +231,7 @@ export default function Header() {
                   <button
                     onClick={() => {
                       setShowUserMenu(false);
-                      navigate('/change-password');
+                      navigate(user?.role === 'tenant' ? '/tenant/change-password' : '/change-password');
                     }}
                     className="flex-1 py-2.5 px-4 bg-white/10 text-white text-sm font-medium rounded-lg hover:bg-white/20 transition-all border border-white/10 backdrop-blur-sm text-center whitespace-nowrap"
                   >

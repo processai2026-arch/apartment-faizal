@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { 
-  Users, Package, CreditCard, User, Bell, CheckCircle, XCircle, 
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Users, Package, CreditCard, User, Bell, CheckCircle, XCircle,
   Clock, Home, Phone, Mail, Calendar, FileText, AlertCircle,
   ChevronRight, Plus, Eye
 } from 'lucide-react';
@@ -9,8 +9,11 @@ import StatCard from '@/components/features/StatCard';
 import StatusBadge from '@/components/features/StatusBadge';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppStore } from '@/stores/useAppStore';
+import { api, type TenantDashboardDto } from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+const POLL_MS = 20000;
 
 // Mock data for tenant
 const mockPendingApprovals = [
@@ -44,6 +47,33 @@ export default function TenantDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [pendingApprovals, setPendingApprovals] = useState(mockPendingApprovals);
 
+  // Live data from the backend (visitors + invoices for this tenant's office).
+  const [data, setData] = useState<TenantDashboardDto | null>(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      setData(await api.tenant.dashboard());
+    } catch {
+      // keep last good data; silent on poll failures
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+    const t = window.setInterval(loadData, POLL_MS);
+    return () => window.clearInterval(t);
+  }, [loadData]);
+
+  // Real values derived from backend; fall back to 0/empty before first load.
+  const realVisitors = data?.visitors ?? [];
+  const realInvoices = data?.invoices ?? [];
+  const officeLabel = data?.office
+    ? `Unit: ${String(data.office.floor_number ?? '')} - ${String(data.office.company_name ?? '')} | Block: ${String(data.office.block ?? '')}`
+    : 'Loading unit…';
+  const visitorsThisMonth = data?.summary.visitorsThisMonth ?? 0;
+  const realPendingPaymentsTotal = data?.summary.pendingPaymentsAmount ?? 0;
+  const realPendingPaymentsCount = data?.summary.pendingPayments ?? 0;
+
   const handleApprove = (id: string) => {
     setPendingApprovals(prev => prev.filter(a => a.id !== id));
     toast.success('Visitor approved! They will receive entry permission.');
@@ -76,7 +106,7 @@ export default function TenantDashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold font-[Outfit]">Welcome back, {user?.name?.split(' ')[0]}!</h1>
-            <p className="text-indigo-100 mt-1">Unit: 7th Floor - M2K ADVISORS | Block: BRILEY ONE</p>
+            <p className="text-indigo-100 mt-1">{officeLabel}</p>
           </div>
           <div className="flex items-center gap-3">
             <button className="p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors relative">
@@ -132,8 +162,8 @@ export default function TenantDashboard() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard label="Pending Approvals" value={pendingApprovals.length} icon={Users} color="amber" />
               <StatCard label="Parcels to Collect" value={parcelsToCollect} icon={Package} color="blue" />
-              <StatCard label="Pending Payments" value={`₹${pendingPaymentsTotal.toLocaleString()}`} icon={CreditCard} color="red" />
-              <StatCard label="Visitors This Month" value={mockVisitorHistory.length} icon={Clock} color="green" />
+              <StatCard label="Pending Payments" value={`₹${realPendingPaymentsTotal.toLocaleString()}`} icon={CreditCard} color="red" />
+              <StatCard label="Visitors This Month" value={visitorsThisMonth} icon={Clock} color="green" />
             </div>
 
             {/* Quick Actions */}
@@ -166,7 +196,7 @@ export default function TenantDashboard() {
                   <CreditCard className="w-5 h-5 text-green-600" />
                 </div>
                 <h3 className="font-semibold text-slate-900">Pay Bills</h3>
-                <p className="text-xs text-slate-500 mt-1">₹{pendingPaymentsTotal.toLocaleString()} due</p>
+                <p className="text-xs text-slate-500 mt-1">₹{realPendingPaymentsTotal.toLocaleString()} due ({realPendingPaymentsCount})</p>
               </button>
               <button
                 onClick={() => toast.info('Pre-approve visitor feature coming soon!')}
@@ -187,20 +217,28 @@ export default function TenantDashboard() {
                 <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">View all →</button>
               </div>
               <div className="divide-y divide-slate-50">
-                {mockVisitorHistory.slice(0, 3).map(visitor => (
-                  <div key={visitor.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
-                        {visitor.name[0]}
+                {realVisitors.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 text-sm">No visitors recorded for your unit yet.</div>
+                ) : realVisitors.slice(0, 5).map((visitor) => {
+                  const name = String(visitor.name ?? 'Visitor');
+                  const reason = String(visitor.reason ?? visitor.whom_to_meet ?? 'Visit');
+                  const entry = visitor.entry_time ? new Date(String(visitor.entry_time)).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                  const status = String(visitor.status ?? 'Inside');
+                  return (
+                    <div key={String(visitor.id)} className="p-4 flex items-center justify-between hover:bg-slate-50/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+                          {name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-900">{name}</p>
+                          <p className="text-xs text-slate-500">{reason} • {entry}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-slate-900">{visitor.name}</p>
-                        <p className="text-xs text-slate-500">{visitor.purpose} • {visitor.entryTime}</p>
-                      </div>
+                      <StatusBadge status={status} />
                     </div>
-                    <StatusBadge status={visitor.status} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </motion.div>

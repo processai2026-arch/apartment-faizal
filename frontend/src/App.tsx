@@ -17,6 +17,7 @@ const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
 // Admin Pages
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const ManageApartment = lazy(() => import("@/pages/ManageApartment"));
+const UserManagement = lazy(() => import("@/pages/UserManagement"));
 const EntryVisitors = lazy(() => import("@/pages/EntryVisitors"));
 const CheckOutVisitors = lazy(() => import("@/pages/CheckOutVisitors"));
 const VehicleRegistry = lazy(() => import("@/pages/VehicleRegistry"));
@@ -156,6 +157,9 @@ const App = () => (
                   {/* Office Management */}
                   <Route path="/offices" element={<ManageApartment />} />
                   <Route path="/apartments" element={<ManageApartment />} />
+
+                  {/* User Management (Security & Tenant logins) */}
+                  <Route path="/users" element={<UserManagement />} />
                   
                   {/* Visitor Management */}
                   <Route path="/visitors/entry" element={<EntryVisitors />} />
