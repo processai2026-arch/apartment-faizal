@@ -297,10 +297,11 @@ export default function UtilityManagement() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setIsEditMode(true)}
-              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
+              title="Edit Layout"
+              aria-label="Edit Layout"
+              className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
             >
               <Edit3 className="w-5 h-5" />
-              <span className="font-medium text-sm">Edit Layout</span>
             </motion.button>
           )}
         </AnimatePresence>

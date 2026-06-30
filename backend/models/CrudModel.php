@@ -61,6 +61,20 @@ abstract class CrudModel
         return static::find($id);
     }
 
+    public static function softDelete(int $id): array
+    {
+        $row = static::find($id);
+        if (!$row) {
+            throw new AppException('Record not found', 404);
+        }
+        Database::query('UPDATE ' . static::$table . ' SET deleted_at = :deleted_at, updated_at = :updated_at WHERE id = :id AND deleted_at IS NULL', [
+            'deleted_at' => db_time(),
+            'updated_at' => db_time(),
+            'id' => $id,
+        ]);
+        return $row;
+    }
+
     protected static function filters(Request $request): array
     {
         $where = ['deleted_at IS NULL'];

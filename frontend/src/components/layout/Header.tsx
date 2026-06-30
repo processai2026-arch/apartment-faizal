@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Bell, Search, Menu, LogOut, User, Key, Power, ChevronDown, Settings } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Bell, Menu, User, Power, CheckCheck } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -26,13 +26,37 @@ const pageTitles: Record<string, string> = {
 
 export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const { sidebarCollapsed, toggleSidebar, visitors } = useAppStore();
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   const title = pageTitles[location.pathname] || 'OfficeGate';
-  const unreadCount = visitors.filter(v => v.status === 'Inside').length;
+
+  // Build notifications from visitors currently inside the building.
+  const notifications = useMemo(() => {
+    return visitors
+      .filter(v => v.status === 'Inside' && !dismissedIds.includes(v.id))
+      .sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())
+      .map(v => ({
+        id: v.id,
+        name: v.name || 'Visitor',
+        entryTime: v.entryTime,
+        whomToMeet: v.whomToMeet || v.companyName || '',
+      }));
+  }, [visitors, dismissedIds]);
+
+  const unreadCount = notifications.length;
+
+  const handleClearAll = () => {
+    setDismissedIds(visitors.filter(v => v.status === 'Inside').map(v => v.id));
+  };
+
+  const handleDismiss = (id: string) => {
+    setDismissedIds(prev => [...prev, id]);
+  };
 
   const handleLogout = () => {
     logout();
@@ -45,9 +69,11 @@ export default function Header() {
   }
 
   return (
-    <header 
-      className="fixed top-0 right-0 z-10 h-16 bg-white border-b border-slate-200 flex items-center px-4 gap-4 transition-all duration-300"
-      style={{ left: sidebarCollapsed ? '72px' : '240px' }}
+    <header
+      className={cn(
+        'fixed top-0 right-0 left-0 z-10 h-16 bg-white border-b border-slate-200 flex items-center px-4 gap-4 transition-all duration-300',
+        sidebarCollapsed ? 'lg:left-[72px]' : 'lg:left-[240px]'
+      )}
     >
       <button
         onClick={toggleSidebar}
@@ -64,24 +90,84 @@ export default function Header() {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
-        {/* Search */}
-        <div className="relative hidden md:flex items-center">
-          <Search className="absolute left-3 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="pl-9 pr-4 py-2 bg-slate-100 rounded-lg text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-48"
-          />
-        </div>
-
         {/* Notifications */}
         <div className="relative">
-          <button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors relative">
+          <button
+            onClick={() => setShowNotifications(prev => !prev)}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors relative"
+          >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
             )}
           </button>
+
+          {showNotifications && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowNotifications(false)}
+              />
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl z-20 overflow-hidden border border-slate-200">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Notifications</p>
+                    <p className="text-xs text-slate-500">
+                      {unreadCount > 0 ? `${unreadCount} visitor${unreadCount > 1 ? 's' : ''} currently inside` : 'You are all caught up'}
+                    </p>
+                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleClearAll}
+                      className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" />
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                {/* List */}
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-10 text-center text-slate-400">
+                      <Bell className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">No new notifications</p>
+                    </div>
+                  ) : (
+                    notifications.map(n => (
+                      <div
+                        key={n.id}
+                        className="flex items-start gap-3 px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-indigo-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">{n.name}</p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {n.whomToMeet ? `Visiting ${n.whomToMeet}` : 'Currently inside'}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {n.entryTime ? new Date(n.entryTime).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleDismiss(n.id)}
+                          className="text-[11px] text-slate-400 hover:text-slate-700 flex-shrink-0"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* User Menu */}
@@ -121,7 +207,10 @@ export default function Header() {
                     <User className="w-8 h-8 text-white" />
                   </div>
                   <p className="text-white font-semibold text-sm">
-                    {user?.name || 'Admin User'} - {user?.role === 'admin' ? 'Web Developer' : user?.role}
+                    {user?.name || 'Admin User'}
+                  </p>
+                  <p className="text-indigo-300/80 text-xs mt-0.5 capitalize">
+                    {user?.role || 'admin'}
                   </p>
                   <p className="text-indigo-300/70 text-xs mt-1">
                     Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'January 2024'}

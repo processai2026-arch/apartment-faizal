@@ -151,6 +151,7 @@ export const api = {
     create: (office: Partial<Office>) => request<OfficeDto>('/admin/offices', { method: 'POST', body: JSON.stringify(fromOffice(office)) }).then(toOffice),
     update: (office: Office) => request<OfficeDto>(`/admin/offices/${office.id}`, { method: 'PUT', body: JSON.stringify(fromOffice(office)) }).then(toOffice),
     status: (id: string, status: Office['status']) => request<OfficeDto>(`/admin/offices/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }).then(toOffice),
+    remove: (id: string) => request<{ id: number | string }>(`/admin/offices/${id}`, { method: 'DELETE' }),
   },
   visitors: {
     list: () => unwrapList<VisitorDto>('/admin/visitors?perPage=100').then((rows) => rows.map(toVisitor)),

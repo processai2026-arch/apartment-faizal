@@ -38,6 +38,13 @@ abstract class ResourceController
         Response::success($row, 'Updated');
     }
 
+    public function destroy(Request $request): void
+    {
+        $row = $this->model::softDelete((int) $request->params['id']);
+        AuditService::log((int) $request->user['id'], $this->entityType . '.delete', $this->entityType, (int) $row['id']);
+        Response::success(['id' => $row['id']], 'Deleted');
+    }
+
     protected function prepare(array $data, Request $request): array
     {
         return $data;

@@ -3,50 +3,60 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import Layout from "@/components/layout/Layout";
 import ProtectedRoute, { PublicRoute } from "@/components/auth/ProtectedRoute";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useAppStore } from "@/stores/useAppStore";
 
-// Auth Pages
+// Auth Pages — Login is eager (first paint), the rest are code-split per route
+// so the initial bundle stays small and unchanged page chunks keep stable hashes.
 import Login from "@/pages/auth/Login";
-import ForgotPassword from "@/pages/auth/ForgotPassword";
+const ForgotPassword = lazy(() => import("@/pages/auth/ForgotPassword"));
 
 // Admin Pages
-import Dashboard from "@/pages/Dashboard";
-import ManageApartment from "@/pages/ManageApartment";
-import EntryVisitors from "@/pages/EntryVisitors";
-import CheckOutVisitors from "@/pages/CheckOutVisitors";
-import VehicleRegistry from "@/pages/VehicleRegistry";
-import CheckOutVehicle from "@/pages/CheckOutVehicle";
-import VisitorManagement from "@/pages/VisitorManagement";
-import VendorManagement from "@/pages/VendorManagement";
-import StaffAttendance from "@/pages/StaffAttendance";
-import InventoryAudit from "@/pages/InventoryAudit";
-import UtilityManagement from "@/pages/UtilityManagement";
-import FinancialTracking from "@/pages/FinancialTracking";
-import Reports from "@/pages/Reports";
-import QRCodesPage from "@/pages/QRCodesPage";
-import Profile from "@/pages/Profile";
-import ChangePassword from "@/pages/ChangePassword";
-import Settings from "@/pages/Settings";
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const ManageApartment = lazy(() => import("@/pages/ManageApartment"));
+const EntryVisitors = lazy(() => import("@/pages/EntryVisitors"));
+const CheckOutVisitors = lazy(() => import("@/pages/CheckOutVisitors"));
+const VehicleRegistry = lazy(() => import("@/pages/VehicleRegistry"));
+const CheckOutVehicle = lazy(() => import("@/pages/CheckOutVehicle"));
+const VisitorManagement = lazy(() => import("@/pages/VisitorManagement"));
+const VendorManagement = lazy(() => import("@/pages/VendorManagement"));
+const StaffAttendance = lazy(() => import("@/pages/StaffAttendance"));
+const InventoryAudit = lazy(() => import("@/pages/InventoryAudit"));
+const UtilityManagement = lazy(() => import("@/pages/UtilityManagement"));
+const FinancialTracking = lazy(() => import("@/pages/FinancialTracking"));
+const Reports = lazy(() => import("@/pages/Reports"));
+const QRCodesPage = lazy(() => import("@/pages/QRCodesPage"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const ChangePassword = lazy(() => import("@/pages/ChangePassword"));
+const Settings = lazy(() => import("@/pages/Settings"));
 
 // Security Dashboard
-import SecurityDashboard from "@/pages/SecurityDashboard";
+const SecurityDashboard = lazy(() => import("@/pages/SecurityDashboard"));
 
 // Tenant Dashboard
-import TenantDashboard from "@/pages/TenantDashboard";
+const TenantDashboard = lazy(() => import("@/pages/TenantDashboard"));
 
 // Scan Pages (Public)
-import ScanVisitorEntry from "@/pages/scan/ScanVisitorEntry";
-import ScanVisitorCheckout from "@/pages/scan/ScanVisitorCheckout";
-import ScanVehicleEntry from "@/pages/scan/ScanVehicleEntry";
-import ScanVehicleCheckout from "@/pages/scan/ScanVehicleCheckout";
+const ScanVisitorEntry = lazy(() => import("@/pages/scan/ScanVisitorEntry"));
+const ScanVisitorCheckout = lazy(() => import("@/pages/scan/ScanVisitorCheckout"));
+const ScanVehicleEntry = lazy(() => import("@/pages/scan/ScanVehicleEntry"));
+const ScanVehicleCheckout = lazy(() => import("@/pages/scan/ScanVehicleCheckout"));
 
-import NotFound from "./pages/NotFound";
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
+
+// Lightweight fallback while a route chunk loads.
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 // Component to handle role-based dashboard redirect
 function DashboardRedirect() {
@@ -95,6 +105,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AppDataBootstrap />
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* ── Public Auth Pages ── */}
           <Route path="/login" element={
@@ -177,6 +188,7 @@ const App = () => (
             </ProtectedRoute>
           } />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

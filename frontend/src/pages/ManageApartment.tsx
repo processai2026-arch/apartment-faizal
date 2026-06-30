@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, ToggleLeft, X, Building2, Users, Car, Eye, EyeOff, Edit3, Save, RotateCcw } from 'lucide-react';
+import { Plus, Edit2, ToggleLeft, Trash2, X, Building2, Users, Car, Eye, EyeOff, Edit3, Save, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import StatusBadge from '@/components/features/StatusBadge';
 import { useAppStore } from '@/stores/useAppStore';
@@ -22,7 +22,7 @@ const emptyOffice: Partial<Office> = {
 };
 
 export default function ManageApartment() {
-  const { offices, addOffice, updateOffice, toggleOfficeStatus } = useAppStore();
+  const { offices, addOffice, updateOffice, toggleOfficeStatus, deleteOffice } = useAppStore();
   const { settings, getVisibleColumns, updateColumnOrder, resetPageSettings } = useUISettingsStore();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Office | null>(null);
@@ -30,7 +30,9 @@ export default function ManageApartment() {
   const [filter, setFilter] = useState({ status: '', floor: '' });
   const [searchQuery, setSearchQuery] = useState('');
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
-  
+  const [deletingOffice, setDeletingOffice] = useState<Office | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [localColumns, setLocalColumns] = useState<ColumnConfig[]>([]);
@@ -118,6 +120,20 @@ export default function ManageApartment() {
 
   const openAdd = () => { setEditing(null); setForm(emptyOffice); setShowModal(true); };
   const openEdit = (office: Office) => { setEditing(office); setForm(office); setShowModal(true); };
+
+  const handleDelete = async () => {
+    if (!deletingOffice) return;
+    setIsDeleting(true);
+    try {
+      await deleteOffice(deletingOffice.id);
+      toast.success('Office deleted');
+      setDeletingOffice(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not delete office');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!form.companyName) { toast.error('Company name is required'); return; }
@@ -401,6 +417,9 @@ export default function ManageApartment() {
                                   className="p-1.5 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors" title="Toggle Status">
                                   <ToggleLeft className="w-4 h-4" />
                                 </button>
+                                <button onClick={() => setDeletingOffice(office)} className="p-1.5 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors" title="Delete">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
                             </td>
                           );
@@ -504,6 +523,42 @@ export default function ManageApartment() {
         )}
       </AnimatePresence>
 
+      {/* Delete Confirmation Modal */}
+      {deletingOffice && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => !isDeleting && setDeletingOffice(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold font-[Outfit] text-slate-900">Delete Office</h3>
+                <p className="text-sm text-slate-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-6">
+              Are you sure you want to delete <span className="font-semibold text-slate-900">{deletingOffice.companyName || `Unit ${deletingOffice.id}`}</span>?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingOffice(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Floating Customize Buttons */}
       <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
         <AnimatePresence>
@@ -516,23 +571,11 @@ export default function ManageApartment() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsEditMode(true)}
-                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                title="Edit Columns"
+                aria-label="Edit Columns"
+                className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
               >
                 <Edit3 className="w-5 h-5" />
-                <span className="font-medium text-sm">Edit Columns</span>
-              </motion.button>
-              <motion.button
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ delay: 0.05 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsCustomizerOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-full shadow-lg hover:shadow-xl transition-shadow"
-              >
-                <Eye className="w-4 h-4" />
-                <span className="font-medium text-sm">Advanced</span>
               </motion.button>
             </>
           )}

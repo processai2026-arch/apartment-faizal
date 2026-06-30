@@ -31,6 +31,7 @@ interface AppState {
   addOffice: (office: Office) => Promise<Office | void>;
   updateOffice: (office: Office) => Promise<void>;
   toggleOfficeStatus: (id: string) => Promise<void>;
+  deleteOffice: (id: string) => Promise<void>;
   addVendor: (vendor: Vendor) => Promise<Vendor | void>;
   addStaff: (s: Staff) => Promise<Staff | void>;
   updateStaff: (s: Staff) => Promise<void>;
@@ -44,8 +45,17 @@ interface AppState {
   addApartment: (apartment: Apartment) => void;
 }
 
+const SIDEBAR_KEY = 'officegate.sidebarCollapsed';
+const readSidebarCollapsed = (): boolean => {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
 export const useAppStore = create<AppState>((set, get) => ({
-  sidebarCollapsed: false,
+  sidebarCollapsed: readSidebarCollapsed(),
   isLoading: false,
   isLoaded: false,
   loadError: null,
@@ -61,7 +71,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   emergencyContacts: mockEmergencyContacts,
   apartments: mockApartments,
 
-  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  toggleSidebar: () => set((state) => {
+    const next = !state.sidebarCollapsed;
+    try { localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0'); } catch { /* ignore */ }
+    return { sidebarCollapsed: next };
+  }),
 
   loadInitialData: async () => {
     if (!tokenStorage.getAccessToken()) return;
@@ -161,6 +175,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       offices: state.offices.map((o) => (o.id === id ? saved : o)),
       apartments: state.offices.map((o) => (o.id === id ? saved : o)).map(officeToApartment),
+    }));
+  },
+
+  deleteOffice: async (id) => {
+    await api.offices.remove(id);
+    set((state) => ({
+      offices: state.offices.filter((o) => o.id !== id),
+      apartments: state.apartments.filter((a) => a.id !== id),
     }));
   },
 

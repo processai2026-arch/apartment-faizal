@@ -26,6 +26,7 @@ export default function EntryVisitors() {
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const faceCheckIntervalRef = useRef<number | null>(null);
   const faceCheckBusyRef = useRef(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -165,8 +166,9 @@ export default function EntryVisitors() {
     }
     faceCheckBusyRef.current = false;
 
-    const stream = videoRef.current?.srcObject as MediaStream | null;
+    const stream = streamRef.current ?? (videoRef.current?.srcObject as MediaStream | null);
     stream?.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -194,13 +196,23 @@ export default function EntryVisitors() {
   };
 
   const startCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error('Camera is not supported in this browser');
+      setFaceCheck({
+        canCapture: false,
+        status: 'error',
+        message: 'Camera requires a secure (https) connection and a supported browser.',
+      });
+      return;
+    }
+
     try {
       stopCamera();
       setSnapshot(null);
       setFaceCheck({
         canCapture: false,
         status: 'loading',
-        message: 'Loading face detector...',
+        message: 'Starting camera...',
       });
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -211,26 +223,56 @@ export default function EntryVisitors() {
         },
         audio: false,
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setCameraActive(true);
+
+      // Store the stream and flip cameraActive so the <video> element mounts.
+      // The stream is attached to the element in an effect once it exists.
+      streamRef.current = stream;
+      setCameraActive(true);
+    } catch (err) {
+      const isDenied = err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
+      toast.error(isDenied ? 'Camera permission was denied' : 'Unable to access camera');
+      setFaceCheck({
+        canCapture: false,
+        status: 'error',
+        message: isDenied
+          ? 'Allow camera access in your browser to take the visitor photo.'
+          : 'Camera could not start. Check that no other app is using it.',
+      });
+    }
+  };
+
+  // Attach the stream once the <video> element is mounted, then begin face checks.
+  useEffect(() => {
+    if (!cameraActive) return;
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+
+    let cancelled = false;
+    video.srcObject = stream;
+    video.play()
+      .then(() => {
+        if (cancelled) return;
         faceCheckIntervalRef.current = window.setInterval(() => {
           void runFaceCheck();
         }, 700);
         window.setTimeout(() => {
           void runFaceCheck();
         }, 250);
-      }
-    } catch (err) {
-      toast.error('Unable to access camera');
-      setFaceCheck({
-        canCapture: false,
-        status: 'error',
-        message: 'Camera permission is required for visitor photo.',
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFaceCheck({
+          canCapture: false,
+          status: 'error',
+          message: 'Could not start the video preview. Try again.',
+        });
       });
-    }
-  };
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cameraActive]);
 
   const takeSnapshot = async () => {
     if (videoRef.current && canvasRef.current) {
@@ -1095,23 +1137,11 @@ export default function EntryVisitors() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsEditMode(true)}
-                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                title="Edit Form Fields"
+                aria-label="Edit Form Fields"
+                className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
               >
                 <Edit3 className="w-5 h-5" />
-                <span className="font-medium text-sm">Edit Form Fields</span>
-              </motion.button>
-              <motion.button
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ delay: 0.05 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsCustomizerOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-full shadow-lg hover:shadow-xl transition-shadow"
-              >
-                <Eye className="w-4 h-4" />
-                <span className="font-medium text-sm">Advanced</span>
               </motion.button>
             </>
           )}

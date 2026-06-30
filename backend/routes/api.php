@@ -24,6 +24,7 @@ $router->post('/admin/offices', [AdminOfficeController::class, 'store'], ['RoleM
 $router->get('/admin/offices/{id}', [AdminOfficeController::class, 'show'], ['RoleMiddleware:admin']);
 $router->put('/admin/offices/{id}', [AdminOfficeController::class, 'update'], ['RoleMiddleware:admin']);
 $router->patch('/admin/offices/{id}/status', [AdminOfficeController::class, 'status'], ['RoleMiddleware:admin']);
+$router->delete('/admin/offices/{id}', [AdminOfficeController::class, 'destroy'], ['RoleMiddleware:admin']);
 
 $router->get('/admin/visitors', [AdminVisitorController::class, 'index'], ['RoleMiddleware:admin,security']);
 $router->post('/admin/visitors/entry', [AdminVisitorController::class, 'store'], ['RoleMiddleware:admin,security']);

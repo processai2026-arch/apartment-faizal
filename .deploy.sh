@@ -161,7 +161,6 @@ HTACCESS
 }
 
 need_command npm
-need_command rsync
 need_command php
 
 mkdir -p "$PUBLIC_HTML_DIR" "$BACKEND_DIR" "$DATABASE_DIR"
@@ -172,7 +171,10 @@ echo "Building frontend into $DEPLOY_DOMAIN/public_html ..."
 if [ ! -d "$ROOT_DIR/frontend/node_modules" ]; then
   (cd "$ROOT_DIR/frontend" && npm ci)
 fi
-(cd "$ROOT_DIR/frontend" && VITE_API_BASE_URL="$API_BASE_URL" npm run build -- --outDir "$PUBLIC_HTML_DIR" --emptyOutDir)
+# MSYS_NO_PATHCONV/MSYS2_ARG_CONV_EXCL stop Git Bash on Windows from rewriting a
+# leading-slash value like "/api" into a Windows path (e.g. C:/Program Files/Git/api),
+# which would bake a broken API base into the build.
+(cd "$ROOT_DIR/frontend" && MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' VITE_API_BASE_URL="$API_BASE_URL" npm run build -- --outDir "$PUBLIC_HTML_DIR" --emptyOutDir)
 
 echo "Adding Hostinger Apache/API bridge files ..."
 mkdir -p "$PUBLIC_HTML_DIR/api"
@@ -180,11 +182,39 @@ cp "$ROOT_DIR/deployment/hostinger/public_html/.htaccess" "$PUBLIC_HTML_DIR/.hta
 cp "$ROOT_DIR/deployment/hostinger/public_html/api/index.php" "$PUBLIC_HTML_DIR/api/index.php"
 
 echo "Copying backend source into $DEPLOY_DOMAIN/backend ..."
-rsync -a --delete \
-  --exclude '.env' \
-  --exclude 'vendor/' \
-  --exclude '.phpunit.cache/' \
-  "$ROOT_DIR/backend/" "$BACKEND_DIR/"
+copy_backend_source() {
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete \
+      --exclude '.env' \
+      --exclude 'vendor/' \
+      --exclude '.phpunit.cache/' \
+      "$ROOT_DIR/backend/" "$BACKEND_DIR/"
+    return
+  fi
+
+  # rsync is not available (e.g. Git Bash on Windows). Fall back to a manual
+  # mirror: wipe the destination except the preserved backend .env, then copy
+  # everything from source except .env / vendor / .phpunit.cache.
+  echo "rsync not found; using cp fallback."
+  local preserved_env=""
+  if [ -f "$BACKEND_DIR/.env" ]; then
+    preserved_env="$(mktemp)"
+    cp "$BACKEND_DIR/.env" "$preserved_env"
+  fi
+
+  find "$BACKEND_DIR" -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +
+
+  ( cd "$ROOT_DIR/backend" && \
+    find . -mindepth 1 -maxdepth 1 \
+      ! -name '.env' ! -name 'vendor' ! -name '.phpunit.cache' \
+      -exec cp -R {} "$BACKEND_DIR/" \; )
+
+  if [ -n "$preserved_env" ]; then
+    cp "$preserved_env" "$BACKEND_DIR/.env"
+    rm -f "$preserved_env"
+  fi
+}
+copy_backend_source
 clean_backend_runtime_files
 write_backend_env
 

@@ -171,21 +171,6 @@ export default function Sidebar() {
             </div>
           ))}
         </nav>
-
-        {/* Footer */}
-        {!sidebarCollapsed && user && (
-          <div className="p-4 border-t border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-white text-sm font-medium truncate">{user.name}</p>
-                <p className="text-slate-500 text-xs truncate">{user.email}</p>
-              </div>
-            </div>
-          </div>
-        )}
       </aside>
     </>
   );

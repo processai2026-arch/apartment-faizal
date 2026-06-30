@@ -464,23 +464,11 @@ export default function CheckOutVehicle() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsEditMode(true)}
-                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                title="Edit Columns"
+                aria-label="Edit Columns"
+                className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
               >
                 <Edit3 className="w-5 h-5" />
-                <span className="font-medium text-sm">Edit Columns</span>
-              </motion.button>
-              <motion.button
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ delay: 0.05 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsCustomizerOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-full shadow-lg hover:shadow-xl transition-shadow"
-              >
-                <Eye className="w-4 h-4" />
-                <span className="font-medium text-sm">Advanced</span>
               </motion.button>
             </>
           )}

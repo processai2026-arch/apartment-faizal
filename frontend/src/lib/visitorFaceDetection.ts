@@ -48,8 +48,8 @@ export async function checkVisitorFace(video: HTMLVideoElement): Promise<Visitor
   }
 
   const detectorOptions = new faceapi.TinyFaceDetectorOptions({
-    inputSize: 224,
-    scoreThreshold: 0.55,
+    inputSize: 320,
+    scoreThreshold: 0.5,
   });
   const detections = await faceapi.detectAllFaces(video, detectorOptions);
 
@@ -57,7 +57,7 @@ export async function checkVisitorFace(video: HTMLVideoElement): Promise<Visitor
     return {
       canCapture: false,
       status: 'blocked',
-      message: 'No face detected. Look directly at the camera.',
+      message: 'No human face detected. Look directly at the camera.',
     };
   }
 
@@ -73,16 +73,12 @@ export async function checkVisitorFace(video: HTMLVideoElement): Promise<Visitor
   const box = detection.box;
   const frameWidth = video.videoWidth;
   const frameHeight = video.videoHeight;
-  const left = box.x / frameWidth;
-  const top = box.y / frameHeight;
-  const right = (box.x + box.width) / frameWidth;
-  const bottom = (box.y + box.height) / frameHeight;
   const width = box.width / frameWidth;
   const height = box.height / frameHeight;
-  const centerX = left + width / 2;
-  const centerY = top + height / 2;
 
-  if (detection.score < 0.6) {
+  // Confidence gate: the tiny face detector only fires on human faces, so a
+  // confident detection means a real human face is present.
+  if (detection.score < 0.55) {
     return {
       canCapture: false,
       status: 'blocked',
@@ -90,23 +86,17 @@ export async function checkVisitorFace(video: HTMLVideoElement): Promise<Visitor
     };
   }
 
-  if (left < 0.05 || top < 0.05 || right > 0.95 || bottom > 0.97) {
+  // Too small => face is too far away / not the subject.
+  if (width < 0.12 || height < 0.12) {
     return {
       canCapture: false,
       status: 'blocked',
-      message: 'Full face must be inside the frame.',
+      message: 'Move closer so the face is clearly visible.',
     };
   }
 
-  if (width < 0.22 || height < 0.22) {
-    return {
-      canCapture: false,
-      status: 'blocked',
-      message: 'Move closer so the face is clear.',
-    };
-  }
-
-  if (width > 0.72 || height > 0.82) {
+  // Too large => face is cropped by the frame.
+  if (width > 0.92 || height > 0.95) {
     return {
       canCapture: false,
       status: 'blocked',
@@ -114,17 +104,9 @@ export async function checkVisitorFace(video: HTMLVideoElement): Promise<Visitor
     };
   }
 
-  if (centerX < 0.32 || centerX > 0.68 || centerY < 0.25 || centerY > 0.7) {
-    return {
-      canCapture: false,
-      status: 'blocked',
-      message: 'Center the face in the frame.',
-    };
-  }
-
   return {
     canCapture: true,
     status: 'ready',
-    message: 'Face verified. Capture is enabled.',
+    message: 'Human face verified. Capture is enabled.',
   };
 }

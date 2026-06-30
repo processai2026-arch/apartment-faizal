@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Users, Building2, UserCheck, Home, Clock, Package, Settings, X, Save, RotateCcw, Edit3, ClipboardList, UserPlus, Pencil, Trash2, Phone } from 'lucide-react';
+import { Users, Building2, UserCheck, Home, Clock, Package, X, Save, RotateCcw, Edit3, ClipboardList, UserPlus, Pencil, Trash2, Phone } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import StatCard from '@/components/features/StatCard';
@@ -8,7 +8,6 @@ import { useAppStore } from '@/stores/useAppStore';
 import { useUISettingsStore } from '@/stores/useUISettingsStore';
 import { visitorTrendData, occupancyData } from '@/data/mockData';
 import { useNavigate } from 'react-router-dom';
-import UICustomizer from '@/components/features/UICustomizer';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { CardConfig } from '@/types/uiSettings';
@@ -65,7 +64,6 @@ export default function Dashboard() {
   
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [localCards, setLocalCards] = useState<CardConfig[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -751,36 +749,16 @@ export default function Dashboard() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsEditMode(true)}
-                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                title="Edit Layout"
+                aria-label="Edit Layout"
+                className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-shadow"
               >
                 <Edit3 className="w-5 h-5" />
-                <span className="font-medium text-sm">Edit Layout</span>
-              </motion.button>
-              <motion.button
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ delay: 0.05 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsCustomizerOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-full shadow-lg hover:shadow-xl transition-shadow"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="font-medium text-sm">Advanced</span>
               </motion.button>
             </>
           )}
         </AnimatePresence>
       </div>
-
-      {/* Customizer Modal */}
-      <UICustomizer
-        page="adminDashboard"
-        isOpen={isCustomizerOpen}
-        onClose={() => setIsCustomizerOpen(false)}
-        pageTitle="Admin Dashboard"
-      />
     </div>
   );
 }
