@@ -26,6 +26,8 @@ class AdminAnnouncementController
     public function store(Request $request): void
     {
         Validator::require($request->all(), ['title', 'description']);
+        Validator::maxLength((string) $request->input('title'), 255, 'title');
+        Validator::maxLength((string) $request->input('description'), 10000, 'description');
         $priority = $request->input('priority') ?: 'Medium';
         Validator::enum($priority, Announcement::PRIORITIES, 'priority');
 
@@ -60,6 +62,13 @@ class AdminAnnouncementController
         $ann = Announcement::find((int) $request->params['id']);
         if (!$ann) {
             throw new AppException('Announcement not found', 404);
+        }
+
+        if ($request->input('title') !== null) {
+            Validator::maxLength((string) $request->input('title'), 255, 'title');
+        }
+        if ($request->input('description') !== null) {
+            Validator::maxLength((string) $request->input('description'), 10000, 'description');
         }
 
         $updated = Announcement::update((int) $ann['id'], array_filter([

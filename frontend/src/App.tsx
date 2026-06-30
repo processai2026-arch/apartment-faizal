@@ -9,6 +9,7 @@ import ProtectedRoute, { PublicRoute } from '@/components/auth/ProtectedRoute';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppStore } from '@/stores/useAppStore';
 import Login from '@/pages/auth/Login';
+import { ErrorBoundary } from '@/components/features/ErrorBoundary';
 
 const ForgotPassword = lazy(() => import('@/pages/auth/ForgotPassword'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
@@ -63,6 +64,29 @@ const EmergencyContacts = lazy(() => import('@/pages/EmergencyContacts'));
 const AdminEmergencyContacts = lazy(() => import('@/pages/AdminEmergencyContacts'));
 // P14 Daily Workers
 const DailyWorkers = lazy(() => import('@/pages/DailyWorkers'));
+// P15 Secretary Portal
+const SecretaryDashboard = lazy(() => import('@/pages/SecretaryDashboard'));
+const SecretaryManagement = lazy(() => import('@/pages/admin/SecretaryManagement'));
+// P16 WhatsApp Integration
+const WhatsAppHub = lazy(() => import('@/pages/WhatsAppHub'));
+// P17 Smart QR Visitor Passes
+const VisitorPassManagement = lazy(() => import('@/pages/VisitorPassManagement'));
+// P18 Community Analytics
+const CommunityAnalytics = lazy(() => import('@/pages/CommunityAnalytics'));
+// P19 Community Events
+const AdminEvents = lazy(() => import('@/pages/AdminEvents'));
+const TenantEvents = lazy(() => import('@/pages/TenantEvents'));
+// P20 Resident Service Hub
+const ResidentServiceHub = lazy(() => import('@/pages/ResidentServiceHub'));
+// P21 CCTV Foundation
+const CameraManagement = lazy(() => import('@/pages/CameraManagement'));
+// P22 Premium Membership
+const SubscriptionManagement = lazy(() => import('@/pages/admin/SubscriptionManagement'));
+const TenantSubscription = lazy(() => import('@/pages/TenantSubscription'));
+// P23 Ad Billing & Analytics
+const AdBillingAnalytics = lazy(() => import('@/pages/AdBillingAnalytics'));
+// P24 Razorpay Payment Integration
+const PaymentDashboard = lazy(() => import('@/pages/PaymentDashboard'));
 
 const queryClient = new QueryClient();
 
@@ -120,7 +144,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AppDataBootstrap />
-        <Suspense fallback={<RouteFallback />}>
+        <ErrorBoundary>
+          <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
@@ -137,6 +162,7 @@ const App = () => (
 
             <Route path="/tenant/*" element={<ProtectedRoute allowedRoles={['tenant']}><Layout><Routes>
               <Route path="/" element={<TenantDashboard />} />
+              <Route path="/hub" element={<ResidentServiceHub />} />
               <Route path="/complaints" element={<Complaints />} />
               <Route path="/maintenance" element={<Maintenance />} />
               <Route path="/marketplace" element={<VendorMarketplace />} />
@@ -150,6 +176,8 @@ const App = () => (
               <Route path="/notifications" element={<TenantNotifications />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/change-password" element={<ChangePassword />} />
+              <Route path="/events" element={<TenantEvents />} />
+              <Route path="/subscription" element={<TenantSubscription />} />
             </Routes></Layout></ProtectedRoute>} />
 
             <Route path="/*" element={<ProtectedRoute allowedRoles={['admin']}><Layout><Routes>
@@ -178,6 +206,16 @@ const App = () => (
               <Route path="/announcements" element={<AdminAnnouncements />} />
               <Route path="/emergency-contacts" element={<AdminEmergencyContacts />} />
               <Route path="/daily-workers" element={<DailyWorkers />} />
+              <Route path="/secretary" element={<SecretaryDashboard />} />
+              <Route path="/secretary-management" element={<SecretaryManagement />} />
+              <Route path="/whatsapp" element={<WhatsAppHub />} />
+              <Route path="/visitor-passes" element={<VisitorPassManagement />} />
+              <Route path="/analytics" element={<CommunityAnalytics />} />
+              <Route path="/events" element={<AdminEvents />} />
+              <Route path="/cameras" element={<CameraManagement />} />
+              <Route path="/subscriptions" element={<SubscriptionManagement />} />
+              <Route path="/ad-billing" element={<AdBillingAnalytics />} />
+              <Route path="/payments" element={<PaymentDashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/change-password" element={<ChangePassword />} />
               <Route path="/settings" element={<Settings />} />
@@ -185,6 +223,7 @@ const App = () => (
             </Routes></Layout></ProtectedRoute>} />
           </Routes>
         </Suspense>
+        </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

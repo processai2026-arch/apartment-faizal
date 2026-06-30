@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import SearchInput from '@/components/features/SearchInput';
 import StatusBadge from '@/components/features/StatusBadge';
 import EmptyState from '@/components/features/EmptyState';
+import WhatsAppShareButton from '@/components/features/WhatsAppShareButton';
+import { announcementPayload } from '@/lib/whatsapp';
 import { useAnnouncementStore } from '@/stores/useAnnouncementStore';
 import type { Announcement } from '@/types';
 
@@ -95,6 +97,19 @@ export default function AdminAnnouncements() {
                     <button onClick={() => handlePublish(a.id)} className="flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100">
                       <Send className="h-3.5 w-3.5" /> Publish
                     </button>
+                  )}
+                  {a.status === 'Published' && (
+                    <WhatsAppShareButton
+                      size="sm"
+                      variant="outline"
+                      payload={announcementPayload({
+                        title: a.title,
+                        body: a.description,
+                        date: a.publishAt
+                          ? new Date(a.publishAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+                      })}
+                    />
                   )}
                   <button onClick={() => setForm(a)} className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 dark:bg-slate-700">
                     <Bell className="h-3.5 w-3.5" />

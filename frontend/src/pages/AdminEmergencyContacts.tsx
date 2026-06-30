@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import SearchInput from '@/components/features/SearchInput';
 import StatusBadge from '@/components/features/StatusBadge';
 import EmptyState from '@/components/features/EmptyState';
+import WhatsAppShareButton from '@/components/features/WhatsAppShareButton';
+import { emergencyContactPayload } from '@/lib/whatsapp';
 import { useEmergencyStore } from '@/stores/useEmergencyStore';
 import type { EmergencyContact } from '@/types';
 
@@ -82,6 +84,15 @@ export default function AdminEmergencyContacts() {
                   </div>
                 </div>
                 <div className="flex gap-1.5">
+                  <WhatsAppShareButton
+                    size="sm"
+                    variant="outline"
+                    payload={emergencyContactPayload({
+                      name: c.name,
+                      role: c.category,
+                      phone: c.phone,
+                    })}
+                  />
                   <button onClick={() => setForm(c)} className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 dark:bg-slate-700"><ShieldAlert className="h-3.5 w-3.5" /></button>
                   <button onClick={() => handleDelete(c.id)} className="rounded-lg bg-slate-100 p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:bg-slate-700"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>

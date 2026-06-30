@@ -20,4 +20,9 @@ return [
     'otp_driver' => env('OTP_DRIVER', 'log'),
     'otp_webhook_url' => env('OTP_WEBHOOK_URL', ''),
     'otp_webhook_token' => env('OTP_WEBHOOK_TOKEN', ''),
+    // Razorpay Payment Gateway (P24)
+    'razorpay_key_id' => env('RAZORPAY_KEY_ID', ''),
+    'razorpay_key_secret' => env('RAZORPAY_KEY_SECRET', ''),
+    'razorpay_webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET', ''),
+    'razorpay_mode' => env('RAZORPAY_MODE', 'test'),
 ];

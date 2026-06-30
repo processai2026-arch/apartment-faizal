@@ -15,7 +15,7 @@ $router->get('/auth/me', [AuthController::class, 'me'], ['AuthMiddleware']);
 $router->put('/auth/change-password', [AuthController::class, 'changePassword'], ['AuthMiddleware', 'RateLimitMiddleware:5,300']);
 $router->get('/ui-settings', [UiSettingsController::class, 'show'], ['AuthMiddleware']);
 $router->put('/ui-settings', [UiSettingsController::class, 'update'], ['AuthMiddleware']);
-$router->post('/uploads', [UploadController::class, 'store'], ['RoleMiddleware:admin,security,tenant']);
+$router->post('/uploads', [UploadController::class, 'store'], ['RoleMiddleware:admin,security,tenant', 'RateLimitMiddleware:10,60']);
 
 $router->get('/admin/dashboard/summary', [AdminDashboardController::class, 'summary'], ['RoleMiddleware:admin']);
 $router->get('/admin/notifications', [AdminNotificationController::class, 'index'], ['RoleMiddleware:admin']);
@@ -106,6 +106,7 @@ $router->post('/admin/utilities/{id}/complete', [AdminUtilityController::class, 
 
 $router->get('/admin/invoices', [AdminFinanceController::class, 'index'], ['RoleMiddleware:admin']);
 $router->post('/admin/invoices', [AdminFinanceController::class, 'store'], ['RoleMiddleware:admin']);
+$router->get('/admin/invoices/{id}', [AdminFinanceController::class, 'show'], ['RoleMiddleware:admin']);
 $router->put('/admin/invoices/{id}', [AdminFinanceController::class, 'update'], ['RoleMiddleware:admin']);
 $router->post('/admin/invoices/{id}/payments', [AdminFinanceController::class, 'payment'], ['RoleMiddleware:admin']);
 $router->get('/admin/financials/summary', [AdminFinanceController::class, 'summary'], ['RoleMiddleware:admin']);
@@ -171,10 +172,25 @@ $router->get('/tenant/rental/favorites', [TenantRentalController::class, 'myFavo
 $router->get('/admin/business-ads', [AdminBusinessAdController::class, 'index'], ['RoleMiddleware:admin']);
 $router->post('/admin/business-ads', [AdminBusinessAdController::class, 'store'], ['RoleMiddleware:admin']);
 $router->get('/admin/business-ads/dashboard', [AdminBusinessAdController::class, 'dashboard'], ['RoleMiddleware:admin']);
+
+// ── Ad Billing & Analytics (P23) ─────────────────────────────────────────
+$router->get('/admin/business-ads/analytics', [AdminBusinessAdController::class, 'analytics'], ['RoleMiddleware:admin']);
+$router->get('/admin/business-ads/billing', [AdminBusinessAdController::class, 'billing'], ['RoleMiddleware:admin']);
+$router->post('/admin/business-ads/billing', [AdminBusinessAdController::class, 'createBilling'], ['RoleMiddleware:admin']);
+$router->get('/admin/business-ads/billing/summary', [AdminBusinessAdController::class, 'billingSummary'], ['RoleMiddleware:admin']);
+$router->get('/admin/business-ads/export', [AdminBusinessAdController::class, 'exportReport'], ['RoleMiddleware:admin']);
+$router->get('/admin/ad-packages', [AdminBusinessAdController::class, 'packages'], ['RoleMiddleware:admin']);
+$router->post('/admin/ad-packages', [AdminBusinessAdController::class, 'createPackage'], ['RoleMiddleware:admin']);
+$router->put('/admin/ad-packages/{id}', [AdminBusinessAdController::class, 'updatePackage'], ['RoleMiddleware:admin']);
+$router->delete('/admin/ad-packages/{id}', [AdminBusinessAdController::class, 'destroyPackage'], ['RoleMiddleware:admin']);
+
 $router->get('/admin/business-ads/{id}', [AdminBusinessAdController::class, 'show'], ['RoleMiddleware:admin']);
 $router->put('/admin/business-ads/{id}', [AdminBusinessAdController::class, 'update'], ['RoleMiddleware:admin']);
 $router->delete('/admin/business-ads/{id}', [AdminBusinessAdController::class, 'destroy'], ['RoleMiddleware:admin']);
 $router->post('/admin/business-ads/{id}/status', [AdminBusinessAdController::class, 'status'], ['RoleMiddleware:admin']);
+$router->post('/admin/business-ads/{id}/impression', [AdminBusinessAdController::class, 'trackImpression'], ['RoleMiddleware:admin']);
+$router->post('/admin/business-ads/{id}/renewal-reminder', [AdminBusinessAdController::class, 'sendRenewalReminder'], ['RoleMiddleware:admin']);
+$router->post('/admin/business-ads/billing/{id}/pay', [AdminBusinessAdController::class, 'payBilling'], ['RoleMiddleware:admin']);
 $router->get('/admin/business-categories', [AdminBusinessAdController::class, 'categories'], ['RoleMiddleware:admin']);
 $router->post('/admin/business-categories', [AdminBusinessAdController::class, 'createCategory'], ['RoleMiddleware:admin']);
 $router->put('/admin/business-categories/{id}', [AdminBusinessAdController::class, 'updateCategory'], ['RoleMiddleware:admin']);
@@ -220,4 +236,92 @@ $router->post('/admin/worker-attendance', [AdminDailyWorkerController::class, 'm
 $router->post('/admin/worker-entry', [AdminDailyWorkerController::class, 'recordEntry'], ['RoleMiddleware:admin,security']);
 $router->post('/admin/worker-exit', [AdminDailyWorkerController::class, 'recordExit'], ['RoleMiddleware:admin,security']);
 
+// ── Visitor Passes (P17) ──────────────────────────────────────────────────────
+$router->get('/admin/visitor-passes', [AdminVisitorPassController::class, 'index'], ['RoleMiddleware:admin,security']);
+$router->post('/admin/visitor-passes', [AdminVisitorPassController::class, 'store'], ['RoleMiddleware:admin,security']);
+$router->get('/admin/visitor-passes/dashboard', [AdminVisitorPassController::class, 'dashboard'], ['RoleMiddleware:admin,security']);
+$router->get('/admin/visitor-passes/{id}', [AdminVisitorPassController::class, 'show'], ['RoleMiddleware:admin,security']);
+$router->put('/admin/visitor-passes/{id}', [AdminVisitorPassController::class, 'update'], ['RoleMiddleware:admin,security']);
+$router->post('/admin/visitor-passes/{id}/cancel', [AdminVisitorPassController::class, 'cancel'], ['RoleMiddleware:admin,security']);
+$router->post('/admin/visitor-passes/{id}/scan', [AdminVisitorPassController::class, 'scan'], ['RoleMiddleware:admin,security']);
+$router->get('/admin/visitor-passes/{id}/download', [AdminVisitorPassController::class, 'download'], ['RoleMiddleware:admin,security']);
 
+// ── Community Analytics (P18) ────────────────────────────────────────────────
+$router->get('/admin/analytics/summary', [AdminAnalyticsController::class, 'summary'], ['RoleMiddleware:admin']);
+$router->get('/admin/analytics/occupancy', [AdminAnalyticsController::class, 'occupancy'], ['RoleMiddleware:admin']);
+$router->get('/admin/analytics/complaints', [AdminAnalyticsController::class, 'complaints'], ['RoleMiddleware:admin']);
+$router->get('/admin/analytics/maintenance', [AdminAnalyticsController::class, 'maintenance'], ['RoleMiddleware:admin']);
+$router->get('/admin/analytics/vendors', [AdminAnalyticsController::class, 'vendors'], ['RoleMiddleware:admin']);
+$router->get('/admin/analytics/rentals', [AdminAnalyticsController::class, 'rentals'], ['RoleMiddleware:admin']);
+$router->get('/admin/analytics/visitors', [AdminAnalyticsController::class, 'visitors'], ['RoleMiddleware:admin']);
+$router->get('/admin/analytics/revenue', [AdminAnalyticsController::class, 'revenue'], ['RoleMiddleware:admin']);
+$router->get('/admin/analytics/daily-workers', [AdminAnalyticsController::class, 'dailyWorkers'], ['RoleMiddleware:admin']);
+
+// ── Community Events (P19) ────────────────────────────────────────────────
+$router->get('/admin/events', [AdminEventController::class, 'index'], ['RoleMiddleware:admin']);
+$router->post('/admin/events', [AdminEventController::class, 'store'], ['RoleMiddleware:admin']);
+$router->get('/admin/events/dashboard', [AdminEventController::class, 'dashboard'], ['RoleMiddleware:admin']);
+$router->get('/admin/events/{id}', [AdminEventController::class, 'show'], ['RoleMiddleware:admin']);
+$router->put('/admin/events/{id}', [AdminEventController::class, 'update'], ['RoleMiddleware:admin']);
+$router->post('/admin/events/{id}/publish', [AdminEventController::class, 'publish'], ['RoleMiddleware:admin']);
+$router->post('/admin/events/{id}/cancel', [AdminEventController::class, 'cancel'], ['RoleMiddleware:admin']);
+$router->delete('/admin/events/{id}', [AdminEventController::class, 'destroy'], ['RoleMiddleware:admin']);
+$router->get('/admin/events/{id}/registrations', [AdminEventController::class, 'registrations'], ['RoleMiddleware:admin']);
+
+$router->get('/tenant/events/my-registrations', [TenantEventController::class, 'myRegistrations'], ['RoleMiddleware:tenant']);
+$router->get('/tenant/events', [TenantEventController::class, 'index'], ['RoleMiddleware:tenant']);
+$router->get('/tenant/events/{id}', [TenantEventController::class, 'show'], ['RoleMiddleware:tenant']);
+$router->post('/tenant/events/{id}/register', [TenantEventController::class, 'register'], ['RoleMiddleware:tenant']);
+$router->post('/tenant/events/{id}/cancel-registration', [TenantEventController::class, 'cancelRegistration'], ['RoleMiddleware:tenant']);
+
+// ── Secretary Portal (P15) ──────────────────────────────────────────────
+$router->get('/admin/secretaries', [AdminSecretaryController::class, 'index'], ['RoleMiddleware:admin']);
+$router->post('/admin/secretaries', [AdminSecretaryController::class, 'store'], ['RoleMiddleware:admin']);
+$router->get('/admin/secretaries/{id}', [AdminSecretaryController::class, 'show'], ['RoleMiddleware:admin']);
+$router->put('/admin/secretaries/{id}', [AdminSecretaryController::class, 'update'], ['RoleMiddleware:admin']);
+$router->post('/admin/secretaries/{id}/permissions', [AdminSecretaryController::class, 'setPermissions'], ['RoleMiddleware:admin']);
+$router->delete('/admin/secretaries/{id}', [AdminSecretaryController::class, 'destroy'], ['RoleMiddleware:admin']);
+$router->get('/secretary/dashboard', [AdminSecretaryController::class, 'dashboard'], ['RoleMiddleware:admin']);
+$router->get('/secretary/permissions', [AdminSecretaryController::class, 'myPermissions'], ['RoleMiddleware:admin']);
+
+// ── CCTV Foundation (P21) ─────────────────────────────────────────────────
+$router->get('/admin/cameras', [AdminCameraController::class, 'index'], ['RoleMiddleware:admin,security']);
+$router->post('/admin/cameras', [AdminCameraController::class, 'store'], ['RoleMiddleware:admin']);
+$router->get('/admin/cameras/dashboard', [AdminCameraController::class, 'dashboard'], ['RoleMiddleware:admin,security']);
+$router->get('/admin/cameras/{id}', [AdminCameraController::class, 'show'], ['RoleMiddleware:admin,security']);
+$router->put('/admin/cameras/{id}', [AdminCameraController::class, 'update'], ['RoleMiddleware:admin']);
+$router->delete('/admin/cameras/{id}', [AdminCameraController::class, 'destroy'], ['RoleMiddleware:admin']);
+$router->post('/admin/cameras/{id}/heartbeat', [AdminCameraController::class, 'heartbeat'], ['RoleMiddleware:admin,security']);
+$router->get('/admin/cameras/{id}/events', [AdminCameraController::class, 'events'], ['RoleMiddleware:admin,security']);
+$router->post('/admin/cameras/{id}/events', [AdminCameraController::class, 'createEvent'], ['RoleMiddleware:admin,security']);
+$router->post('/admin/camera-events/{id}/acknowledge', [AdminCameraController::class, 'acknowledgeEvent'], ['RoleMiddleware:admin,security']);
+$router->get('/admin/cameras/{id}/snapshots', [AdminCameraController::class, 'snapshots'], ['RoleMiddleware:admin,security']);
+$router->post('/admin/cameras/{id}/snapshots', [AdminCameraController::class, 'createSnapshot'], ['RoleMiddleware:admin,security']);
+$router->get('/admin/cameras/{id}/timeline', [AdminCameraController::class, 'timeline'], ['RoleMiddleware:admin,security']);
+
+// ── Premium Membership (P22) ──────────────────────────────────────────────
+$router->get('/admin/subscription-plans', [AdminSubscriptionController::class, 'plans'], ['RoleMiddleware:admin']);
+$router->post('/admin/subscription-plans', [AdminSubscriptionController::class, 'createPlan'], ['RoleMiddleware:admin']);
+$router->put('/admin/subscription-plans/{id}', [AdminSubscriptionController::class, 'updatePlan'], ['RoleMiddleware:admin']);
+$router->delete('/admin/subscription-plans/{id}', [AdminSubscriptionController::class, 'destroyPlan'], ['RoleMiddleware:admin']);
+$router->get('/admin/subscriptions/dashboard', [AdminSubscriptionController::class, 'dashboard'], ['RoleMiddleware:admin']);
+$router->get('/admin/subscriptions', [AdminSubscriptionController::class, 'subscriptions'], ['RoleMiddleware:admin']);
+$router->post('/admin/subscriptions', [AdminSubscriptionController::class, 'createSubscription'], ['RoleMiddleware:admin']);
+$router->get('/admin/subscriptions/{id}', [AdminSubscriptionController::class, 'showSubscription'], ['RoleMiddleware:admin']);
+$router->post('/admin/subscriptions/{id}/cancel', [AdminSubscriptionController::class, 'cancelSubscription'], ['RoleMiddleware:admin']);
+$router->get('/admin/premium-features', [AdminSubscriptionController::class, 'features'], ['RoleMiddleware:admin']);
+$router->put('/admin/premium-features/{id}', [AdminSubscriptionController::class, 'updateFeature'], ['RoleMiddleware:admin']);
+$router->get('/tenant/subscription/my-plan', [TenantSubscriptionController::class, 'myPlan'], ['RoleMiddleware:tenant']);
+$router->get('/tenant/subscription/plans', [TenantSubscriptionController::class, 'plans'], ['RoleMiddleware:tenant']);
+$router->post('/tenant/subscription/upgrade', [TenantSubscriptionController::class, 'upgrade'], ['RoleMiddleware:tenant']);
+$router->post('/tenant/subscription/cancel', [TenantSubscriptionController::class, 'cancelMySubscription'], ['RoleMiddleware:tenant']);
+
+// ── Razorpay Payments (P24) ───────────────────────────────────────────────
+// NOTE: /admin/payments/dashboard must be registered BEFORE any /admin/payments/{id} pattern
+$router->get('/admin/payments/dashboard', [AdminFinanceController::class, 'paymentDashboard'], ['RoleMiddleware:admin']);
+$router->post('/admin/invoices/{id}/payment-order', [AdminFinanceController::class, 'createPaymentOrder'], ['RoleMiddleware:admin']);
+$router->post('/admin/invoices/{id}/verify-payment', [AdminFinanceController::class, 'verifyPayment'], ['RoleMiddleware:admin']);
+$router->get('/admin/invoices/{id}/payment-history', [AdminFinanceController::class, 'paymentHistory'], ['RoleMiddleware:admin']);
+$router->post('/admin/invoices/{id}/retry-payment', [AdminFinanceController::class, 'retryPayment'], ['RoleMiddleware:admin']);
+$router->post('/admin/invoices/{id}/refund', [AdminFinanceController::class, 'refundPayment'], ['RoleMiddleware:admin']);
+$router->post('/payments/webhook', [AdminFinanceController::class, 'handleWebhook']); // no auth - Razorpay webhook

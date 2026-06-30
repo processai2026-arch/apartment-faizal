@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Wrench, UserCheck, RefreshCcw, Trash2 } from 'lucide-react';
 import StatusBadge from '@/components/features/StatusBadge';
+import WhatsAppShareButton from '@/components/features/WhatsAppShareButton';
+import { maintenanceReminderPayload } from '@/lib/whatsapp';
 import DataTable, { NameCell, type Column } from '@/components/features/DataTable';
 import TableToolbar from '@/components/features/TableToolbar';
 import SearchInput from '@/components/features/SearchInput';
@@ -207,6 +209,20 @@ export default function AdminMaintenance() {
               <StatusBadge status={selected.priority} size="sm" />
               <StatusBadge status={selected.status} />
               <span className="text-xs text-slate-400">{selected.category}</span>
+              <div className="ml-auto">
+                <WhatsAppShareButton
+                  size="sm"
+                  variant="outline"
+                  payload={maintenanceReminderPayload({
+                    ticketId: selected.id,
+                    title: selected.title,
+                    scheduledDate: selected.expectedCompletion
+                      ? new Date(selected.expectedCompletion).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : 'To be scheduled',
+                    assignee: vendorName(selected.assignedVendorId) || staffName(selected.assignedStaffId) || undefined,
+                  })}
+                />
+              </div>
             </div>
             <p className="text-sm text-slate-700 mb-6">{selected.description}</p>
 

@@ -1,4 +1,4 @@
-import type { Announcement, AppNotification, BusinessAd, BusinessAdDashboard, BusinessCategory, ComplaintTicket, ComplaintUpdate, DailyWorker, EmergencyContact, FinancialSummary, InventoryItem, Invoice, ListingStatusHistory, MaintenanceRequestTicket, MaintenanceUpdate, MarketplaceVendor, NotificationSummary, Office, RentalDashboard, RentalListing, Staff, UtilityTask, Vehicle, Vendor, VendorBooking, VendorCategory, VendorGalleryItem, VendorMarketplaceDashboard, VendorMarketplaceStats, VendorReview, VendorService, Visitor, WorkerAttendance, WorkerTodaySummary } from '@/types';
+import type { Announcement, AppNotification, BusinessAd, BusinessAdDashboard, BusinessCategory, CameraDevice, CameraDashboard, CameraEvent, CameraSnapshot, CommunityEvent, ComplaintTicket, ComplaintUpdate, DailyWorker, EmergencyContact, EventDashboard, EventRegistration, FinancialSummary, InventoryItem, Invoice, ListingStatusHistory, MaintenanceRequestTicket, MaintenanceUpdate, MarketplaceVendor, NotificationSummary, Office, RentalDashboard, RentalListing, Staff, UtilityTask, Vehicle, Vendor, VendorBooking, VendorCategory, VendorGalleryItem, VendorMarketplaceDashboard, VendorMarketplaceStats, VendorReview, VendorService, Visitor, VisitorPass, VisitorPassDashboard, WorkerAttendance, WorkerTodaySummary, AnalyticsSummary, OccupancyAnalytics, ComplaintAnalytics, MaintenanceAnalytics, VendorAnalytics, RentalAnalytics, VisitorAnalytics, RevenueAnalytics, WorkerAnalytics, SubscriptionPlan, Subscription, PremiumFeature, SubscriptionDashboard, AdPackage, AdBilling, AdAnalytics, BillingSummary, AdExportRow, PaymentTransaction, RazorpayOrder, PaymentDashboard } from '@/types';
 import type { User, ManagedUser, UserRole } from '@/types/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8010';
@@ -304,6 +304,31 @@ export const api = {
     recordPayment: (id: string, amount: number, mode?: string, referenceNo?: string) =>
       request<InvoiceDto>(`/admin/invoices/${id}/payments`, { method: 'POST', body: JSON.stringify({ amount, mode, reference_no: referenceNo }) }).then(toInvoice),
     summary: () => request<FinancialSummaryDto>('/admin/financials/summary').then(toFinancialSummary),
+    // P24 Razorpay payment methods
+    createPaymentOrder: (id: string) =>
+      request<{ order_id: string; amount: number; currency: string; key_id: string; invoice_id: number }>('/admin/invoices/' + id + '/payment-order', { method: 'POST', body: JSON.stringify({}) }).then((d): RazorpayOrder => ({
+        orderId: d.order_id,
+        amount: d.amount,
+        currency: d.currency,
+        keyId: d.key_id,
+        invoiceId: String(d.invoice_id),
+      })),
+    verifyPayment: (id: string, payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
+      request<InvoiceDto>('/admin/invoices/' + id + '/verify-payment', { method: 'POST', body: JSON.stringify(payload) }).then(toInvoice),
+    paymentHistory: (id: string) =>
+      request<PaymentTransactionDto[]>('/admin/invoices/' + id + '/payment-history').then((rows) => rows.map(toPaymentTransaction)),
+    retryPayment: (id: string) =>
+      request<{ order_id: string; amount: number; currency: string; key_id: string; invoice_id: number }>('/admin/invoices/' + id + '/retry-payment', { method: 'POST', body: JSON.stringify({}) }).then((d): RazorpayOrder => ({
+        orderId: d.order_id,
+        amount: d.amount,
+        currency: d.currency,
+        keyId: d.key_id,
+        invoiceId: String(d.invoice_id),
+      })),
+    refund: (id: string) =>
+      request<{ status: string; message: string; refund_id?: string }>('/admin/invoices/' + id + '/refund', { method: 'POST', body: JSON.stringify({}) }),
+    paymentDashboard: () =>
+      request<PaymentDashboardDto>('/admin/payments/dashboard').then(toPaymentDashboard),
   },
   vendorMarketplace: {
     // ---- Tenant browse ----
@@ -405,6 +430,64 @@ export const api = {
     updateCategory: (id: string, payload: Partial<BusinessCategory>) =>
       request<BusinessCategoryDto>(`/admin/business-categories/${id}`, { method: 'PUT', body: JSON.stringify(payload) }).then(toBusinessCategory),
     deleteCategory: (id: string) => request<unknown>(`/admin/business-categories/${id}`, { method: 'DELETE' }),
+    // P23
+    analytics: () => request<AdAnalyticsDto>('/admin/business-ads/analytics').then(toAdAnalytics),
+    trackImpression: (id: string) => request<unknown>(`/admin/business-ads/${id}/impression`, { method: 'POST', body: JSON.stringify({}) }),
+    sendRenewalReminder: (id: string) => request<{ reminded: boolean }>(`/admin/business-ads/${id}/renewal-reminder`, { method: 'POST', body: JSON.stringify({}) }),
+    exportReport: () => request<AdExportRow[]>('/admin/business-ads/export'),
+  },
+
+  // ── Ad Billing & Analytics (P23) ────────────────────────────────────────
+  adBilling: {
+    list: () => request<AdBillingDto[]>('/admin/business-ads/billing').then((rows) => rows.map(toAdBilling)),
+    summary: () => request<BillingSummary>('/admin/business-ads/billing/summary'),
+    create: (payload: { adId: string; packageId?: string; amount: number; dueDate?: string; paymentRef?: string; notes?: string }) =>
+      request<AdBillingDto>('/admin/business-ads/billing', {
+        method: 'POST',
+        body: JSON.stringify({
+          ad_id: Number(payload.adId),
+          package_id: payload.packageId ? Number(payload.packageId) : null,
+          amount: payload.amount,
+          due_date: payload.dueDate ?? null,
+          payment_ref: payload.paymentRef ?? null,
+          notes: payload.notes ?? null,
+        }),
+      }).then(toAdBilling),
+    pay: (id: string, paymentRef?: string) =>
+      request<AdBillingDto>(`/admin/business-ads/billing/${id}/pay`, {
+        method: 'POST',
+        body: JSON.stringify({ payment_ref: paymentRef ?? null }),
+      }).then(toAdBilling),
+    packages: () => request<AdPackageDto[]>('/admin/ad-packages').then((rows) => rows.map(toAdPackage)),
+    createPackage: (payload: Partial<AdPackage>) =>
+      request<AdPackageDto>('/admin/ad-packages', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: payload.name,
+          description: payload.description ?? null,
+          price: payload.price ?? 0,
+          duration_days: payload.durationDays ?? 30,
+          max_impressions: payload.maxImpressions ?? 0,
+          features: payload.features ?? [],
+          is_active: payload.isActive !== false ? 1 : 0,
+          sort_order: payload.sortOrder ?? 0,
+        }),
+      }).then(toAdPackage),
+    updatePackage: (id: string, payload: Partial<AdPackage>) =>
+      request<AdPackageDto>(`/admin/ad-packages/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: payload.name,
+          description: payload.description,
+          price: payload.price,
+          duration_days: payload.durationDays,
+          max_impressions: payload.maxImpressions,
+          features: payload.features,
+          is_active: payload.isActive !== undefined ? (payload.isActive ? 1 : 0) : undefined,
+          sort_order: payload.sortOrder,
+        }),
+      }).then(toAdPackage),
+    deletePackage: (id: string) => request<unknown>(`/admin/ad-packages/${id}`, { method: 'DELETE' }),
   },
 
   // ── Announcements (P12) ───────────────────────────────────────────────────
@@ -457,6 +540,248 @@ export const api = {
     recordEntry: (payload: { workerId: string; officeId?: string; notes?: string }) =>
       request<DailyWorkerDto>('/admin/worker-entry', { method: 'POST', body: JSON.stringify({ worker_id: Number(payload.workerId), office_id: payload.officeId ? Number(payload.officeId) : undefined, notes: payload.notes }) }).then(toDailyWorker),
     recordExit: (visitId: string) => request<{ exit_recorded: boolean }>('/admin/worker-exit', { method: 'POST', body: JSON.stringify({ visit_id: Number(visitId) }) }),
+  },
+
+  // ── Visitor Passes (P17) ─────────────────────────────────────────────────
+  visitorPasses: {
+    list: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<VisitorPassDto[]>(`/admin/visitor-passes${query(params ?? {})}`).then((e) => ({
+        items: (e.data ?? []).map(toVisitorPass),
+        pagination: e.meta?.pagination,
+      })),
+    dashboard: () =>
+      request<VisitorPassDashboardDto>('/admin/visitor-passes/dashboard').then(toVisitorPassDashboard),
+    create: (payload: {
+      passType: string;
+      visitorName: string;
+      visitorPhone?: string;
+      hostName?: string;
+      hostOfficeId?: number;
+      purpose?: string;
+      validFrom: string;
+      validUntil: string;
+      maxUses: number;
+      notes?: string;
+    }) =>
+      request<VisitorPassDto>('/admin/visitor-passes', {
+        method: 'POST',
+        body: JSON.stringify({
+          pass_type: payload.passType,
+          visitor_name: payload.visitorName,
+          visitor_phone: payload.visitorPhone ?? null,
+          host_name: payload.hostName ?? null,
+          host_office_id: payload.hostOfficeId ?? null,
+          purpose: payload.purpose ?? null,
+          valid_from: payload.validFrom,
+          valid_until: payload.validUntil,
+          max_uses: payload.maxUses,
+          notes: payload.notes ?? null,
+        }),
+      }).then(toVisitorPass),
+    show: (id: string) =>
+      request<VisitorPassDto>(`/admin/visitor-passes/${id}`).then(toVisitorPass),
+    update: (id: string, payload: Partial<{
+      passType: string;
+      visitorName: string;
+      visitorPhone: string;
+      hostName: string;
+      purpose: string;
+      validFrom: string;
+      validUntil: string;
+      maxUses: number;
+      notes: string;
+      sharedVia: string;
+    }>) =>
+      request<VisitorPassDto>(`/admin/visitor-passes/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          pass_type: payload.passType,
+          visitor_name: payload.visitorName,
+          visitor_phone: payload.visitorPhone,
+          host_name: payload.hostName,
+          purpose: payload.purpose,
+          valid_from: payload.validFrom,
+          valid_until: payload.validUntil,
+          max_uses: payload.maxUses,
+          notes: payload.notes,
+          shared_via: payload.sharedVia,
+        }),
+      }).then(toVisitorPass),
+    cancel: (id: string) =>
+      request<VisitorPassDto>(`/admin/visitor-passes/${id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }).then(toVisitorPass),
+    scan: (id: string, action: 'entry' | 'exit') =>
+      request<VisitorPassDto>(`/admin/visitor-passes/${id}/scan`, {
+        method: 'POST',
+        body: JSON.stringify({ action }),
+      }).then(toVisitorPass),
+    download: (id: string) =>
+      request<VisitorPassDto>(`/admin/visitor-passes/${id}/download`).then(toVisitorPass),
+  },
+
+  // ── Secretary Portal (P15) ────────────────────────────────────────────────
+  secretary: {
+    list: () => request<SecretaryUser[]>('/admin/secretaries'),
+    create: (payload: Partial<SecretaryUser> & { password?: string; user_id?: number }) =>
+      request<SecretaryUser>('/admin/secretaries', { method: 'POST', body: JSON.stringify(payload) }),
+    show: (id: string) => request<SecretaryUser>('/admin/secretaries/' + id),
+    update: (id: string, payload: Partial<SecretaryUser>) =>
+      request<SecretaryUser>('/admin/secretaries/' + id, { method: 'PUT', body: JSON.stringify(payload) }),
+    setPermissions: (id: string, permissions: SecretaryPermission[]) =>
+      request<SecretaryUser>('/admin/secretaries/' + id + '/permissions', { method: 'POST', body: JSON.stringify({ permissions }) }),
+    remove: (id: string) => request<unknown>('/admin/secretaries/' + id, { method: 'DELETE' }),
+    dashboard: () => request<SecretaryDashboardData>('/secretary/dashboard'),
+    myPermissions: () => request<{ modules: string[]; permissions: SecretaryPermission[] }>('/secretary/permissions'),
+  },
+
+  // ── Community Analytics (P18) ─────────────────────────────────────────────
+  analytics: {
+    summary: () => request<AnalyticsSummary>('/admin/analytics/summary').then(toAnalyticsSummary),
+    occupancy: () => request<Record<string, unknown>>('/admin/analytics/occupancy').then(toOccupancyAnalytics),
+    complaints: () => request<Record<string, unknown>>('/admin/analytics/complaints').then(toComplaintAnalytics),
+    maintenance: () => request<Record<string, unknown>>('/admin/analytics/maintenance').then(toMaintenanceAnalytics),
+    vendors: () => request<Record<string, unknown>>('/admin/analytics/vendors').then(toVendorAnalytics),
+    rentals: () => request<Record<string, unknown>>('/admin/analytics/rentals').then(toRentalAnalytics),
+    visitors: () => request<Record<string, unknown>>('/admin/analytics/visitors').then(toVisitorAnalytics),
+    revenue: () => request<Record<string, unknown>>('/admin/analytics/revenue').then(toRevenueAnalytics),
+    workers: () => request<Record<string, unknown>>('/admin/analytics/daily-workers').then(toWorkerAnalytics),
+  },
+
+  // ── Community Events (P19) ────────────────────────────────────────────────
+  events: {
+    // Admin
+    adminList: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<EventDto[]>(`/admin/events${query(params ?? {})}`).then((e) => ({ items: (e.data ?? []).map(toCommunityEvent), pagination: e.meta?.pagination })),
+    adminDashboard: () =>
+      request<EventDashboardDto>('/admin/events/dashboard').then(toEventDashboard),
+    adminShow: (id: string) =>
+      request<EventDto>(`/admin/events/${id}`).then(toCommunityEvent),
+    adminCreate: (payload: Partial<CommunityEvent>) =>
+      request<EventDto>('/admin/events', { method: 'POST', body: JSON.stringify(fromCommunityEvent(payload)) }).then(toCommunityEvent),
+    adminUpdate: (id: string, payload: Partial<CommunityEvent>) =>
+      request<EventDto>(`/admin/events/${id}`, { method: 'PUT', body: JSON.stringify(fromCommunityEvent(payload)) }).then(toCommunityEvent),
+    publish: (id: string) =>
+      request<EventDto>(`/admin/events/${id}/publish`, { method: 'POST', body: JSON.stringify({}) }).then(toCommunityEvent),
+    cancel: (id: string) =>
+      request<EventDto>(`/admin/events/${id}/cancel`, { method: 'POST', body: JSON.stringify({}) }).then(toCommunityEvent),
+    adminDestroy: (id: string) => request<unknown>(`/admin/events/${id}`, { method: 'DELETE' }),
+    adminRegistrations: (id: string) =>
+      request<EventRegistrationDto[]>(`/admin/events/${id}/registrations`).then((rows) => rows.map(toEventRegistration)),
+    // Tenant
+    tenantList: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<EventDto[]>(`/tenant/events${query(params ?? {})}`).then((e) => ({ items: (e.data ?? []).map(toCommunityEvent), pagination: e.meta?.pagination })),
+    tenantShow: (id: string) =>
+      request<EventDto>(`/tenant/events/${id}`).then(toCommunityEvent),
+    register: (id: string) =>
+      request<EventRegistrationDto>(`/tenant/events/${id}/register`, { method: 'POST', body: JSON.stringify({}) }).then(toEventRegistration),
+    cancelRegistration: (id: string) =>
+      request<EventRegistrationDto>(`/tenant/events/${id}/cancel-registration`, { method: 'POST', body: JSON.stringify({}) }).then(toEventRegistration),
+    myRegistrations: () =>
+      request<EventRegistrationDto[]>('/tenant/events/my-registrations').then((rows) => rows.map(toEventRegistration)),
+  },
+
+  // ── CCTV Foundation (P21) ─────────────────────────────────────────────────
+  cameras: {    list: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<CameraDeviceDto[]>(`/admin/cameras${query(params ?? {})}`).then((e) => ({
+        items: (e.data ?? []).map(toCameraDevice),
+        pagination: e.meta?.pagination,
+        health: (e.meta?.summary as Record<string, unknown>) ?? {},
+      })),
+    dashboard: () =>
+      request<CameraDashboardDto>('/admin/cameras/dashboard').then(toCameraDashboard),
+    create: (payload: Partial<CameraDevice> & { password?: string }) =>
+      request<CameraDeviceDto>('/admin/cameras', {
+        method: 'POST',
+        body: JSON.stringify(fromCameraDevice(payload)),
+      }).then(toCameraDevice),
+    show: (id: string) =>
+      request<CameraDeviceDto>(`/admin/cameras/${id}`).then(toCameraDevice),
+    update: (id: string, payload: Partial<CameraDevice> & { password?: string }) =>
+      request<CameraDeviceDto>(`/admin/cameras/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(fromCameraDevice(payload)),
+      }).then(toCameraDevice),
+    remove: (id: string) =>
+      request<{ id: string | number }>(`/admin/cameras/${id}`, { method: 'DELETE' }),
+    heartbeat: (id: string) =>
+      request<CameraDeviceDto>(`/admin/cameras/${id}/heartbeat`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }).then(toCameraDevice),
+    events: (id: string, params?: Record<string, string | undefined>) =>
+      requestEnvelope<CameraEventDto[]>(`/admin/cameras/${id}/events${query(params ?? {})}`).then((e) => ({
+        items: (e.data ?? []).map(toCameraEvent),
+        pagination: e.meta?.pagination,
+      })),
+    createEvent: (id: string, payload: { eventType: string; severity?: string; description?: string; occurredAt?: string }) =>
+      request<CameraEventDto>(`/admin/cameras/${id}/events`, {
+        method: 'POST',
+        body: JSON.stringify({
+          event_type: payload.eventType,
+          severity: payload.severity ?? 'Low',
+          description: payload.description ?? null,
+          occurred_at: payload.occurredAt ?? null,
+        }),
+      }).then(toCameraEvent),
+    acknowledgeEvent: (eventId: string) =>
+      request<CameraEventDto>(`/admin/camera-events/${eventId}/acknowledge`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }).then(toCameraEvent),
+    snapshots: (id: string) =>
+      requestEnvelope<CameraSnapshotDto[]>(`/admin/cameras/${id}/snapshots`).then((e) => ({
+        items: (e.data ?? []).map(toCameraSnapshot),
+        pagination: e.meta?.pagination,
+      })),
+    createSnapshot: (id: string, notes?: string) =>
+      request<CameraSnapshotDto>(`/admin/cameras/${id}/snapshots`, {
+        method: 'POST',
+        body: JSON.stringify({ notes: notes ?? null }),
+      }).then(toCameraSnapshot),
+    timeline: (id: string) =>
+      request<(CameraEventDto | CameraSnapshotDto)[]>(`/admin/cameras/${id}/timeline`),
+  },
+
+  // ── Premium Membership (P22) ──────────────────────────────────────────────
+  subscriptions: {
+    adminPlans: () =>
+      requestEnvelope<SubscriptionPlanDto[]>('/admin/subscription-plans').then((e) => (e.data ?? []).map(toSubscriptionPlan)),
+    adminCreatePlan: (payload: Record<string, unknown>) =>
+      request<SubscriptionPlanDto>('/admin/subscription-plans', { method: 'POST', body: JSON.stringify(payload) }).then(toSubscriptionPlan),
+    adminUpdatePlan: (id: string, payload: Record<string, unknown>) =>
+      request<SubscriptionPlanDto>(`/admin/subscription-plans/${id}`, { method: 'PUT', body: JSON.stringify(payload) }).then(toSubscriptionPlan),
+    adminDestroyPlan: (id: string) =>
+      request<{ id: string | number }>(`/admin/subscription-plans/${id}`, { method: 'DELETE' }),
+    adminList: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<SubscriptionDto[]>(`/admin/subscriptions${query(params ?? {})}`).then((e) => ({
+        items: (e.data ?? []).map(toSubscription),
+        pagination: e.meta?.pagination,
+      })),
+    adminCreate: (payload: Record<string, unknown>) =>
+      request<SubscriptionDto>('/admin/subscriptions', { method: 'POST', body: JSON.stringify(payload) }).then(toSubscription),
+    adminDashboard: () =>
+      request<SubscriptionDashboardDto>('/admin/subscriptions/dashboard').then(toSubscriptionDashboard),
+    adminShow: (id: string) =>
+      request<SubscriptionDto>(`/admin/subscriptions/${id}`).then(toSubscription),
+    adminCancel: (id: string) =>
+      request<SubscriptionDto>(`/admin/subscriptions/${id}/cancel`, { method: 'POST', body: JSON.stringify({}) }).then(toSubscription),
+    adminFeatures: () =>
+      request<PremiumFeatureDto[]>('/admin/premium-features').then((rows) => rows.map(toPremiumFeature)),
+    adminUpdateFeature: (id: string, payload: Record<string, unknown>) =>
+      request<PremiumFeatureDto>(`/admin/premium-features/${id}`, { method: 'PUT', body: JSON.stringify(payload) }).then(toPremiumFeature),
+    myPlan: () =>
+      request<SubscriptionDto | { subscription: null; plan: SubscriptionPlanDto; is_free: boolean }>('/tenant/subscription/my-plan'),
+    tenantPlans: () =>
+      request<SubscriptionPlanDto[]>('/tenant/subscription/plans').then((rows) => rows.map(toSubscriptionPlan)),
+    upgrade: (planId: string, billingCycle: 'Monthly' | 'Yearly') =>
+      request<{ status: string; subscription: SubscriptionDto; message: string }>('/tenant/subscription/upgrade', {
+        method: 'POST',
+        body: JSON.stringify({ plan_id: Number(planId), billing_cycle: billingCycle }),
+      }),
+    cancelMine: () =>
+      request<SubscriptionDto>('/tenant/subscription/cancel', { method: 'POST', body: JSON.stringify({}) }).then(toSubscription),
   },
 };
 
@@ -889,6 +1214,12 @@ function toInvoice(row: InvoiceDto): Invoice {
     status: (row.status as Invoice['status']) || 'Pending',
     createdAt: String(row.created_at ?? ''),
     updatedAt: row.updated_at ? String(row.updated_at) : undefined,
+    // P24 Razorpay fields
+    razorpayOrderId: row.razorpay_order_id ? String(row.razorpay_order_id) : undefined,
+    razorpayPaymentId: row.razorpay_payment_id ? String(row.razorpay_payment_id) : undefined,
+    paymentMethod: row.payment_method ? String(row.payment_method) : undefined,
+    paymentGatewayStatus: row.payment_gateway_status ? String(row.payment_gateway_status) : undefined,
+    refundStatus: row.refund_status ? String(row.refund_status) : undefined,
   };
 }
 
@@ -1158,6 +1489,14 @@ function toBusinessAd(row: BusinessAdDto): BusinessAd {
     expiresAt: asOptionalString(row.expires_at),
     viewCount: asNumber(row.view_count),
     clickCount: asNumber(row.click_count),
+    // P23 analytics fields
+    impressions: asNumber(row.impressions),
+    clicks: asNumber(row.clicks),
+    ctr: asNumber(row.ctr),
+    isFeatured: Number(row.is_featured ?? 0) === 1,
+    packageId: asOptionalString(row.package_id),
+    expiresAtBilling: asOptionalString(row.expires_at_billing),
+    renewalNotified: Number(row.renewal_notified ?? 0) === 1,
     createdAt: asString(row.created_at),
     updatedAt: asOptionalString(row.updated_at),
   };
@@ -1305,3 +1644,634 @@ function toWorkerAttendance(row: WorkerAttendanceDto): WorkerAttendance {
   };
 }
 
+// ── P17 Visitor Pass DTO types & mappers ─────────────────────────────────────
+type VisitorPassDto = Record<string, DtoValue> & { scans?: Record<string, DtoValue>[] };
+type VisitorPassDashboardDto = {
+  total_today?: number;
+  active?: number;
+  expired?: number;
+  used?: number;
+  cancelled?: number;
+  by_type?: Record<string, number>;
+  by_status?: Record<string, number>;
+  recent?: VisitorPassDto[];
+};
+
+function toVisitorPassScan(row: Record<string, DtoValue>): import('@/types').VisitorPassScan {
+  return {
+    id: asNumber(row.id),
+    passId: asNumber(row.pass_id),
+    scannedAt: asString(row.scanned_at),
+    scannedBy: row.scanned_by != null ? asNumber(row.scanned_by) : undefined,
+    action: (row.action === 'exit' ? 'exit' : 'entry'),
+    notes: asOptionalString(row.notes),
+  };
+}
+
+function toVisitorPass(row: VisitorPassDto): VisitorPass {
+  return {
+    id: asString(row.id),
+    passCode: asString(row.pass_code),
+    passType: asEnum(row.pass_type, ['Temporary', 'One Day', 'Recurring', 'Delivery', 'Worker', 'Guest'] as const, 'Guest'),
+    visitorName: asString(row.visitor_name),
+    visitorPhone: asOptionalString(row.visitor_phone),
+    hostName: asOptionalString(row.host_name),
+    hostOfficeId: row.host_office_id != null ? asNumber(row.host_office_id) : undefined,
+    purpose: asOptionalString(row.purpose),
+    validFrom: asString(row.valid_from),
+    validUntil: asString(row.valid_until),
+    maxUses: asNumber(row.max_uses, 1),
+    usedCount: asNumber(row.used_count),
+    status: asEnum(row.status, ['Active', 'Used', 'Expired', 'Cancelled'] as const, 'Active'),
+    qrPayload: asString(row.qr_payload),
+    createdBy: row.created_by != null ? asNumber(row.created_by) : undefined,
+    sharedVia: asOptionalString(row.shared_via),
+    notes: asOptionalString(row.notes),
+    createdAt: asString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+    scans: row.scans ? row.scans.map(toVisitorPassScan) : undefined,
+  };
+}
+
+function toVisitorPassDashboard(row: VisitorPassDashboardDto): VisitorPassDashboard {
+  return {
+    totalToday: Number(row.total_today ?? 0),
+    active: Number(row.active ?? 0),
+    expired: Number(row.expired ?? 0),
+    used: Number(row.used ?? 0),
+    cancelled: Number(row.cancelled ?? 0),
+    byType: row.by_type ?? {},
+    byStatus: row.by_status ?? {},
+    recent: (row.recent ?? []).map(toVisitorPass),
+  };
+}
+
+// ── P15 Secretary Portal types ───────────────────────────────────────────────
+export interface SecretaryPermission {
+  module: string;
+  canView: boolean;
+  canEdit: boolean;
+}
+
+export interface SecretaryUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  isSecretary: boolean;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+  permissions?: SecretaryPermission[];
+  modules?: string[];
+}
+
+export interface SecretaryDashboardData {
+  todayVisitors: number;
+  activeVisitors: number;
+  openComplaints: number;
+  pendingMaintenance: number;
+  pendingRentals: number;
+  pendingVendorRequests: number;
+  todayWorkers: number;
+  recentComplaints: Array<{ id: number; category: string; subject: string; status: string; priority: string; created_at: string }>;
+  recentMaintenance: Array<{ id: number; category: string; title: string; status: string; priority: string; created_at: string }>;
+  pendingAnnouncements: Array<{ id: number; title: string; status: string; priority: string; created_at: string }>;
+}
+
+// ── P18 Analytics mappers ──────────────────────────────────────────────────────
+
+function toMonthlyTrend(raw: unknown[]): import('@/types').MonthlyTrend[] {
+  return (raw ?? []).map((r) => {
+    const row = r as Record<string, unknown>;
+    return { month: String(row.month ?? ''), count: Number(row.count ?? 0) };
+  });
+}
+
+function toCountRecord(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>).map(([k, v]) => [k, Number(v ?? 0)])
+  );
+}
+
+function toOccupancyAnalytics(raw: Record<string, unknown>): OccupancyAnalytics {
+  return {
+    total: Number(raw.total ?? 0),
+    occupied: Number(raw.occupied ?? 0),
+    vacant: Number(raw.vacant ?? 0),
+    occupancyRate: Number(raw.occupancy_rate ?? 0),
+    byBlock: ((raw.by_block ?? []) as Record<string, unknown>[]).map((r) => ({
+      block: String(r.block ?? ''),
+      occupied: Number(r.occupied ?? 0),
+      total: Number(r.total ?? 0),
+    })),
+  };
+}
+
+function toComplaintAnalytics(raw: Record<string, unknown>): ComplaintAnalytics {
+  return {
+    total: Number(raw.total ?? 0),
+    byStatus: toCountRecord(raw.by_status),
+    byPriority: toCountRecord(raw.by_priority),
+    monthlyTrend: toMonthlyTrend(raw.monthly_trend as unknown[] ?? []),
+    avgResolutionHours: Number(raw.avg_resolution_hours ?? 0),
+  };
+}
+
+function toMaintenanceAnalytics(raw: Record<string, unknown>): MaintenanceAnalytics {
+  return {
+    total: Number(raw.total ?? 0),
+    byStatus: toCountRecord(raw.by_status),
+    byType: toCountRecord(raw.by_type),
+    pending: Number(raw.pending ?? 0),
+    monthlyTrend: toMonthlyTrend(raw.monthly_trend as unknown[] ?? []),
+    avgResolutionHours: Number(raw.avg_resolution_hours ?? 0),
+  };
+}
+
+function toVendorAnalytics(raw: Record<string, unknown>): VendorAnalytics {
+  return {
+    total: Number(raw.total ?? 0),
+    avgRating: Number(raw.avg_rating ?? 0),
+    totalBookings: Number(raw.total_bookings ?? 0),
+    bookingsByStatus: toCountRecord(raw.bookings_by_status),
+    topRated: ((raw.top_rated ?? []) as Record<string, unknown>[]).map((r) => ({
+      id: String(r.id ?? ''),
+      name: String(r.name ?? ''),
+      rating: Number(r.rating ?? 0),
+    })),
+    topBooked: ((raw.top_booked ?? []) as Record<string, unknown>[]).map((r) => ({
+      id: String(r.id ?? ''),
+      name: String(r.name ?? ''),
+      bookingCount: Number(r.booking_count ?? 0),
+    })),
+    monthlyBookings: toMonthlyTrend(raw.monthly_bookings as unknown[] ?? []),
+  };
+}
+
+function toRentalAnalytics(raw: Record<string, unknown>): RentalAnalytics {
+  return {
+    total: Number(raw.total ?? 0),
+    active: Number(raw.active ?? 0),
+    pendingApproval: Number(raw.pending_approval ?? 0),
+    byType: toCountRecord(raw.by_type),
+    avgRent: Number(raw.avg_rent ?? 0),
+    monthlyListings: toMonthlyTrend(raw.monthly_listings as unknown[] ?? []),
+  };
+}
+
+function toVisitorAnalytics(raw: Record<string, unknown>): VisitorAnalytics {
+  return {
+    today: Number(raw.today ?? 0),
+    thisWeek: Number(raw.this_week ?? 0),
+    thisMonth: Number(raw.this_month ?? 0),
+    byDayOfWeek: ((raw.by_day_of_week ?? []) as Record<string, unknown>[]).map((r) => ({
+      day: String(r.day ?? ''),
+      count: Number(r.count ?? 0),
+    })),
+    monthlyTrend: toMonthlyTrend(raw.monthly_trend as unknown[] ?? []),
+  };
+}
+
+function toRevenueAnalytics(raw: Record<string, unknown>): RevenueAnalytics {
+  return {
+    totalInvoiced: Number(raw.total_invoiced ?? 0),
+    totalPaid: Number(raw.total_paid ?? 0),
+    totalPending: Number(raw.total_pending ?? 0),
+    totalOverdue: Number(raw.total_overdue ?? 0),
+    monthlyRevenue: ((raw.monthly_revenue ?? []) as Record<string, unknown>[]).map((r) => ({
+      month: String(r.month ?? ''),
+      paid: Number(r.paid ?? 0),
+      pending: Number(r.pending ?? 0),
+    })),
+    byStatus: toCountRecord(raw.by_status),
+  };
+}
+
+function toWorkerAnalytics(raw: Record<string, unknown>): WorkerAnalytics {
+  return {
+    totalWorkers: Number(raw.total_workers ?? 0),
+    active: Number(raw.active ?? 0),
+    todayPresent: Number(raw.today_present ?? 0),
+    todayAbsent: Number(raw.today_absent ?? 0),
+    attendanceRateThisWeek: Number(raw.attendance_rate_this_week ?? 0),
+    byType: toCountRecord(raw.by_type),
+  };
+}
+
+function toAnalyticsSummary(raw: Record<string, unknown>): AnalyticsSummary {
+  return {
+    occupancy: toOccupancyAnalytics((raw.occupancy ?? {}) as Record<string, unknown>),
+    complaints: toComplaintAnalytics((raw.complaints ?? {}) as Record<string, unknown>),
+    maintenance: toMaintenanceAnalytics((raw.maintenance ?? {}) as Record<string, unknown>),
+    vendors: toVendorAnalytics((raw.vendors ?? {}) as Record<string, unknown>),
+    rentals: toRentalAnalytics((raw.rentals ?? {}) as Record<string, unknown>),
+    visitors: toVisitorAnalytics((raw.visitors ?? {}) as Record<string, unknown>),
+    revenue: toRevenueAnalytics((raw.revenue ?? {}) as Record<string, unknown>),
+    workers: toWorkerAnalytics((raw.workers ?? {}) as Record<string, unknown>),
+  };
+}
+
+// ── P19 Community Events DTO types & mappers ─────────────────────────────────
+type EventDto = Record<string, DtoValue> & { my_registration?: EventRegistrationDto | null; recent_registrations?: EventRegistrationDto[] };
+type EventRegistrationDto = Record<string, DtoValue>;
+type EventDashboardDto = {
+  upcoming_count?: number;
+  this_month_count?: number;
+  total_published?: number;
+  today_registrations?: number;
+  recent_events?: EventDto[];
+};
+
+function toCommunityEvent(row: EventDto): CommunityEvent {
+  const reg = row.my_registration != null ? toEventRegistration(row.my_registration as EventRegistrationDto) : undefined;
+  const recentRegs = row.recent_registrations ? (row.recent_registrations as EventRegistrationDto[]).map(toEventRegistration) : undefined;
+  return {
+    id: asString(row.id),
+    title: asString(row.title),
+    description: asOptionalString(row.description),
+    location: asOptionalString(row.location),
+    organizer: asOptionalString(row.organizer),
+    eventDate: asString(row.event_date),
+    eventTime: asOptionalString(row.event_time),
+    imageAttachmentId: asOptionalString(row.image_attachment_id),
+    attachmentId: asOptionalString(row.attachment_id),
+    capacity: asNumber(row.capacity),
+    registrationRequired: Number(row.registration_required ?? 0) === 1 || row.registration_required === true,
+    registrationCount: row.registration_count != null ? asNumber(row.registration_count) : undefined,
+    status: asEnum(row.status, ['Draft', 'Published', 'Cancelled', 'Completed'] as const, 'Draft'),
+    createdBy: asOptionalString(row.created_by),
+    createdAt: asString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+    myRegistration: reg ?? null,
+    isRegistered: Number(row.is_registered ?? 0) === 1 || row.is_registered === true,
+    recentRegistrations: recentRegs,
+  };
+}
+
+function fromCommunityEvent(p: Partial<CommunityEvent>) {
+  return {
+    title: p.title,
+    description: p.description ?? null,
+    location: p.location ?? null,
+    organizer: p.organizer ?? null,
+    event_date: p.eventDate,
+    event_time: p.eventTime ?? null,
+    image_attachment_id: p.imageAttachmentId ? Number(p.imageAttachmentId) : null,
+    attachment_id: p.attachmentId ? Number(p.attachmentId) : null,
+    capacity: p.capacity ?? 0,
+    registration_required: p.registrationRequired !== undefined ? (p.registrationRequired ? 1 : 0) : undefined,
+    status: p.status,
+  };
+}
+
+function toEventRegistration(row: EventRegistrationDto): EventRegistration {
+  return {
+    id: asString(row.id),
+    eventId: asString(row.event_id),
+    userId: asOptionalString(row.user_id),
+    name: asString(row.name),
+    phone: asOptionalString(row.phone),
+    email: asOptionalString(row.email),
+    status: asEnum(row.status, ['Registered', 'Cancelled', 'Attended'] as const, 'Registered'),
+    registeredAt: asString(row.registered_at),
+    notes: asOptionalString(row.notes),
+    eventTitle: asOptionalString(row.event_title),
+    eventDate: asOptionalString(row.event_date),
+    eventTime: asOptionalString(row.event_time),
+    location: asOptionalString(row.location),
+    eventStatus: asOptionalString(row.event_status),
+  };
+}
+
+function toEventDashboard(row: EventDashboardDto): EventDashboard {
+  return {
+    upcomingCount: Number(row.upcoming_count ?? 0),
+    thisMonthCount: Number(row.this_month_count ?? 0),
+    totalPublished: Number(row.total_published ?? 0),
+    todayRegistrations: Number(row.today_registrations ?? 0),
+    recentEvents: (row.recent_events ?? []).map(toCommunityEvent),
+  };
+}
+
+// ── P21 CCTV Foundation DTO types & mappers ──────────────────────────────────
+type CameraDeviceDto = Record<string, DtoValue>;
+type CameraEventDto = Record<string, DtoValue>;
+type CameraSnapshotDto = Record<string, DtoValue>;
+type CameraDashboardDto = {
+  total_cameras?: number;
+  by_status?: Record<string, number>;
+  total_events_today?: number;
+  unacknowledged_events?: number;
+  recent_events?: CameraEventDto[];
+  cameras_by_zone?: { zone: string; count: number }[];
+};
+
+function toCameraDevice(row: CameraDeviceDto): CameraDevice {
+  return {
+    id: asString(row.id),
+    name: asString(row.name),
+    location: asString(row.location),
+    zone: asOptionalString(row.zone),
+    rtspUrl: asOptionalString(row.rtsp_url),
+    ipAddress: asOptionalString(row.ip_address),
+    port: row.port != null ? asNumber(row.port) : undefined,
+    manufacturer: asOptionalString(row.manufacturer),
+    model: asOptionalString(row.model),
+    resolution: asOptionalString(row.resolution),
+    status: asEnum(row.status, ['Online', 'Offline', 'Maintenance', 'Fault'] as const, 'Offline'),
+    lastHeartbeat: asOptionalString(row.last_heartbeat),
+    snapshotUrl: asOptionalString(row.snapshot_url),
+    isRecording: row.is_recording === true || Number(row.is_recording ?? 0) === 1,
+    isActive: row.is_active === true || Number(row.is_active ?? 1) === 1,
+    notes: asOptionalString(row.notes),
+    createdAt: asString(row.created_at),
+  };
+}
+
+function fromCameraDevice(p: Partial<CameraDevice> & { password?: string }) {
+  return {
+    name: p.name,
+    location: p.location,
+    zone: p.zone ?? null,
+    rtsp_url: p.rtspUrl ?? null,
+    ip_address: p.ipAddress ?? null,
+    port: p.port ?? 554,
+    manufacturer: p.manufacturer ?? null,
+    model: p.model ?? null,
+    resolution: p.resolution ?? null,
+    status: p.status,
+    snapshot_url: p.snapshotUrl ?? null,
+    is_recording: p.isRecording !== undefined ? (p.isRecording ? 1 : 0) : undefined,
+    is_active: p.isActive !== undefined ? (p.isActive ? 1 : 0) : undefined,
+    notes: p.notes ?? null,
+    password: p.password ?? undefined,
+  };
+}
+
+function toCameraEvent(row: CameraEventDto): CameraEvent {
+  return {
+    id: asString(row.id),
+    cameraId: asString(row.camera_id),
+    eventType: asString(row.event_type),
+    severity: asEnum(row.severity, ['Low', 'Medium', 'High', 'Critical'] as const, 'Low'),
+    description: asOptionalString(row.description),
+    snapshotId: row.snapshot_id != null ? asString(row.snapshot_id) : undefined,
+    acknowledged: row.acknowledged === true || Number(row.acknowledged ?? 0) === 1,
+    acknowledgedBy: row.acknowledged_by != null ? asString(row.acknowledged_by) : undefined,
+    acknowledgedAt: asOptionalString(row.acknowledged_at),
+    occurredAt: asString(row.occurred_at),
+    createdAt: asString(row.created_at),
+  };
+}
+
+function toCameraSnapshot(row: CameraSnapshotDto): CameraSnapshot {
+  return {
+    id: asString(row.id),
+    cameraId: asString(row.camera_id),
+    fileUrl: asOptionalString(row.file_url),
+    capturedAt: asString(row.captured_at),
+    trigger: asString(row.trigger, 'Manual'),
+    eventId: row.event_id != null ? asString(row.event_id) : undefined,
+    notes: asOptionalString(row.notes),
+  };
+}
+
+function toCameraDashboard(row: CameraDashboardDto): CameraDashboard {
+  return {
+    totalCameras: Number(row.total_cameras ?? 0),
+    byStatus: {
+      Online: Number(row.by_status?.Online ?? 0),
+      Offline: Number(row.by_status?.Offline ?? 0),
+      Maintenance: Number(row.by_status?.Maintenance ?? 0),
+      Fault: Number(row.by_status?.Fault ?? 0),
+    },
+    totalEventsToday: Number(row.total_events_today ?? 0),
+    unacknowledgedEvents: Number(row.unacknowledged_events ?? 0),
+    recentEvents: (row.recent_events ?? []).map(toCameraEvent),
+    camerasByZone: (row.cameras_by_zone ?? []).map((z) => ({ zone: z.zone, count: Number(z.count ?? 0) })),
+  };
+}
+
+// ── P22 Premium Membership DTO types & mappers ────────────────────────────────
+
+type SubscriptionPlanDto = Record<string, DtoValue> & { features?: string[] | string };
+type SubscriptionDto = Record<string, DtoValue>;
+type PremiumFeatureDto = Record<string, DtoValue>;
+type SubscriptionDashboardDto = {
+  total_subscribers?: number;
+  active?: number;
+  by_plan?: Record<string, number>;
+  mrr?: number;
+  recent_subscriptions?: SubscriptionDto[];
+};
+
+function toSubscriptionPlan(row: SubscriptionPlanDto): SubscriptionPlan {
+  let features: string[] = [];
+  if (Array.isArray(row.features)) {
+    features = row.features as string[];
+  } else if (typeof row.features === 'string') {
+    try {
+      const parsed = JSON.parse(row.features);
+      features = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      features = [];
+    }
+  }
+  return {
+    id: asString(row.id),
+    name: asString(row.name),
+    slug: asString(row.slug),
+    description: asOptionalString(row.description),
+    priceMonthly: asNumber(row.price_monthly),
+    priceYearly: asNumber(row.price_yearly),
+    features,
+    maxListings: asNumber(row.max_listings, 3),
+    maxAds: asNumber(row.max_ads, 1),
+    analyticsAccess: Number(row.analytics_access ?? 0) === 1,
+    featuredVendor: Number(row.featured_vendor ?? 0) === 1,
+    featuredRental: Number(row.featured_rental ?? 0) === 1,
+    prioritySupport: Number(row.priority_support ?? 0) === 1,
+    isActive: Number(row.is_active ?? 1) === 1,
+  };
+}
+
+function toSubscription(row: SubscriptionDto): Subscription {
+  return {
+    id: asString(row.id),
+    userId: asString(row.user_id),
+    planId: asString(row.plan_id),
+    planName: asOptionalString(row.plan_name),
+    status: asEnum(row.status, ['Active', 'Cancelled', 'Expired', 'Pending'] as const, 'Pending'),
+    billingCycle: asEnum(row.billing_cycle, ['Monthly', 'Yearly'] as const, 'Monthly'),
+    startedAt: asString(row.started_at),
+    expiresAt: asOptionalString(row.expires_at),
+    amountPaid: asNumber(row.amount_paid),
+    paymentRef: asOptionalString(row.payment_ref),
+  };
+}
+
+function toPremiumFeature(row: PremiumFeatureDto): PremiumFeature {
+  return {
+    id: asString(row.id),
+    featureKey: asString(row.feature_key),
+    featureName: asString(row.feature_name),
+    description: asOptionalString(row.description),
+    minPlan: asString(row.min_plan, 'premium'),
+    isActive: Number(row.is_active ?? 1) === 1,
+  };
+}
+
+function toSubscriptionDashboard(row: SubscriptionDashboardDto): SubscriptionDashboard {
+  return {
+    totalSubscribers: Number(row.total_subscribers ?? 0),
+    active: Number(row.active ?? 0),
+    byPlan: row.by_plan ?? {},
+    mrr: Number(row.mrr ?? 0),
+    recentSubscriptions: (row.recent_subscriptions ?? []).map(toSubscription),
+  };
+}
+
+// ── P23 Ad Billing & Analytics DTO types & mappers ────────────────────────────
+
+type AdPackageDto = Record<string, DtoValue> & { features?: string[] | string };
+type AdBillingDto = Record<string, DtoValue>;
+type AdAnalyticsDto = {
+  total_ads?: number;
+  active_ads?: number;
+  total_impressions?: number;
+  total_clicks?: number;
+  avg_ctr?: number;
+  top_clicked?: Record<string, DtoValue>[];
+  top_viewed?: Record<string, DtoValue>[];
+  monthly_impressions?: Record<string, DtoValue>[];
+  active_vs_expired?: Record<string, DtoValue>;
+  revenue_summary?: Record<string, DtoValue>;
+};
+
+function toAdPackage(row: AdPackageDto): AdPackage {
+  let features: string[] = [];
+  if (Array.isArray(row.features)) {
+    features = row.features as string[];
+  } else if (typeof row.features === 'string') {
+    try {
+      const parsed = JSON.parse(row.features);
+      features = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      features = [];
+    }
+  }
+  return {
+    id: asString(row.id),
+    name: asString(row.name),
+    description: asOptionalString(row.description),
+    price: asNumber(row.price),
+    durationDays: asNumber(row.duration_days, 30),
+    maxImpressions: asNumber(row.max_impressions),
+    features,
+    isActive: Number(row.is_active ?? 1) === 1,
+    sortOrder: asNumber(row.sort_order),
+  };
+}
+
+function toAdBilling(row: AdBillingDto): AdBilling {
+  return {
+    id: asString(row.id),
+    adId: asString(row.ad_id),
+    packageId: asOptionalString(row.package_id),
+    amount: asNumber(row.amount),
+    billingStatus: asEnum(row.billing_status, ['Pending', 'Paid', 'Overdue', 'Waived'] as const, 'Pending'),
+    dueDate: asOptionalString(row.due_date),
+    paidAt: asOptionalString(row.paid_at),
+    paymentRef: asOptionalString(row.payment_ref),
+    renewalReminded: row.renewal_reminded === true || Number(row.renewal_reminded ?? 0) === 1,
+    notes: asOptionalString(row.notes),
+    businessName: asOptionalString(row.business_name),
+    packageName: asOptionalString(row.package_name),
+  };
+}
+
+function toAdAnalytics(row: AdAnalyticsDto): AdAnalytics {
+  return {
+    totalAds: Number(row.total_ads ?? 0),
+    activeAds: Number(row.active_ads ?? 0),
+    totalImpressions: Number(row.total_impressions ?? 0),
+    totalClicks: Number(row.total_clicks ?? 0),
+    avgCtr: Number(row.avg_ctr ?? 0),
+    topClicked: (row.top_clicked ?? []).map((r) => ({
+      id: String(r.id ?? ''),
+      title: String(r.title ?? ''),
+      clicks: Number(r.clicks ?? 0),
+      ctr: Number(r.ctr ?? 0),
+    })),
+    topViewed: (row.top_viewed ?? []).map((r) => ({
+      id: String(r.id ?? ''),
+      title: String(r.title ?? ''),
+      impressions: Number(r.impressions ?? 0),
+    })),
+    monthlyImpressions: (row.monthly_impressions ?? []).map((r) => ({
+      month: String(r.month ?? ''),
+      count: Number(r.count ?? 0),
+    })),
+    activeVsExpired: {
+      active: Number((row.active_vs_expired as Record<string, DtoValue>)?.active ?? 0),
+      expired: Number((row.active_vs_expired as Record<string, DtoValue>)?.expired ?? 0),
+    },
+    revenueSummary: {
+      total_revenue: Number((row.revenue_summary as Record<string, DtoValue>)?.total_revenue ?? 0),
+      pending: Number((row.revenue_summary as Record<string, DtoValue>)?.pending ?? 0),
+      overdue_count: Number((row.revenue_summary as Record<string, DtoValue>)?.overdue_count ?? 0),
+    },
+  };
+}
+
+// ── P24 Razorpay Payment DTO types & mappers ─────────────────────────────────
+
+type PaymentTransactionDto = Record<string, DtoValue>;
+type PaymentDashboardDto = {
+  total_invoiced?: number;
+  total_paid?: number;
+  total_pending?: number;
+  total_overdue?: number;
+  today_payments?: number;
+  this_month_revenue?: number;
+  payment_methods?: Record<string, number>;
+  recent_transactions?: PaymentTransactionDto[];
+  by_status?: Record<string, number>;
+};
+
+function toPaymentTransaction(row: PaymentTransactionDto): PaymentTransaction {
+  return {
+    id: asString(row.id),
+    invoiceId: asString(row.invoice_id),
+    invoiceNo: asOptionalString(row.invoice_no),
+    razorpayOrderId: asOptionalString(row.razorpay_order_id),
+    razorpayPaymentId: asOptionalString(row.razorpay_payment_id),
+    razorpaySignature: asOptionalString(row.razorpay_signature),
+    amount: asNumber(row.amount),
+    currency: asString(row.currency, 'INR'),
+    status: asEnum(row.status, ['created', 'paid', 'failed', 'refunded'] as const, 'created'),
+    paymentMethod: asOptionalString(row.payment_method),
+    errorCode: asOptionalString(row.error_code),
+    errorDescription: asOptionalString(row.error_description),
+    webhookReceived: row.webhook_received != null ? asNumber(row.webhook_received) : undefined,
+    createdAt: asString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+  };
+}
+
+function toPaymentDashboard(row: PaymentDashboardDto): PaymentDashboard {
+  return {
+    totalInvoiced: Number(row.total_invoiced ?? 0),
+    totalPaid: Number(row.total_paid ?? 0),
+    totalPending: Number(row.total_pending ?? 0),
+    totalOverdue: Number(row.total_overdue ?? 0),
+    todayPayments: Number(row.today_payments ?? 0),
+    thisMonthRevenue: Number(row.this_month_revenue ?? 0),
+    paymentMethods: (row.payment_methods ?? {}) as Record<string, number>,
+    recentTransactions: (row.recent_transactions ?? []).map(toPaymentTransaction),
+    byStatus: (row.by_status ?? {}) as Record<string, number>,
+  };
+}

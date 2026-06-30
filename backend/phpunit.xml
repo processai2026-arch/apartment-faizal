@@ -9,5 +9,8 @@
     <testsuite name="OfficeGate Unit Tests">
       <directory>tests/Unit</directory>
     </testsuite>
+    <testsuite name="OfficeGate Feature Tests">
+      <directory>tests/Feature</directory>
+    </testsuite>
   </testsuites>
 </phpunit>

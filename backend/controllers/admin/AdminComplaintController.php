@@ -8,6 +8,20 @@ class AdminComplaintController extends ResourceController
     protected array $requiredCreate = ['tenant_id', 'office_id', 'category', 'subject', 'description'];
     protected string $entityType = 'complaint';
 
+    protected function prepare(array $data, Request $request): array
+    {
+        if (!empty($data['subject'])) {
+            Validator::maxLength((string) $data['subject'], 255, 'subject');
+        }
+        if (!empty($data['description'])) {
+            Validator::maxLength((string) $data['description'], 10000, 'description');
+        }
+        if (!empty($data['category'])) {
+            Validator::maxLength((string) $data['category'], 100, 'category');
+        }
+        return $data;
+    }
+
     public function show(Request $request): void
     {
         $row = Complaint::find((int) $request->params['id']);
@@ -36,6 +50,9 @@ class AdminComplaintController extends ResourceController
     {
         Validator::require($request->all(), ['status']);
         $status = Validator::enum((string) $request->input('status'), ['Open', 'Assigned', 'In Progress', 'Resolved', 'Closed'], 'status');
+        if ($request->input('remarks') !== null) {
+            Validator::maxLength((string) $request->input('remarks'), 5000, 'remarks');
+        }
         $row = Complaint::changeStatus(
             (int) $request->params['id'],
             $status,

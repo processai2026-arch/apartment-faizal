@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Download, Printer, BarChart3 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Download, Printer, BarChart3, TrendingUp, ArrowRight } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import StatusBadge from '@/components/features/StatusBadge';
 import { toast } from 'sonner';
@@ -119,6 +120,23 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
+      {/* ── Analytics Dashboard Banner ── */}
+      <Link
+        to="/analytics"
+        className="flex items-center justify-between bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-2xl p-4 hover:from-indigo-700 hover:to-indigo-800 transition-all shadow-lg shadow-indigo-500/20"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+            <TrendingUp className="h-5 w-5 text-white" />
+          </span>
+          <div>
+            <p className="font-semibold text-sm font-[Outfit]">View Full Analytics Dashboard</p>
+            <p className="text-xs text-indigo-200">Charts, KPIs, and real-time insights across all modules</p>
+          </div>
+        </div>
+        <ArrowRight className="h-5 w-5 text-indigo-200 flex-shrink-0" />
+      </Link>
+
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>

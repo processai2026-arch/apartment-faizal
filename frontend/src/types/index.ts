@@ -312,6 +312,12 @@ export interface Invoice {
   status: 'Pending' | 'Paid' | 'Overdue' | 'Cancelled';
   createdAt: string;
   updatedAt?: string;
+  // P24 Razorpay fields
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  paymentMethod?: string;
+  paymentGatewayStatus?: string;
+  refundStatus?: string;
 }
 
 export interface FinancialSummary {
@@ -320,34 +326,6 @@ export interface FinancialSummary {
   collected: number;
   pending: number;
   byStatus: { status: string; count: number; amount: number; paid: number }[];
-}
-
-export interface EmergencyContact {
-  id: string;
-  name: string;
-  category: 'Medical' | 'Fire' | 'Police' | 'Utility' | 'Building';
-  phone: string;
-  available: string;
-}
-
-// Daily Worker (for building maintenance)
-export interface DailyWorker {
-  id: string;
-  name: string;
-  role: 'Maid' | 'Cook' | 'Driver' | 'Electrician' | 'Plumber' | 'Milkman' | 'Newspaper' | 'Cleaner' | 'Security';
-  assignedTo: string; // Company name or "Building"
-  block?: string;
-  floorNumber?: string;
-  phone: string;
-  allowedTimings: string;
-  validFrom: string;
-  validUntil: string;
-  status: 'Active' | 'Paused' | 'Blacklisted';
-  lastEntry?: string;
-  
-  // Legacy compatibility
-  apartmentNo?: string;
-  residentName?: string;
 }
 
 // Legacy Apartment type for backward compatibility
@@ -485,6 +463,14 @@ export interface BusinessAd {
   expiresAt?: string;
   viewCount: number;
   clickCount: number;
+  // P23 analytics fields
+  impressions?: number;
+  clicks?: number;
+  ctr?: number;
+  isFeatured?: boolean;
+  packageId?: string;
+  expiresAtBilling?: string;
+  renewalNotified?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -571,3 +557,404 @@ export interface WorkerTodaySummary {
   summary: { Present: number; Absent: number; 'Half Day': number; Leave: number };
   total: number;
 }
+
+// ── Visitor Passes (P17) ──────────────────────────────────────────────────────
+
+export type VisitorPassType = 'Temporary' | 'One Day' | 'Recurring' | 'Delivery' | 'Worker' | 'Guest';
+export type VisitorPassStatus = 'Active' | 'Used' | 'Expired' | 'Cancelled';
+
+export interface VisitorPass {
+  id: string;
+  passCode: string;
+  passType: VisitorPassType;
+  visitorName: string;
+  visitorPhone?: string;
+  hostName?: string;
+  hostOfficeId?: number;
+  purpose?: string;
+  validFrom: string;
+  validUntil: string;
+  maxUses: number;
+  usedCount: number;
+  status: VisitorPassStatus;
+  qrPayload: string;
+  createdBy?: number;
+  sharedVia?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+  scans?: VisitorPassScan[];
+}
+
+export interface VisitorPassScan {
+  id: number;
+  passId: number;
+  scannedAt: string;
+  scannedBy?: number;
+  action: 'entry' | 'exit';
+  notes?: string;
+}
+
+export interface VisitorPassDashboard {
+  totalToday: number;
+  active: number;
+  expired: number;
+  used: number;
+  cancelled: number;
+  byType: Record<string, number>;
+  byStatus: Record<string, number>;
+  recent: VisitorPass[];
+}
+
+// ── Community Analytics (P18) ─────────────────────────────────────────────────
+
+export interface OccupancyAnalytics {
+  total: number;
+  occupied: number;
+  vacant: number;
+  occupancyRate: number;
+  byBlock: { block: string; occupied: number; total: number }[];
+}
+
+export interface MonthlyTrend {
+  month: string;
+  count: number;
+}
+
+export interface ComplaintAnalytics {
+  total: number;
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
+  monthlyTrend: MonthlyTrend[];
+  avgResolutionHours: number;
+}
+
+export interface MaintenanceAnalytics {
+  total: number;
+  byStatus: Record<string, number>;
+  byType: Record<string, number>;
+  pending: number;
+  monthlyTrend: MonthlyTrend[];
+  avgResolutionHours: number;
+}
+
+export interface VendorAnalytics {
+  total: number;
+  avgRating: number;
+  totalBookings: number;
+  bookingsByStatus: Record<string, number>;
+  topRated: { id: string; name: string; rating: number }[];
+  topBooked: { id: string; name: string; bookingCount: number }[];
+  monthlyBookings: MonthlyTrend[];
+}
+
+export interface RentalAnalytics {
+  total: number;
+  active: number;
+  pendingApproval: number;
+  byType: Record<string, number>;
+  avgRent: number;
+  monthlyListings: MonthlyTrend[];
+}
+
+export interface VisitorAnalytics {
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  byDayOfWeek: { day: string; count: number }[];
+  monthlyTrend: MonthlyTrend[];
+}
+
+export interface RevenueAnalytics {
+  totalInvoiced: number;
+  totalPaid: number;
+  totalPending: number;
+  totalOverdue: number;
+  monthlyRevenue: { month: string; paid: number; pending: number }[];
+  byStatus: Record<string, number>;
+}
+
+export interface WorkerAnalytics {
+  totalWorkers: number;
+  active: number;
+  todayPresent: number;
+  todayAbsent: number;
+  attendanceRateThisWeek: number;
+  byType: Record<string, number>;
+}
+
+export interface AnalyticsSummary {
+  occupancy: OccupancyAnalytics;
+  complaints: ComplaintAnalytics;
+  maintenance: MaintenanceAnalytics;
+  vendors: VendorAnalytics;
+  rentals: RentalAnalytics;
+  visitors: VisitorAnalytics;
+  revenue: RevenueAnalytics;
+  workers: WorkerAnalytics;
+}
+
+// ── Community Events (P19) ────────────────────────────────────────────────────
+
+export interface CommunityEvent {
+  id: string;
+  title: string;
+  description?: string;
+  location?: string;
+  organizer?: string;
+  eventDate: string;
+  eventTime?: string;
+  imageAttachmentId?: string;
+  attachmentId?: string;
+  capacity: number;
+  registrationRequired: boolean;
+  registrationCount?: number;
+  status: 'Draft' | 'Published' | 'Cancelled' | 'Completed';
+  createdBy?: string;
+  createdAt: string;
+  updatedAt?: string;
+  // Tenant-specific fields
+  myRegistration?: EventRegistration | null;
+  isRegistered?: boolean;
+  // Admin-specific fields
+  recentRegistrations?: EventRegistration[];
+}
+
+export interface EventRegistration {
+  id: string;
+  eventId: string;
+  userId?: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  status: 'Registered' | 'Cancelled' | 'Attended';
+  registeredAt: string;
+  notes?: string;
+  // Joined fields from myRegistrations endpoint
+  eventTitle?: string;
+  eventDate?: string;
+  eventTime?: string;
+  location?: string;
+  eventStatus?: string;
+}
+
+export interface EventDashboard {
+  upcomingCount: number;
+  thisMonthCount: number;
+  totalPublished: number;
+  todayRegistrations: number;
+  recentEvents: CommunityEvent[];
+}
+
+// ── CCTV Foundation (P21) ─────────────────────────────────────────────────────
+
+export interface CameraDevice {
+  id: string;
+  name: string;
+  location: string;
+  zone?: string;
+  rtspUrl?: string;
+  ipAddress?: string;
+  port?: number;
+  manufacturer?: string;
+  model?: string;
+  resolution?: string;
+  status: 'Online' | 'Offline' | 'Maintenance' | 'Fault';
+  lastHeartbeat?: string;
+  snapshotUrl?: string;
+  isRecording: boolean;
+  isActive: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface CameraEvent {
+  id: string;
+  cameraId: string;
+  eventType: string;
+  severity: 'Low' | 'Medium' | 'High' | 'Critical';
+  description?: string;
+  snapshotId?: string;
+  acknowledged: boolean;
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+  occurredAt: string;
+  createdAt: string;
+}
+
+export interface CameraSnapshot {
+  id: string;
+  cameraId: string;
+  fileUrl?: string;
+  capturedAt: string;
+  trigger: string;
+  eventId?: string;
+  notes?: string;
+}
+
+export interface CameraDashboard {
+  totalCameras: number;
+  byStatus: Record<string, number>;
+  totalEventsToday: number;
+  unacknowledgedEvents: number;
+  recentEvents: CameraEvent[];
+  camerasByZone: { zone: string; count: number }[];
+}
+
+// ── Premium Membership (P22) ──────────────────────────────────────────────────
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  priceMonthly: number;
+  priceYearly: number;
+  features: string[];
+  maxListings: number;
+  maxAds: number;
+  analyticsAccess: boolean;
+  featuredVendor: boolean;
+  featuredRental: boolean;
+  prioritySupport: boolean;
+  isActive: boolean;
+}
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  planId: string;
+  planName?: string;
+  status: 'Active' | 'Cancelled' | 'Expired' | 'Pending';
+  billingCycle: 'Monthly' | 'Yearly';
+  startedAt: string;
+  expiresAt?: string;
+  amountPaid: number;
+  paymentRef?: string;
+}
+
+export interface PremiumFeature {
+  id: string;
+  featureKey: string;
+  featureName: string;
+  description?: string;
+  minPlan: string;
+  isActive: boolean;
+}
+
+export interface SubscriptionDashboard {
+  totalSubscribers: number;
+  active: number;
+  byPlan: Record<string, number>;
+  mrr: number;
+  recentSubscriptions: Subscription[];
+}
+
+// ── Ad Billing & Analytics (P23) ─────────────────────────────────────────────
+
+export interface AdPackage {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  durationDays: number;
+  maxImpressions: number;
+  features: string[];
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface AdBilling {
+  id: string;
+  adId: string;
+  packageId?: string;
+  amount: number;
+  billingStatus: 'Pending' | 'Paid' | 'Overdue' | 'Waived';
+  dueDate?: string;
+  paidAt?: string;
+  paymentRef?: string;
+  renewalReminded: boolean;
+  notes?: string;
+  businessName?: string;
+  packageName?: string;
+}
+
+export interface AdAnalytics {
+  totalAds: number;
+  activeAds: number;
+  totalImpressions: number;
+  totalClicks: number;
+  avgCtr: number;
+  topClicked: { id: string; title: string; clicks: number; ctr: number }[];
+  topViewed: { id: string; title: string; impressions: number }[];
+  monthlyImpressions: { month: string; count: number }[];
+  activeVsExpired: { active: number; expired: number };
+  revenueSummary: { total_revenue: number; pending: number; overdue_count: number };
+}
+
+export interface BillingSummary {
+  total_revenue: number;
+  pending: number;
+  overdue_amount: number;
+  overdue_count: number;
+  by_status: { status: string; count: number; total: number }[];
+}
+
+export interface AdExportRow {
+  id: number;
+  business_name: string;
+  status: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  is_featured: boolean;
+  expires_at: string | null;
+  created_at: string;
+  billing_status: string | null;
+  billing_amount: number;
+  billing_due_date: string | null;
+  paid_at: string | null;
+  package_name: string | null;
+}
+
+// ── Razorpay Payment Integration (P24) ───────────────────────────────────────
+
+export interface PaymentTransaction {
+  id: string;
+  invoiceId: string;
+  invoiceNo?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  amount: number;
+  currency: string;
+  status: 'created' | 'paid' | 'failed' | 'refunded';
+  paymentMethod?: string;
+  errorCode?: string;
+  errorDescription?: string;
+  webhookReceived?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface RazorpayOrder {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  invoiceId: string;
+}
+
+export interface PaymentDashboard {
+  totalInvoiced: number;
+  totalPaid: number;
+  totalPending: number;
+  totalOverdue: number;
+  todayPayments: number;
+  thisMonthRevenue: number;
+  paymentMethods: Record<string, number>;
+  recentTransactions: PaymentTransaction[];
+  byStatus: Record<string, number>;
+}
+
+

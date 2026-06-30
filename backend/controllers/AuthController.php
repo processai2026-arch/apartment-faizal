@@ -67,7 +67,7 @@ class AuthController
             throw new AppException('Current password is incorrect', 422);
         }
         Database::query('UPDATE users SET password_hash = :hash, updated_at = :now WHERE id = :id', [
-            'hash' => password_hash((string) $request->input('newPassword'), PASSWORD_DEFAULT),
+            'hash' => password_hash((string) $request->input('newPassword'), PASSWORD_BCRYPT, ['cost' => 12]),
             'now' => db_time(),
             'id' => $user['id'],
         ]);

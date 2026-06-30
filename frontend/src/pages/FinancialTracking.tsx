@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { CheckCircle, Download, Plus, X, Eye, EyeOff, Edit3, Save, RotateCcw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle, Download, Plus, X, Eye, EyeOff, Edit3, Save, RotateCcw, CreditCard } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import StatusBadge from '@/components/features/StatusBadge';
+import WhatsAppShareButton from '@/components/features/WhatsAppShareButton';
+import { invoiceReminderPayload } from '@/lib/whatsapp';
 import { useAppStore } from '@/stores/useAppStore';
 import { useUISettingsStore } from '@/stores/useUISettingsStore';
 import UICustomizer from '@/components/features/UICustomizer';
@@ -12,6 +15,7 @@ import type { Invoice } from '@/types';
 import type { CardConfig, ColumnConfig } from '@/types/uiSettings';
 
 export default function FinancialTracking() {
+  const navigate = useNavigate();
   const { invoices, offices, financialSummary, loadAdminInvoices, loadFinancialSummary, createInvoice, recordInvoicePayment } = useAppStore();
   const { settings, getVisibleCards, getVisibleColumns, getVisibleButtons, updateCardOrder, updateColumnOrder, resetPageSettings } = useUISettingsStore();
   const [filterStatus, setFilterStatus] = useState('');
@@ -509,6 +513,12 @@ export default function FinancialTracking() {
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/payments')}
+              className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors"
+            >
+              <CreditCard className="w-4 h-4" /> Payment Dashboard
+            </button>
             <AnimatePresence>
               {isButtonVisible('addRecord') && (
                 <motion.button
@@ -608,12 +618,36 @@ export default function FinancialTracking() {
                           case 'action':
                             return (
                               <td key={col.id} className={cellClass}>
-                                {status !== 'Paid' && status !== 'Cancelled' && (
-                                  <button onClick={() => handleMarkPaid(inv)}
-                                    className="flex items-center gap-1.5 bg-green-50 text-green-600 border border-green-200 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">
-                                    <CheckCircle className="w-3.5 h-3.5" /> Mark Paid
-                                  </button>
-                                )}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {status !== 'Paid' && status !== 'Cancelled' && (
+                                    <button onClick={() => handleMarkPaid(inv)}
+                                      className="flex items-center gap-1.5 bg-green-50 text-green-600 border border-green-200 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">
+                                      <CheckCircle className="w-3.5 h-3.5" /> Mark Paid
+                                    </button>
+                                  )}
+                                  {status !== 'Paid' && status !== 'Cancelled' && (
+                                    <button
+                                      onClick={() => navigate(`/payments?invoice=${inv.id}`)}
+                                      className="flex items-center gap-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                                    >
+                                      <CreditCard className="w-3.5 h-3.5" /> Pay
+                                    </button>
+                                  )}
+                                  {status !== 'Paid' && status !== 'Cancelled' && (
+                                    <WhatsAppShareButton
+                                      size="sm"
+                                      variant="outline"
+                                      payload={invoiceReminderPayload({
+                                        invoiceNo: inv.invoiceNo,
+                                        amount: inv.amount,
+                                        dueDate: inv.dueDate
+                                          ? new Date(inv.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                                          : 'N/A',
+                                        tenantName: officeLabel(inv.officeId),
+                                      })}
+                                    />
+                                  )}
+                                </div>
                               </td>
                             );
                           default:

@@ -30,6 +30,7 @@ class User
             'officeId' => isset($user['office_id']) ? ($user['office_id'] ? (int) $user['office_id'] : null) : null,
             'status' => $user['status'],
             'createdAt' => $user['created_at'],
+            'isSecretary' => isset($user['is_secretary']) ? (bool)(int) $user['is_secretary'] : false,
         ];
     }
 }

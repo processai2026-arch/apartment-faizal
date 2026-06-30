@@ -11,6 +11,12 @@ interface AppState {
   isLoaded: boolean;
   loadError: string | null;
   notificationRole: UserRole | null;
+  /** Timestamp of last successful admin summary fetch (Date.now()). */
+  lastFetchedAdminSummary: number | null;
+  /** Timestamp of last successful vendor list fetch (Date.now()). */
+  lastFetchedVendors: number | null;
+  /** Timestamp of last successful complaints list fetch (Date.now()). */
+  lastFetchedComplaints: number | null;
   visitors: Visitor[];
   vehicles: Vehicle[];
   offices: Office[];
@@ -77,6 +83,9 @@ interface AppState {
   recordInvoicePayment: (id: string, amount: number, mode?: string, referenceNo?: string) => Promise<void>;
 }
 
+/** Cache TTL: do not re-fetch expensive endpoints within this window (ms). */
+const CACHE_TTL = 30_000; // 30 seconds
+
 const SIDEBAR_KEY = 'officegate.sidebarCollapsed';
 const readSidebarCollapsed = (): boolean => {
   try {
@@ -92,6 +101,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoaded: false,
   loadError: null,
   notificationRole: null,
+  lastFetchedAdminSummary: null,
+  lastFetchedVendors: null,
+  lastFetchedComplaints: null,
   visitors: [],
   vehicles: [],
   offices: [],
@@ -123,6 +135,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       const notificationResult = await api.notifications.list(role, { perPage: 8 });
 
       if (role === 'admin') {
+        // Guard: skip the expensive 9-request fan-out if data is still fresh
+        const now = Date.now();
+        const lastFetched = get().lastFetchedAdminSummary;
+        if (lastFetched && now - lastFetched < CACHE_TTL) {
+          set({ isLoading: false });
+          return;
+        }
+
         const [offices, visitors, vehicles, vendors, staff, inventory, utilityTasks, invoices, financialSummary] = await Promise.all([
           api.offices.list(),
           api.visitors.list(),
@@ -150,6 +170,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           apartments: offices.map(officeToApartment),
           isLoaded: true,
           isLoading: false,
+          lastFetchedAdminSummary: Date.now(),
         });
         return;
       }
@@ -218,6 +239,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   resetBackendState: () => set({
     isLoaded: false,
     notificationRole: null,
+    lastFetchedAdminSummary: null,
+    lastFetchedVendors: null,
+    lastFetchedComplaints: null,
     visitors: [],
     vehicles: [],
     offices: [],
@@ -366,8 +390,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   loadAdminComplaints: async (params) => {
+    // Guard: skip re-fetch if data is still fresh AND no custom params are supplied
+    if (!params || Object.keys(params).length === 0) {
+      const now = Date.now();
+      const lastFetched = get().lastFetchedComplaints;
+      if (lastFetched && now - lastFetched < CACHE_TTL) return;
+    }
     const rows = await api.complaints.list(params);
-    set({ complaintTickets: rows });
+    set({ complaintTickets: rows, lastFetchedComplaints: Date.now() });
   },
 
   createTenantComplaint: async (payload) => {

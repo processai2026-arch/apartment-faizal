@@ -46,7 +46,7 @@ class AdminUserController extends ResourceController
                 'name' => trim((string) $data['name']),
                 'email' => $email,
                 'phone' => $phone,
-                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'password_hash' => password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]),
                 'role' => $role,
                 'office_id' => $role === 'tenant' && !empty($data['officeId']) ? (int) $data['officeId'] : null,
                 'status' => 'active',
@@ -105,7 +105,7 @@ class AdminUserController extends ResourceController
                 throw new AppException('Password must be at least 8 characters', 422);
             }
             $fields[] = 'password_hash = :password_hash';
-            $params['password_hash'] = password_hash((string) $data['password'], PASSWORD_DEFAULT);
+            $params['password_hash'] = password_hash((string) $data['password'], PASSWORD_BCRYPT, ['cost' => 12]);
         }
 
         if (!$fields) {

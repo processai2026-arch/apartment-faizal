@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Users, Package, CreditCard, User, Bell, CheckCircle, XCircle,
   Clock, Home, Phone, Mail, Calendar, FileText, AlertCircle,
-  ChevronRight, Plus, Eye
+  ChevronRight, Plus, Eye, LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import StatCard from '@/components/features/StatCard';
 import StatusBadge from '@/components/features/StatusBadge';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -44,6 +45,7 @@ type Tab = 'overview' | 'approvals' | 'parcels' | 'payments' | 'profile';
 
 export default function TenantDashboard() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [pendingApprovals, setPendingApprovals] = useState(mockPendingApprovals);
 
@@ -101,6 +103,31 @@ export default function TenantDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Service Hub Banner */}
+      <div
+        className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 rounded-2xl p-5 text-white cursor-pointer hover:opacity-95 transition-opacity"
+        onClick={() => navigate('/tenant/hub')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/tenant/hub'); }}
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <LayoutGrid className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold text-base font-[Outfit]">Resident Service Hub</p>
+              <p className="text-indigo-200 text-sm mt-0.5">Complaints, maintenance, marketplace, events &amp; more in one place</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors px-4 py-2 rounded-xl text-sm font-medium flex-shrink-0">
+            Explore All Services
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between">

@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, MessageSquareWarning, UserCheck, RefreshCcw, Trash2 } from 'lucide-react';
 import StatusBadge from '@/components/features/StatusBadge';
+import WhatsAppShareButton from '@/components/features/WhatsAppShareButton';
+import { complaintUpdatePayload } from '@/lib/whatsapp';
 import DataTable, { NameCell, type Column } from '@/components/features/DataTable';
 import TableToolbar from '@/components/features/TableToolbar';
 import SearchInput from '@/components/features/SearchInput';
@@ -185,6 +187,18 @@ export default function AdminComplaints() {
               <StatusBadge status={selected.priority} size="sm" />
               <StatusBadge status={selected.status} />
               <span className="text-xs text-slate-400">{selected.category}</span>
+              <div className="ml-auto">
+                <WhatsAppShareButton
+                  size="sm"
+                  variant="outline"
+                  payload={complaintUpdatePayload({
+                    ticketId: selected.id,
+                    subject: selected.subject,
+                    status: selected.status,
+                    remarks: remarks || undefined,
+                  })}
+                />
+              </div>
             </div>
             <p className="text-sm text-slate-700 mb-6">{selected.description}</p>
 

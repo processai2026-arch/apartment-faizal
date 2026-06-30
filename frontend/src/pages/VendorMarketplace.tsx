@@ -9,6 +9,8 @@ import StatusBadge from '@/components/features/StatusBadge';
 import VendorCard from '@/components/features/VendorCard';
 import StarRating from '@/components/features/StarRating';
 import ReviewDialog from '@/components/features/ReviewDialog';
+import WhatsAppShareButton from '@/components/features/WhatsAppShareButton';
+import { vendorRecommendationPayload } from '@/lib/whatsapp';
 import { useVendorMarketplaceStore } from '@/stores/useVendorMarketplaceStore';
 import type { MarketplaceVendor, VendorBooking } from '@/types';
 
@@ -133,7 +135,20 @@ export default function VendorMarketplace() {
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {featured.map((v) => (
-                  <VendorCard key={v.id} vendor={v} isFavorite={isFavorite(v.id)} onToggleFavorite={toggleFavorite} onClick={open} />
+                  <div key={v.id} className="relative group/wa">
+                    <VendorCard vendor={v} isFavorite={isFavorite(v.id)} onToggleFavorite={toggleFavorite} onClick={open} />
+                    <div className="absolute bottom-3 left-3 opacity-0 group-hover/wa:opacity-100 transition-opacity">
+                      <WhatsAppShareButton
+                        size="sm"
+                        variant="default"
+                        payload={vendorRecommendationPayload({
+                          vendorName: v.name,
+                          serviceType: v.serviceType,
+                          contact: v.contact,
+                        })}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -152,7 +167,20 @@ export default function VendorMarketplace() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {vendors.map((v) => (
-                  <VendorCard key={v.id} vendor={v} isFavorite={isFavorite(v.id)} onToggleFavorite={toggleFavorite} onClick={open} />
+                  <div key={v.id} className="relative group/wa">
+                    <VendorCard vendor={v} isFavorite={isFavorite(v.id)} onToggleFavorite={toggleFavorite} onClick={open} />
+                    <div className="absolute bottom-3 left-3 opacity-0 group-hover/wa:opacity-100 transition-opacity">
+                      <WhatsAppShareButton
+                        size="sm"
+                        variant="default"
+                        payload={vendorRecommendationPayload({
+                          vendorName: v.name,
+                          serviceType: v.serviceType,
+                          contact: v.contact,
+                        })}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

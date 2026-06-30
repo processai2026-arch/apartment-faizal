@@ -75,6 +75,12 @@ abstract class CrudModel
         return $row;
     }
 
+    public static function count(array $params = []): int
+    {
+        [$where, $queryParams] = static::filters(new Request([], $params));
+        return (int)(Database::fetch('SELECT COUNT(*) AS total FROM ' . static::$table . " {$where}", $queryParams)['total'] ?? 0);
+    }
+
     protected static function filters(Request $request): array
     {
         $where = ['deleted_at IS NULL'];

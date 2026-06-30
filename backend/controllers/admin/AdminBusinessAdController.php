@@ -147,4 +147,278 @@ class AdminBusinessAdController
         BusinessCategory::softDelete((int) $request->params['id']);
         Response::success([], 'Category deleted');
     }
+
+    // ── Analytics (P23) ──────────────────────────────────────────────────────
+
+    public function analytics(Request $request): void
+    {
+        $stats = Database::fetch(
+            "SELECT
+               COUNT(*) AS total_ads,
+               COALESCE(SUM(CASE WHEN status='Active' THEN 1 ELSE 0 END), 0) AS active_ads,
+               COALESCE(SUM(impressions), 0) AS total_impressions,
+               COALESCE(SUM(clicks), 0) AS total_clicks,
+               COALESCE(AVG(CASE WHEN impressions > 0 THEN ctr END), 0) AS avg_ctr
+             FROM business_ads WHERE deleted_at IS NULL"
+        );
+
+        $topClicked = Database::fetchAll(
+            'SELECT id, business_name AS title, clicks, ctr FROM business_ads
+             WHERE deleted_at IS NULL ORDER BY clicks DESC LIMIT 5'
+        );
+
+        $topViewed = Database::fetchAll(
+            'SELECT id, business_name AS title, impressions FROM business_ads
+             WHERE deleted_at IS NULL ORDER BY impressions DESC LIMIT 5'
+        );
+
+        $monthlyImpressions = Database::fetchAll(
+            "SELECT strftime('%Y-%m', created_at) AS month, COALESCE(SUM(impressions), 0) AS count
+             FROM business_ads
+             WHERE deleted_at IS NULL
+               AND created_at >= date('now', '-6 months')
+             GROUP BY strftime('%Y-%m', created_at)
+             ORDER BY month ASC"
+        );
+
+        $activeVsExpired = Database::fetch(
+            "SELECT
+               COALESCE(SUM(CASE WHEN status='Active' THEN 1 ELSE 0 END), 0) AS active,
+               COALESCE(SUM(CASE WHEN status='Expired' THEN 1 ELSE 0 END), 0) AS expired
+             FROM business_ads WHERE deleted_at IS NULL"
+        );
+
+        $revenueSummary = AdBilling::getStats();
+
+        Response::success([
+            'total_ads'           => (int) ($stats['total_ads'] ?? 0),
+            'active_ads'          => (int) ($stats['active_ads'] ?? 0),
+            'total_impressions'   => (int) ($stats['total_impressions'] ?? 0),
+            'total_clicks'        => (int) ($stats['total_clicks'] ?? 0),
+            'avg_ctr'             => round((float) ($stats['avg_ctr'] ?? 0), 2),
+            'top_clicked'         => $topClicked,
+            'top_viewed'          => $topViewed,
+            'monthly_impressions' => $monthlyImpressions,
+            'active_vs_expired'   => $activeVsExpired,
+            'revenue_summary'     => $revenueSummary,
+        ]);
+    }
+
+    public function trackImpression(Request $request): void
+    {
+        $id = (int) $request->params['id'];
+        $ad = BusinessAd::find($id);
+        if (!$ad) {
+            throw new AppException('Ad not found', 404);
+        }
+        $newImpressions = (int) $ad['impressions'] + 1;
+        $clicks = (int) $ad['clicks'];
+        $newCtr = $newImpressions > 0 ? round(($clicks / $newImpressions) * 100, 2) : 0;
+        Database::query(
+            'UPDATE business_ads SET impressions = :imp, ctr = :ctr, updated_at = :now WHERE id = :id',
+            ['imp' => $newImpressions, 'ctr' => $newCtr, 'now' => db_time(), 'id' => $id]
+        );
+        Response::success(['impressions' => $newImpressions, 'ctr' => $newCtr]);
+    }
+
+    // ── Packages (P23) ───────────────────────────────────────────────────────
+
+    public function packages(Request $request): void
+    {
+        $rows = AdPackage::getActive();
+        Response::success($rows);
+    }
+
+    public function createPackage(Request $request): void
+    {
+        Validator::require($request->all(), ['name', 'price']);
+        $features = $request->input('features');
+        $pkg = AdPackage::create([
+            'name'            => $request->input('name'),
+            'description'     => $request->input('description') ?: null,
+            'price'           => (float) $request->input('price'),
+            'duration_days'   => $request->input('duration_days') ? (int) $request->input('duration_days') : 30,
+            'max_impressions' => $request->input('max_impressions') ? (int) $request->input('max_impressions') : 0,
+            'features'        => is_array($features) ? json_encode($features) : ($features ?: '[]'),
+            'is_active'       => 1,
+            'sort_order'      => $request->input('sort_order') ? (int) $request->input('sort_order') : 0,
+        ]);
+        AuditService::log((int) $request->user['id'], 'ad_package.create', 'ad_package', (int) $pkg['id']);
+        Response::success($pkg, 'Package created', 201);
+    }
+
+    public function updatePackage(Request $request): void
+    {
+        $id = (int) $request->params['id'];
+        $features = $request->input('features');
+        $data = array_filter([
+            'name'            => $request->input('name'),
+            'description'     => $request->input('description'),
+            'price'           => $request->input('price') !== null ? (float) $request->input('price') : null,
+            'duration_days'   => $request->input('duration_days') !== null ? (int) $request->input('duration_days') : null,
+            'max_impressions' => $request->input('max_impressions') !== null ? (int) $request->input('max_impressions') : null,
+            'features'        => $features !== null ? (is_array($features) ? json_encode($features) : $features) : null,
+            'is_active'       => $request->input('is_active') !== null ? (int) (bool) $request->input('is_active') : null,
+            'sort_order'      => $request->input('sort_order') !== null ? (int) $request->input('sort_order') : null,
+        ], fn ($v) => $v !== null);
+        $pkg = AdPackage::update($id, $data);
+        AuditService::log((int) $request->user['id'], 'ad_package.update', 'ad_package', $id);
+        Response::success($pkg, 'Package updated');
+    }
+
+    public function destroyPackage(Request $request): void
+    {
+        $id = (int) $request->params['id'];
+        Database::query('DELETE FROM ad_packages WHERE id = :id', ['id' => $id]);
+        AuditService::log((int) $request->user['id'], 'ad_package.delete', 'ad_package', $id);
+        Response::success([], 'Package deleted');
+    }
+
+    // ── Billing (P23) ────────────────────────────────────────────────────────
+
+    public function billing(Request $request): void
+    {
+        $rows = Database::fetchAll(
+            "SELECT ab.*, ba.business_name, ap.name AS package_name
+             FROM ad_billing ab
+             JOIN business_ads ba ON ba.id = ab.ad_id
+             LEFT JOIN ad_packages ap ON ap.id = ab.package_id
+             ORDER BY ab.id DESC
+             LIMIT 200"
+        );
+        $mapped = array_map(function (array $row): array {
+            $row['id']               = (int) $row['id'];
+            $row['ad_id']            = (int) $row['ad_id'];
+            $row['package_id']       = $row['package_id'] !== null ? (int) $row['package_id'] : null;
+            $row['amount']           = (float) $row['amount'];
+            $row['renewal_reminded'] = (int) ($row['renewal_reminded'] ?? 0) === 1;
+            return $row;
+        }, $rows);
+        Response::success($mapped);
+    }
+
+    public function createBilling(Request $request): void
+    {
+        Validator::require($request->all(), ['ad_id', 'amount']);
+        $adId = (int) $request->input('ad_id');
+        $ad   = BusinessAd::find($adId);
+        if (!$ad) {
+            throw new AppException('Ad not found', 404);
+        }
+        $record = AdBilling::create([
+            'ad_id'          => $adId,
+            'package_id'     => $request->input('package_id') ? (int) $request->input('package_id') : null,
+            'amount'         => (float) $request->input('amount'),
+            'billing_status' => 'Pending',
+            'due_date'       => $request->input('due_date') ?: null,
+            'payment_ref'    => $request->input('payment_ref') ?: null,
+            'notes'          => $request->input('notes') ?: null,
+        ]);
+        AuditService::log((int) $request->user['id'], 'ad_billing.create', 'ad_billing', (int) $record['id']);
+        Response::success($record, 'Billing record created', 201);
+    }
+
+    public function payBilling(Request $request): void
+    {
+        $id = (int) $request->params['id'];
+        $row = Database::fetch('SELECT * FROM ad_billing WHERE id = :id LIMIT 1', ['id' => $id]);
+        if (!$row) {
+            throw new AppException('Billing record not found', 404);
+        }
+        Database::query(
+            "UPDATE ad_billing SET billing_status = 'Paid', paid_at = :now, payment_ref = :ref, updated_at = :now WHERE id = :id",
+            [
+                'now' => db_time(),
+                'ref' => $request->input('payment_ref') ?: ($row['payment_ref'] ?? null),
+                'id'  => $id,
+            ]
+        );
+        $updated = Database::fetch('SELECT * FROM ad_billing WHERE id = :id LIMIT 1', ['id' => $id]);
+        AuditService::log((int) $request->user['id'], 'ad_billing.pay', 'ad_billing', $id);
+        Response::success($updated, 'Billing marked as paid');
+    }
+
+    public function billingSummary(Request $request): void
+    {
+        $stats = AdBilling::getStats();
+        $byStatus = Database::fetchAll(
+            "SELECT billing_status AS status, COUNT(*) AS count, COALESCE(SUM(amount), 0) AS total
+             FROM ad_billing GROUP BY billing_status"
+        );
+        Response::success(array_merge($stats, ['by_status' => $byStatus]));
+    }
+
+    public function sendRenewalReminder(Request $request): void
+    {
+        $id = (int) $request->params['id'];
+        $ad = BusinessAd::find($id);
+        if (!$ad) {
+            throw new AppException('Ad not found', 404);
+        }
+
+        // Mark renewal notified on the ad
+        Database::query(
+            'UPDATE business_ads SET renewal_notified = 1, updated_at = :now WHERE id = :id',
+            ['now' => db_time(), 'id' => $id]
+        );
+
+        // Find the ad owner via billing or look up user
+        $ownerRow = Database::fetch(
+            "SELECT u.id FROM users u
+             WHERE u.role = 'admin' AND u.deleted_at IS NULL AND u.status = 'active'
+             ORDER BY u.id ASC LIMIT 1"
+        );
+        if ($ownerRow) {
+            NotificationService::createForUsers([(int) $ownerRow['id']], [
+                'title'          => 'Ad Renewal Reminder',
+                'message'        => "Business ad \"{$ad['business_name']}\" is due for renewal.",
+                'type'           => 'System Notification',
+                'category'       => 'ad_renewal',
+                'priority'       => 'Medium',
+                'reference_type' => 'business_ad',
+                'reference_id'   => $id,
+                'created_by'     => (int) $request->user['id'],
+            ]);
+        }
+
+        AuditService::log((int) $request->user['id'], 'business_ad.renewal_reminder', 'business_ad', $id);
+        Response::success(['reminded' => true], 'Renewal reminder sent');
+    }
+
+    public function exportReport(Request $request): void
+    {
+        $rows = Database::fetchAll(
+            "SELECT
+               ba.id,
+               ba.business_name,
+               ba.status,
+               ba.impressions,
+               ba.clicks,
+               ba.ctr,
+               ba.is_featured,
+               ba.expires_at,
+               ba.created_at,
+               ab.billing_status,
+               ab.amount AS billing_amount,
+               ab.due_date AS billing_due_date,
+               ab.paid_at,
+               ap.name AS package_name
+             FROM business_ads ba
+             LEFT JOIN ad_billing ab ON ab.id = (
+               SELECT id FROM ad_billing WHERE ad_id = ba.id ORDER BY id DESC LIMIT 1
+             )
+             LEFT JOIN ad_packages ap ON ap.id = ab.package_id
+             WHERE ba.deleted_at IS NULL
+             ORDER BY ba.id DESC"
+        );
+        $mapped = array_map(function (array $row): array {
+            $row['impressions']      = (int) ($row['impressions'] ?? 0);
+            $row['clicks']           = (int) ($row['clicks'] ?? 0);
+            $row['ctr']              = (float) ($row['ctr'] ?? 0);
+            $row['is_featured']      = (int) ($row['is_featured'] ?? 0) === 1;
+            $row['billing_amount']   = (float) ($row['billing_amount'] ?? 0);
+            return $row;
+        }, $rows);
+        Response::success($mapped);
+    }
 }

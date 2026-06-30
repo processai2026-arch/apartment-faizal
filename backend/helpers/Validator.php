@@ -72,4 +72,58 @@ class Validator
         }
         return $value;
     }
+
+    /**
+     * Strip HTML tags and encode special characters to prevent XSS in stored text.
+     */
+    public static function sanitizeString(string $value): string
+    {
+        return htmlspecialchars(strip_tags($value), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    /**
+     * Validate email format (returns bool, does not throw).
+     */
+    public static function validateEmail(string $email): bool
+    {
+        return (bool) filter_var($email, FILTER_VALIDATE_EMAIL);
+    }
+
+    /**
+     * Validate phone number (7-15 digits, optional leading +). Returns bool.
+     */
+    public static function validatePhone(string $phone): bool
+    {
+        return (bool) preg_match('/^\+?[0-9]{7,15}$/', preg_replace('/\s+/', '', $phone));
+    }
+
+    /**
+     * Validate URL: must be http or https. Returns bool.
+     */
+    public static function validateUrl(string $url): bool
+    {
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        return in_array($scheme, ['http', 'https'], true);
+    }
+
+    /**
+     * Enforce a maximum string length. Throws AppException if exceeded.
+     */
+    public static function maxLength(string $value, int $max, string $field): void
+    {
+        if (mb_strlen($value, 'UTF-8') > $max) {
+            throw new AppException("{$field} must not exceed {$max} characters", 422, [$field => "Max {$max} characters"]);
+        }
+    }
+
+    /**
+     * Validate uploaded file MIME type against an allowed list. Returns bool.
+     */
+    public static function validateFileType(string $mimeType, array $allowedTypes): bool
+    {
+        return in_array($mimeType, $allowedTypes, true);
+    }
 }

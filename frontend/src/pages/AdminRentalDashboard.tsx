@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import SearchInput from '@/components/features/SearchInput';
 import StatusBadge from '@/components/features/StatusBadge';
 import EmptyState from '@/components/features/EmptyState';
+import WhatsAppShareButton from '@/components/features/WhatsAppShareButton';
+import { rentalListingPayload } from '@/lib/whatsapp';
 import { useRentalStore } from '@/stores/useRentalStore';
 import type { RentalListing } from '@/types';
 
@@ -168,6 +170,16 @@ export default function AdminRentalDashboard() {
                           <button onClick={() => handleFeature(l.id, l.featured)} className={cn('rounded-lg p-1.5 transition-colors', l.featured ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500 hover:bg-amber-50 hover:text-amber-600 dark:bg-slate-700')}>
                             <Star className={cn('h-3.5 w-3.5', l.featured && 'fill-amber-500')} />
                           </button>
+                          <WhatsAppShareButton
+                            size="sm"
+                            variant="ghost"
+                            payload={rentalListingPayload({
+                              title: l.title,
+                              rent: l.price ?? 0,
+                              location: l.propertyType,
+                              listingUrl: undefined,
+                            })}
+                          />
                           <button onClick={() => handleDelete(l.id)} className="rounded-lg bg-slate-100 p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:bg-slate-700"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                       </td>

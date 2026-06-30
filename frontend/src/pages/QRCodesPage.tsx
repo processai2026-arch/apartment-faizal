@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { QrCode, UserPlus, LogOut, Car, CarFront, Copy, Check, ExternalLink, Smartphone, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { QrCode, UserPlus, LogOut, Car, CarFront, Copy, Check, ExternalLink, Smartphone, RefreshCw, BadgeCheck, ArrowRight } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 
@@ -82,6 +83,27 @@ export default function QRCodesPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
+      {/* ── Visitor Passes (P17) Quick-link banner ───────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
+          <BadgeCheck className="w-5 h-5 text-indigo-600" />
+        </div>
+        <div className="flex-1">
+          <h2 className="font-semibold font-[Outfit] text-slate-900 text-base">Smart QR Visitor Passes</h2>
+          <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+            Issue QR-based visitor passes for guests, deliveries, workers and recurring visitors.
+            Each pass generates a unique scannable QR code that can be shared via WhatsApp.
+          </p>
+        </div>
+        <Link
+          to="/visitor-passes"
+          className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors flex-shrink-0"
+        >
+          Manage Passes
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+
       {/* Info Banner */}
       <div className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-5 text-white">
         <div className="flex items-start gap-4">

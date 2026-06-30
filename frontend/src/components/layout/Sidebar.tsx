@@ -6,7 +6,8 @@ import {
   LayoutDashboard, Building2, UserPlus, UserCheck, Car, CarFront,
   Users, Wrench, HardHat, Package, Droplets, Wallet, BarChart3,
   ChevronLeft, ShieldCheck, QrCode, Settings, Bell, User, Home, UserCog, MessageSquareWarning, Store,
-  Megaphone, ShieldAlert, Briefcase
+  Megaphone, ShieldAlert, Briefcase, ClipboardList, MessageCircle, BadgeCheck, TrendingUp, CalendarDays,
+  LayoutGrid, Camera, Crown, BarChart2, CreditCard
 } from 'lucide-react';
 
 interface NavItem {
@@ -33,6 +34,8 @@ const adminNavItems: NavGroup[] = [
     { to: '/vehicles/entry', label: 'Vehicle Registry', icon: Car },
     { to: '/vehicles/checkout', label: 'Check-Out Vehicle', icon: CarFront, badge: 'vehicle' },
     { to: '/visitors/manage', label: 'Visitor Management', icon: Users },
+    { to: '/visitor-passes', label: 'Visitor Passes', icon: BadgeCheck },
+    { to: '/cameras', label: 'CCTV Management', icon: Camera },
   ]},
   { group: 'Operations', items: [
     { to: '/vendors', label: 'Vendor Management', icon: Wrench },
@@ -47,11 +50,16 @@ const adminNavItems: NavGroup[] = [
   { group: 'Community', items: [
     { to: '/rental', label: 'Rental Marketplace', icon: Home },
     { to: '/business-ads', label: 'Business Ads', icon: Briefcase },
+    { to: '/ad-billing', label: 'Ad Billing', icon: BarChart2 },
     { to: '/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
     { to: '/daily-workers', label: 'Daily Workers', icon: Users },
+    { to: '/events', label: 'Community Events', icon: CalendarDays },
   ]},
   { group: 'Analytics', items: [
+    { to: '/analytics', label: 'Community Analytics', icon: TrendingUp },
+    { to: '/payments', label: 'Payment Dashboard', icon: CreditCard },
+    { to: '/subscriptions', label: 'Subscriptions', icon: Crown },
     { to: '/reports', label: 'Reports', icon: BarChart3 },
   ]},
   { group: 'QR & Access', items: [
@@ -59,12 +67,15 @@ const adminNavItems: NavGroup[] = [
     { to: '/notifications', label: 'Notification Center', icon: Bell },
   ]},
   { group: 'Settings', items: [
+    { to: '/secretary-management', label: 'Secretary Management', icon: UserCog },
+    { to: '/whatsapp', label: 'WhatsApp Hub', icon: MessageCircle },
     { to: '/settings', label: 'UI Settings', icon: Settings },
   ]},
 ];
 
 const tenantNavItems: NavGroup[] = [
   { group: 'Main', items: [
+    { to: '/tenant/hub', label: 'Service Hub', icon: LayoutGrid },
     { to: '/tenant', label: 'Dashboard', icon: Home },
     { to: '/tenant/complaints', label: 'Complaints', icon: MessageSquareWarning },
     { to: '/tenant/maintenance', label: 'Maintenance', icon: Wrench },
@@ -76,12 +87,42 @@ const tenantNavItems: NavGroup[] = [
     { to: '/tenant/business-ads', label: 'Local Businesses', icon: Briefcase },
     { to: '/tenant/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/tenant/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
+    { to: '/tenant/events', label: 'Events', icon: CalendarDays },
   ]},
   { group: 'Account', items: [
     { to: '/tenant/profile', label: 'My Profile', icon: User },
+    { to: '/tenant/subscription', label: 'My Plan', icon: Crown },
     { to: '/tenant/change-password', label: 'Change Password', icon: Settings },
   ]},
 ];
+
+const MODULE_LINKS: Record<string, string> = {
+  complaints: '/complaints',
+  maintenance: '/maintenance',
+  visitors: '/visitors/manage',
+  vendors: '/vendor-marketplace',
+  rentals: '/rental',
+  announcements: '/announcements',
+  emergency_contacts: '/emergency-contacts',
+  daily_workers: '/daily-workers',
+  reports: '/reports',
+  payments: '/financials',
+  occupancy: '/offices',
+};
+
+const MODULE_LABELS: Record<string, string> = {
+  complaints: 'Complaint Mgmt',
+  maintenance: 'Maintenance',
+  visitors: 'Visitors',
+  vendors: 'Vendors',
+  rentals: 'Rental Marketplace',
+  announcements: 'Announcements',
+  emergency_contacts: 'Emergency Contacts',
+  daily_workers: 'Daily Workers',
+  reports: 'Reports',
+  payments: 'Financials',
+  occupancy: 'Offices',
+};
 
 export default function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, visitors, vehicles, unreadCount } = useAppStore();
@@ -102,7 +143,31 @@ export default function Sidebar() {
     return null;
   }
 
-  const navItems = user?.role === 'tenant' ? tenantNavItems : adminNavItems;
+  const isSecretary = user?.role === 'admin' && user?.isSecretary === true;
+  const secretaryModules: string[] = user?.secretaryPermissions ?? [];
+
+  let navItems: NavGroup[];
+  if (user?.role === 'tenant') {
+    navItems = tenantNavItems;
+  } else if (isSecretary) {
+    // Secretary admin: show secretary group first, then all admin nav
+    const secretaryGroup: NavGroup = {
+      group: 'Secretary',
+      items: [
+        { to: '/secretary', label: 'Secretary Dashboard', icon: ClipboardList },
+        ...secretaryModules
+          .filter((mod) => MODULE_LINKS[mod])
+          .map((mod) => ({
+            to: MODULE_LINKS[mod],
+            label: MODULE_LABELS[mod] ?? mod,
+            icon: ClipboardList,
+          })),
+      ],
+    };
+    navItems = [secretaryGroup, ...adminNavItems];
+  } else {
+    navItems = adminNavItems;
+  }
 
   return (
     <>
@@ -137,6 +202,11 @@ export default function Sidebar() {
               <span className="rounded-lg bg-indigo-500/20 px-2 py-1 text-xs font-medium capitalize text-indigo-400">
                 {user.role}
               </span>
+              {isSecretary && (
+                <span className="rounded-lg bg-purple-500/20 px-2 py-1 text-xs font-medium text-purple-400">
+                  Secretary
+                </span>
+              )}
             </div>
           </div>
         )}

@@ -8,6 +8,8 @@ export interface User {
   name: string;
   role: UserRole;
   createdAt: string;
+  isSecretary?: boolean;
+  secretaryPermissions?: string[];  // list of modules they can access
 }
 
 // A user account managed by the admin (security / tenant logins)
