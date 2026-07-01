@@ -22,22 +22,16 @@ export default defineConfig({
     chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core React runtime
-          "react-vendor": ["react", "react-dom", "react-router-dom"],
-          // Radix UI component library
-          "ui-vendor": [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-select",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-dropdown-menu",
-          ],
-          // Charting — chart.js is large (~180 KB), isolate it
-          "chart-vendor": ["chart.js"],
-          // React Query
-          "query-vendor": ["@tanstack/react-query"],
-          // State management
-          "zustand-vendor": ["zustand"],
+        // Function form (rolldown-compatible across both `npm run build` and the
+        // `--outDir` deploy path; the object form fails validation under --outDir).
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router-dom|react-router)[\\/]/.test(id)) return "react-vendor";
+          if (/[\\/]node_modules[\\/]@radix-ui[\\/]/.test(id)) return "ui-vendor";
+          if (/[\\/]node_modules[\\/]chart\.js[\\/]/.test(id)) return "chart-vendor";
+          if (/[\\/]node_modules[\\/]@tanstack[\\/]/.test(id)) return "query-vendor";
+          if (/[\\/]node_modules[\\/]zustand[\\/]/.test(id)) return "zustand-vendor";
+          return undefined;
         },
       },
     },

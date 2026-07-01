@@ -821,4 +821,347 @@ CREATE TABLE IF NOT EXISTS worker_visits (
   CONSTRAINT fk_worker_visits_worker FOREIGN KEY (worker_id) REFERENCES daily_workers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+-- ===== P15-P28 tables (notifications, secretary, passes, events, cctv, premium, ad billing, payments) =====
+-- ── 006: notifications ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS notifications (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(190) NOT NULL,
+  message TEXT NOT NULL,
+  type VARCHAR(64) NOT NULL,
+  category VARCHAR(64) NOT NULL,
+  priority ENUM('Low','Medium','High','Emergency') NOT NULL DEFAULT 'Medium',
+  is_read TINYINT(1) NOT NULL DEFAULT 0,
+  action_url VARCHAR(255) NULL,
+  reference_type VARCHAR(64) NULL,
+  reference_id BIGINT UNSIGNED NULL,
+  created_by BIGINT UNSIGNED NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_notifications_user_id (user_id),
+  KEY idx_notifications_is_read (is_read),
+  KEY idx_notifications_category (category),
+  KEY idx_notifications_created_at (created_at),
+  KEY idx_notifications_deleted_at (deleted_at),
+  CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_notifications_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 014: secretary permissions ──────────────────────────────────────────────
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_secretary TINYINT(1) NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS secretary_permissions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  module VARCHAR(64) NOT NULL,
+  can_view TINYINT(1) NOT NULL DEFAULT 1,
+  can_edit TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_secretary_perm (user_id, module),
+  KEY idx_secretary_permissions_user (user_id),
+  CONSTRAINT fk_secretary_perm_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 015: visitor passes ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS visitor_passes (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  pass_code VARCHAR(64) NOT NULL,
+  pass_type VARCHAR(32) NOT NULL,
+  visitor_name VARCHAR(190) NOT NULL,
+  visitor_phone VARCHAR(32) NULL,
+  host_name VARCHAR(190) NULL,
+  host_office_id BIGINT UNSIGNED NULL,
+  purpose TEXT NULL,
+  valid_from DATETIME NOT NULL,
+  valid_until DATETIME NOT NULL,
+  max_uses INT NOT NULL DEFAULT 1,
+  used_count INT NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'Active',
+  qr_payload TEXT NOT NULL,
+  created_by BIGINT UNSIGNED NULL,
+  shared_via VARCHAR(64) NULL,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_visitor_pass_code (pass_code),
+  KEY idx_visitor_passes_status (status),
+  KEY idx_visitor_passes_valid_until (valid_until)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS visitor_pass_scans (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  pass_id BIGINT UNSIGNED NOT NULL,
+  scanned_at DATETIME NOT NULL,
+  scanned_by BIGINT UNSIGNED NULL,
+  action VARCHAR(32) NOT NULL DEFAULT 'entry',
+  notes TEXT NULL,
+  PRIMARY KEY (id),
+  KEY idx_pass_scans_pass (pass_id),
+  CONSTRAINT fk_pass_scans_pass FOREIGN KEY (pass_id) REFERENCES visitor_passes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 016: community events ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS community_events (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  title VARCHAR(190) NOT NULL,
+  description TEXT NULL,
+  location VARCHAR(255) NULL,
+  organizer VARCHAR(190) NULL,
+  event_date DATE NOT NULL,
+  event_time VARCHAR(8) NULL,
+  image_attachment_id BIGINT UNSIGNED NULL,
+  attachment_id BIGINT UNSIGNED NULL,
+  capacity INT NOT NULL DEFAULT 0,
+  registration_required TINYINT(1) NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'Draft',
+  created_by BIGINT UNSIGNED NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_community_events_date (event_date),
+  KEY idx_community_events_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS event_registrations (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  event_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NULL,
+  name VARCHAR(190) NOT NULL,
+  phone VARCHAR(32) NULL,
+  email VARCHAR(190) NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'Registered',
+  registered_at DATETIME NOT NULL,
+  notes TEXT NULL,
+  PRIMARY KEY (id),
+  KEY idx_event_registrations_event (event_id),
+  KEY idx_event_registrations_user (user_id),
+  UNIQUE KEY idx_event_reg_unique (event_id, user_id),
+  CONSTRAINT fk_event_reg_event FOREIGN KEY (event_id) REFERENCES community_events(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 017: CCTV ───────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS camera_devices (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(190) NOT NULL,
+  location VARCHAR(255) NOT NULL,
+  zone VARCHAR(64) NULL,
+  rtsp_url VARCHAR(255) NULL,
+  ip_address VARCHAR(64) NULL,
+  port INT NULL DEFAULT 554,
+  username VARCHAR(128) NULL,
+  password_hash VARCHAR(255) NULL,
+  manufacturer VARCHAR(128) NULL,
+  model VARCHAR(128) NULL,
+  resolution VARCHAR(32) NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'Offline',
+  last_heartbeat DATETIME NULL,
+  snapshot_url VARCHAR(255) NULL,
+  is_recording TINYINT(1) NOT NULL DEFAULT 0,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_camera_devices_status (status),
+  KEY idx_camera_devices_zone (zone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS camera_events (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  camera_id BIGINT UNSIGNED NOT NULL,
+  event_type VARCHAR(64) NOT NULL,
+  severity VARCHAR(32) NOT NULL DEFAULT 'Low',
+  description TEXT NULL,
+  snapshot_id BIGINT UNSIGNED NULL,
+  metadata TEXT NULL,
+  acknowledged TINYINT(1) NOT NULL DEFAULT 0,
+  acknowledged_by BIGINT UNSIGNED NULL,
+  acknowledged_at DATETIME NULL,
+  occurred_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_camera_events_camera (camera_id),
+  KEY idx_camera_events_type (event_type),
+  KEY idx_camera_events_occurred (occurred_at),
+  CONSTRAINT fk_camera_events_camera FOREIGN KEY (camera_id) REFERENCES camera_devices(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS camera_snapshots (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  camera_id BIGINT UNSIGNED NOT NULL,
+  file_path VARCHAR(255) NULL,
+  file_url VARCHAR(255) NULL,
+  captured_at DATETIME NOT NULL,
+  `trigger` VARCHAR(32) NULL DEFAULT 'Manual',
+  event_id BIGINT UNSIGNED NULL,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_camera_snapshots_camera (camera_id),
+  KEY idx_camera_snapshots_captured (captured_at),
+  CONSTRAINT fk_camera_snapshots_camera FOREIGN KEY (camera_id) REFERENCES camera_devices(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 018: premium membership ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS subscription_plans (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(128) NOT NULL,
+  slug VARCHAR(128) NOT NULL,
+  description TEXT NULL,
+  price_monthly DECIMAL(10,2) NOT NULL DEFAULT 0,
+  price_yearly DECIMAL(10,2) NOT NULL DEFAULT 0,
+  features TEXT NULL,
+  max_listings INT NULL DEFAULT 3,
+  max_ads INT NULL DEFAULT 1,
+  analytics_access TINYINT(1) NOT NULL DEFAULT 0,
+  featured_vendor TINYINT(1) NOT NULL DEFAULT 0,
+  featured_rental TINYINT(1) NOT NULL DEFAULT 0,
+  priority_support TINYINT(1) NOT NULL DEFAULT 0,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_subscription_plan_slug (slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  plan_id BIGINT UNSIGNED NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'Active',
+  billing_cycle VARCHAR(32) NOT NULL DEFAULT 'Monthly',
+  started_at DATETIME NOT NULL,
+  expires_at DATETIME NULL,
+  cancelled_at DATETIME NULL,
+  amount_paid DECIMAL(10,2) NOT NULL DEFAULT 0,
+  payment_ref VARCHAR(128) NULL,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_subscriptions_user (user_id),
+  KEY idx_subscriptions_status (status),
+  CONSTRAINT fk_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_subscriptions_plan FOREIGN KEY (plan_id) REFERENCES subscription_plans(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS premium_features (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  feature_key VARCHAR(128) NOT NULL,
+  feature_name VARCHAR(190) NOT NULL,
+  description TEXT NULL,
+  min_plan VARCHAR(64) NOT NULL DEFAULT 'premium',
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_premium_feature_key (feature_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO subscription_plans (name, slug, description, price_monthly, price_yearly, features, max_listings, max_ads, analytics_access, featured_vendor, featured_rental, priority_support, is_active, sort_order, created_at)
+VALUES
+  ('Free', 'free', 'Basic access for all residents', 0, 0, '["3 rental listings","1 business ad","Basic notifications"]', 3, 1, 0, 0, 0, 0, 1, 1, NOW()),
+  ('Premium', 'premium', 'Enhanced access with analytics and featured listings', 299, 2999, '["Unlimited rental listings","5 business ads","Community analytics","Featured vendor profile","Priority support","Advanced reports"]', -1, 5, 1, 1, 1, 1, 1, 2, NOW()),
+  ('Enterprise', 'enterprise', 'Full platform access for property managers', 999, 9999, '["Everything in Premium","Custom branding","API access","Dedicated support","All premium features"]', -1, -1, 1, 1, 1, 1, 1, 3, NOW());
+
+INSERT IGNORE INTO premium_features (feature_key, feature_name, description, min_plan, is_active, created_at) VALUES
+  ('featured_vendor', 'Featured Vendor Profile', 'Appear at top of vendor listings', 'premium', 1, NOW()),
+  ('featured_rental', 'Featured Rental Listing', 'Highlight rental listings', 'premium', 1, NOW()),
+  ('analytics_access', 'Community Analytics', 'Access to full analytics dashboard', 'premium', 1, NOW()),
+  ('priority_ads', 'Priority Ad Placement', 'Ads shown at premium positions', 'premium', 1, NOW()),
+  ('unlimited_listings', 'Unlimited Listings', 'No cap on rental or ad listings', 'premium', 1, NOW());
+
+-- ── 019: ad billing & analytics ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ad_packages (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(128) NOT NULL,
+  description TEXT NULL,
+  price DECIMAL(10,2) NOT NULL DEFAULT 0,
+  duration_days INT NOT NULL DEFAULT 30,
+  max_impressions INT NULL DEFAULT 0,
+  features TEXT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ad_billing (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  ad_id BIGINT UNSIGNED NOT NULL,
+  package_id BIGINT UNSIGNED NULL,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  billing_status VARCHAR(32) NOT NULL DEFAULT 'Pending',
+  due_date DATETIME NULL,
+  paid_at DATETIME NULL,
+  payment_ref VARCHAR(128) NULL,
+  renewal_reminded TINYINT(1) NOT NULL DEFAULT 0,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_ad_billing_ad (ad_id),
+  KEY idx_ad_billing_status (billing_status),
+  CONSTRAINT fk_ad_billing_ad FOREIGN KEY (ad_id) REFERENCES business_ads(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ad_billing_package FOREIGN KEY (package_id) REFERENCES ad_packages(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE business_ads ADD COLUMN IF NOT EXISTS impressions INT NOT NULL DEFAULT 0;
+ALTER TABLE business_ads ADD COLUMN IF NOT EXISTS clicks INT NOT NULL DEFAULT 0;
+ALTER TABLE business_ads ADD COLUMN IF NOT EXISTS ctr DECIMAL(6,2) NOT NULL DEFAULT 0;
+ALTER TABLE business_ads ADD COLUMN IF NOT EXISTS is_featured TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE business_ads ADD COLUMN IF NOT EXISTS package_id BIGINT UNSIGNED NULL;
+ALTER TABLE business_ads ADD COLUMN IF NOT EXISTS expires_at_billing DATETIME NULL;
+ALTER TABLE business_ads ADD COLUMN IF NOT EXISTS renewal_notified TINYINT(1) NOT NULL DEFAULT 0;
+
+INSERT IGNORE INTO ad_packages (name, description, price, duration_days, max_impressions, features, is_active, sort_order, created_at) VALUES
+  ('Basic', 'Standard listing for 30 days', 499, 30, 0, '["30-day listing","Standard placement","Click tracking"]', 1, 1, NOW()),
+  ('Standard', 'Enhanced listing with impressions tracking', 999, 60, 10000, '["60-day listing","Enhanced placement","Impressions & CTR analytics","Email report"]', 1, 2, NOW()),
+  ('Premium', 'Featured placement with full analytics', 1999, 90, 0, '["90-day listing","Featured badge","Top placement","Full analytics","Renewal reminder"]', 1, 3, NOW()),
+  ('Featured', 'Maximum visibility sponsorship', 4999, 180, 0, '["180-day listing","Sponsored badge","Homepage banner","All analytics","Priority support","Custom design"]', 1, 4, NOW());
+
+-- ── 020: razorpay payments ──────────────────────────────────────────────────
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(128) NULL;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(128) NULL;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS razorpay_signature VARCHAR(255) NULL;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_method VARCHAR(64) NULL;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_gateway_status VARCHAR(64) NULL;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_initiated_at DATETIME NULL;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS payment_completed_at DATETIME NULL;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS refund_id VARCHAR(128) NULL;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS refund_status VARCHAR(32) NULL DEFAULT 'None';
+
+CREATE TABLE IF NOT EXISTS payment_transactions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  invoice_id BIGINT UNSIGNED NOT NULL,
+  razorpay_order_id VARCHAR(128) NULL,
+  razorpay_payment_id VARCHAR(128) NULL,
+  razorpay_signature VARCHAR(255) NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  currency VARCHAR(8) NOT NULL DEFAULT 'INR',
+  status VARCHAR(32) NOT NULL DEFAULT 'created',
+  payment_method VARCHAR(64) NULL,
+  error_code VARCHAR(64) NULL,
+  error_description TEXT NULL,
+  webhook_received TINYINT(1) NOT NULL DEFAULT 0,
+  metadata TEXT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_payment_transactions_invoice (invoice_id),
+  KEY idx_payment_transactions_order (razorpay_order_id),
+  KEY idx_payment_transactions_payment (razorpay_payment_id),
+  CONSTRAINT fk_payment_transactions_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

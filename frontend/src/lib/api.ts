@@ -403,7 +403,7 @@ export const api = {
     feature: (id: string, featured: boolean) =>
       request<RentalListingDto>(`/admin/rental/listings/${id}/feature`, { method: 'POST', body: JSON.stringify({ featured }) }).then(toRentalListing),
     adminDestroy: (id: string) => request<unknown>(`/admin/rental/listings/${id}`, { method: 'DELETE' }),
-    dashboard: () => request<RentalDashboard>('/admin/rental/dashboard'),
+    dashboard: () => request<Record<string, DtoValue>>('/admin/rental/dashboard').then(toRentalDashboard),
   },
 
   // ── Business Ads (P11) ────────────────────────────────────────────────────
@@ -423,7 +423,7 @@ export const api = {
     adminDestroy: (id: string) => request<unknown>(`/admin/business-ads/${id}`, { method: 'DELETE' }),
     adminStatus: (id: string, status: string) =>
       request<BusinessAdDto>(`/admin/business-ads/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) }).then(toBusinessAd),
-    dashboard: () => request<BusinessAdDashboard>('/admin/business-ads/dashboard'),
+    dashboard: () => request<Record<string, DtoValue>>('/admin/business-ads/dashboard').then(toBusinessAdDashboard),
     adminCategories: () => requestEnvelope<BusinessCategoryDto[]>('/admin/business-categories').then((e) => (e.data ?? []).map(toBusinessCategory)),
     createCategory: (payload: { name: string; slug: string; icon?: string }) =>
       request<BusinessCategoryDto>('/admin/business-categories', { method: 'POST', body: JSON.stringify(payload) }).then(toBusinessCategory),
@@ -1469,6 +1469,32 @@ function fromRentalListing(p: Partial<RentalListing>) {
   };
 }
 
+function toRentalDashboard(raw: Record<string, DtoValue>): RentalDashboard {
+  const statsRow = (raw.stats ?? {}) as Record<string, DtoValue>;
+  const listRows = (v: DtoValue): RentalListing[] =>
+    Array.isArray(v) ? (v as Record<string, DtoValue>[]).map(toRentalListing) : [];
+  return {
+    stats: {
+      total: asNumber(statsRow.total),
+      pending: asNumber(statsRow.pending),
+      active: asNumber(statsRow.active),
+      approved: asNumber(statsRow.approved),
+      rejected: asNumber(statsRow.rejected),
+      featured: asNumber(statsRow.featured),
+      totalViews: asNumber(statsRow.total_views),
+      totalFavorites: asNumber(statsRow.total_favorites),
+    },
+    byType: Array.isArray(raw.byType)
+      ? (raw.byType as Record<string, DtoValue>[]).map((r) => ({ listing_type: asString(r.listing_type), count: asNumber(r.count) }))
+      : [],
+    byProperty: Array.isArray(raw.byProperty)
+      ? (raw.byProperty as Record<string, DtoValue>[]).map((r) => ({ property_type: asString(r.property_type), count: asNumber(r.count) }))
+      : [],
+    recentPending: listRows(raw.recentPending),
+    mostViewed: listRows(raw.mostViewed),
+  };
+}
+
 // ── P11 Business Ad mappers ──────────────────────────────────────────────────
 function toBusinessAd(row: BusinessAdDto): BusinessAd {
   return {
@@ -1527,6 +1553,27 @@ function toBusinessCategory(row: BusinessCategoryDto): BusinessCategory {
     name: asString(row.name),
     slug: asString(row.slug),
     icon: asOptionalString(row.icon),
+  };
+}
+
+function toBusinessAdDashboard(raw: Record<string, DtoValue>): BusinessAdDashboard {
+  const s = (raw.stats ?? {}) as Record<string, DtoValue>;
+  return {
+    stats: {
+      total: asNumber(s.total),
+      active: asNumber(s.active),
+      pending: asNumber(s.pending),
+      expired: asNumber(s.expired),
+      featured: asNumber(s.featured),
+      totalViews: asNumber(s.total_views),
+      totalClicks: asNumber(s.total_clicks),
+    },
+    byCategory: Array.isArray(raw.byCategory)
+      ? (raw.byCategory as Record<string, DtoValue>[]).map((r) => ({ name: asString(r.name), count: asNumber(r.count) }))
+      : [],
+    mostClicked: Array.isArray(raw.mostClicked)
+      ? (raw.mostClicked as Record<string, DtoValue>[]).map(toBusinessAd)
+      : [],
   };
 }
 

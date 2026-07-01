@@ -171,10 +171,23 @@ echo "Building frontend into $DEPLOY_DOMAIN/public_html ..."
 if [ ! -d "$ROOT_DIR/frontend/node_modules" ]; then
   (cd "$ROOT_DIR/frontend" && npm ci)
 fi
-# MSYS_NO_PATHCONV/MSYS2_ARG_CONV_EXCL stop Git Bash on Windows from rewriting a
-# leading-slash value like "/api" into a Windows path (e.g. C:/Program Files/Git/api),
-# which would bake a broken API base into the build.
-(cd "$ROOT_DIR/frontend" && MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' VITE_API_BASE_URL="$API_BASE_URL" npm run build -- --outDir "$PUBLIC_HTML_DIR" --emptyOutDir)
+# Build with Vite's default outDir (frontend/dist) and copy into public_html.
+# Vite 8 / rolldown on Windows (Git Bash) ignores the `--outDir` CLI flag, so the
+# previous approach silently emitted into frontend/dist and left public_html empty.
+# MSYS_NO_PATHCONV/MSYS2_ARG_CONV_EXCL stop Git Bash from rewriting a leading-slash
+# value like "/api" into a Windows path, which would bake a broken API base in.
+DIST_DIR="$ROOT_DIR/frontend/dist"
+rm -rf "$DIST_DIR"
+(cd "$ROOT_DIR/frontend" && MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' VITE_API_BASE_URL="$API_BASE_URL" npm run build)
+
+if [ ! -f "$DIST_DIR/index.html" ]; then
+  echo "Frontend build failed: $DIST_DIR/index.html not found." >&2
+  exit 1
+fi
+
+# Clear public_html (keep nothing stale) then copy the fresh build in.
+find "$PUBLIC_HTML_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+cp -R "$DIST_DIR/." "$PUBLIC_HTML_DIR/"
 
 echo "Adding Hostinger Apache/API bridge files ..."
 mkdir -p "$PUBLIC_HTML_DIR/api"
