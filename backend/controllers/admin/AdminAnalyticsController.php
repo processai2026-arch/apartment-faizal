@@ -40,6 +40,10 @@ class AdminAnalyticsController
 
     public function complaints(Request $request): void
     {
+        $month = sql_month('created_at');
+        $ago6  = sql_months_ago(6);
+        $hours = sql_hours_between('created_at', 'updated_at');
+
         $total = (int) (Database::fetch('SELECT COUNT(*) AS n FROM complaints WHERE deleted_at IS NULL')['n'] ?? 0);
 
         $byStatus = Database::fetchAll(
@@ -51,15 +55,15 @@ class AdminAnalyticsController
         );
 
         $monthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count
+            "SELECT {$month} AS month, COUNT(*) AS count
              FROM complaints
-             WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL
+             WHERE created_at >= {$ago6} AND deleted_at IS NULL
              GROUP BY month
              ORDER BY month"
         );
 
         $avgRow = Database::fetch(
-            "SELECT AVG((julianday(updated_at) - julianday(created_at)) * 24) AS avg_hours
+            "SELECT AVG({$hours}) AS avg_hours
              FROM complaints
              WHERE status IN ('Resolved','Closed') AND deleted_at IS NULL"
         );
@@ -77,6 +81,10 @@ class AdminAnalyticsController
 
     public function maintenance(Request $request): void
     {
+        $month = sql_month('created_at');
+        $ago6  = sql_months_ago(6);
+        $hours = sql_hours_between('created_at', 'completed_at');
+
         $total = (int) (Database::fetch('SELECT COUNT(*) AS n FROM maintenance_requests WHERE deleted_at IS NULL')['n'] ?? 0);
 
         $pending = (int) (Database::fetch(
@@ -92,15 +100,15 @@ class AdminAnalyticsController
         );
 
         $monthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count
+            "SELECT {$month} AS month, COUNT(*) AS count
              FROM maintenance_requests
-             WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL
+             WHERE created_at >= {$ago6} AND deleted_at IS NULL
              GROUP BY month
              ORDER BY month"
         );
 
         $avgRow = Database::fetch(
-            "SELECT AVG((julianday(completed_at) - julianday(created_at)) * 24) AS avg_hours
+            "SELECT AVG({$hours}) AS avg_hours
              FROM maintenance_requests
              WHERE completed_at IS NOT NULL AND deleted_at IS NULL"
         );
@@ -119,10 +127,13 @@ class AdminAnalyticsController
 
     public function vendors(Request $request): void
     {
-        $total = (int) (Database::fetch('SELECT COUNT(*) AS n FROM marketplace_vendors WHERE deleted_at IS NULL')['n'] ?? 0);
+        $month = sql_month('created_at');
+        $ago6  = sql_months_ago(6);
+
+        $total = (int) (Database::fetch('SELECT COUNT(*) AS n FROM vendors WHERE deleted_at IS NULL')['n'] ?? 0);
 
         $avgRating = (float) (Database::fetch(
-            'SELECT COALESCE(AVG(rating_avg), 0) AS avg FROM marketplace_vendors WHERE deleted_at IS NULL'
+            'SELECT COALESCE(AVG(rating_avg), 0) AS avg FROM vendors WHERE deleted_at IS NULL'
         )['avg'] ?? 0);
 
         $totalBookings = (int) (Database::fetch(
@@ -134,12 +145,12 @@ class AdminAnalyticsController
         );
 
         $topRated = Database::fetchAll(
-            'SELECT id, name, rating_avg AS rating FROM marketplace_vendors WHERE deleted_at IS NULL ORDER BY rating_avg DESC LIMIT 5'
+            'SELECT id, name, rating_avg AS rating FROM vendors WHERE deleted_at IS NULL ORDER BY rating_avg DESC LIMIT 5'
         );
 
         $topBooked = Database::fetchAll(
             'SELECT mv.id, mv.name, COUNT(vb.id) AS booking_count
-             FROM marketplace_vendors mv
+             FROM vendors mv
              LEFT JOIN vendor_bookings vb ON vb.vendor_id = mv.id AND vb.deleted_at IS NULL
              WHERE mv.deleted_at IS NULL
              GROUP BY mv.id, mv.name
@@ -148,9 +159,9 @@ class AdminAnalyticsController
         );
 
         $monthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count
+            "SELECT {$month} AS month, COUNT(*) AS count
              FROM vendor_bookings
-             WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL
+             WHERE created_at >= {$ago6} AND deleted_at IS NULL
              GROUP BY month
              ORDER BY month"
         );
@@ -178,6 +189,9 @@ class AdminAnalyticsController
 
     public function rentals(Request $request): void
     {
+        $month = sql_month('created_at');
+        $ago6  = sql_months_ago(6);
+
         $total = (int) (Database::fetch('SELECT COUNT(*) AS n FROM rental_listings WHERE deleted_at IS NULL')['n'] ?? 0);
 
         $active = (int) (Database::fetch(
@@ -197,9 +211,9 @@ class AdminAnalyticsController
         )['avg'] ?? 0);
 
         $monthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count
+            "SELECT {$month} AS month, COUNT(*) AS count
              FROM rental_listings
-             WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL
+             WHERE created_at >= {$ago6} AND deleted_at IS NULL
              GROUP BY month
              ORDER BY month"
         );
@@ -218,24 +232,34 @@ class AdminAnalyticsController
 
     public function visitors(Request $request): void
     {
+        $entryDate  = sql_date('entry_time');
+        $curDate    = sql_current_date();
+        $entryMonth = sql_month('entry_time');
+        $monthNow   = sql_month_now();
+        $dow        = sql_dow('entry_time');
+        $ago6       = sql_months_ago(6);
+        // Week starts on Sunday; computed in PHP so it is driver-portable.
+        $weekStart  = date('Y-m-d', time() - ((int) date('w')) * 86400);
+
         $today = (int) (Database::fetch(
-            "SELECT COUNT(*) AS n FROM visitors WHERE date(entry_time) = date('now') AND deleted_at IS NULL"
+            "SELECT COUNT(*) AS n FROM visitors WHERE {$entryDate} = {$curDate} AND deleted_at IS NULL"
         )['n'] ?? 0);
 
         $thisWeek = (int) (Database::fetch(
-            "SELECT COUNT(*) AS n FROM visitors WHERE entry_time >= date('now', 'weekday 0', '-7 days') AND deleted_at IS NULL"
+            "SELECT COUNT(*) AS n FROM visitors WHERE entry_time >= :week_start AND deleted_at IS NULL",
+            ['week_start' => $weekStart]
         )['n'] ?? 0);
 
         $thisMonth = (int) (Database::fetch(
-            "SELECT COUNT(*) AS n FROM visitors WHERE strftime('%Y-%m', entry_time) = strftime('%Y-%m', 'now') AND deleted_at IS NULL"
+            "SELECT COUNT(*) AS n FROM visitors WHERE {$entryMonth} = {$monthNow} AND deleted_at IS NULL"
         )['n'] ?? 0);
 
         $byDay = Database::fetchAll(
-            "SELECT CASE CAST(strftime('%w', entry_time) AS INTEGER)
+            "SELECT CASE {$dow}
                     WHEN 0 THEN 'Sun' WHEN 1 THEN 'Mon' WHEN 2 THEN 'Tue'
                     WHEN 3 THEN 'Wed' WHEN 4 THEN 'Thu' WHEN 5 THEN 'Fri'
                     ELSE 'Sat' END AS day,
-                    CAST(strftime('%w', entry_time) AS INTEGER) AS dow,
+                    {$dow} AS dow,
                     COUNT(*) AS cnt
              FROM visitors
              WHERE deleted_at IS NULL
@@ -244,9 +268,9 @@ class AdminAnalyticsController
         );
 
         $monthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', entry_time) AS month, COUNT(*) AS count
+            "SELECT {$entryMonth} AS month, COUNT(*) AS count
              FROM visitors
-             WHERE entry_time >= date('now', '-6 months') AND deleted_at IS NULL
+             WHERE entry_time >= {$ago6} AND deleted_at IS NULL
              GROUP BY month
              ORDER BY month"
         );
@@ -274,6 +298,9 @@ class AdminAnalyticsController
 
     public function revenue(Request $request): void
     {
+        $month = sql_month('created_at');
+        $ago6  = sql_months_ago(6);
+
         $totals = Database::fetch(
             "SELECT
                 COALESCE(SUM(amount), 0)                                              AS total_invoiced,
@@ -288,11 +315,11 @@ class AdminAnalyticsController
         );
 
         $monthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month,
+            "SELECT {$month} AS month,
                     COALESCE(SUM(paid_amount), 0) AS paid,
                     COALESCE(SUM(amount - paid_amount), 0) AS pending
              FROM invoices
-             WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL
+             WHERE created_at >= {$ago6} AND deleted_at IS NULL
              GROUP BY month
              ORDER BY month"
         );
@@ -364,6 +391,18 @@ class AdminAnalyticsController
     {
         ob_start();
 
+        $month      = sql_month('created_at');
+        $entryMonth = sql_month('entry_time');
+        $monthNow   = sql_month_now();
+        $entryDate  = sql_date('entry_time');
+        $curDate    = sql_current_date();
+        $dow        = sql_dow('entry_time');
+        $ago6       = sql_months_ago(6);
+        $hoursUpd   = sql_hours_between('created_at', 'updated_at');
+        $hoursComp  = sql_hours_between('created_at', 'completed_at');
+        // Week starts on Sunday; computed in PHP so it is driver-portable.
+        $weekStartSunday = date('Y-m-d', time() - ((int) date('w')) * 86400);
+
         // occupancy
         $officeTotal    = (int) (Database::fetch('SELECT COUNT(*) AS n FROM offices WHERE deleted_at IS NULL')['n'] ?? 0);
         $officeOccupied = (int) (Database::fetch("SELECT COUNT(*) AS n FROM offices WHERE status = 'Active' AND deleted_at IS NULL")['n'] ?? 0);
@@ -379,11 +418,11 @@ class AdminAnalyticsController
         $complaintStatus  = Database::fetchAll('SELECT status, COUNT(*) AS cnt FROM complaints WHERE deleted_at IS NULL GROUP BY status');
         $complaintPrio    = Database::fetchAll('SELECT priority, COUNT(*) AS cnt FROM complaints WHERE deleted_at IS NULL GROUP BY priority');
         $complaintMonthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count FROM complaints
-             WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL GROUP BY month ORDER BY month"
+            "SELECT {$month} AS month, COUNT(*) AS count FROM complaints
+             WHERE created_at >= {$ago6} AND deleted_at IS NULL GROUP BY month ORDER BY month"
         );
         $complaintAvg = Database::fetch(
-            "SELECT AVG((julianday(updated_at) - julianday(created_at)) * 24) AS avg_hours
+            "SELECT AVG({$hoursUpd}) AS avg_hours
              FROM complaints WHERE status IN ('Resolved','Closed') AND deleted_at IS NULL"
         );
 
@@ -393,28 +432,28 @@ class AdminAnalyticsController
         $maintStatus  = Database::fetchAll('SELECT status, COUNT(*) AS cnt FROM maintenance_requests WHERE deleted_at IS NULL GROUP BY status');
         $maintType    = Database::fetchAll('SELECT category AS type, COUNT(*) AS cnt FROM maintenance_requests WHERE deleted_at IS NULL GROUP BY category');
         $maintMonthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count FROM maintenance_requests
-             WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL GROUP BY month ORDER BY month"
+            "SELECT {$month} AS month, COUNT(*) AS count FROM maintenance_requests
+             WHERE created_at >= {$ago6} AND deleted_at IS NULL GROUP BY month ORDER BY month"
         );
         $maintAvg = Database::fetch(
-            "SELECT AVG((julianday(completed_at) - julianday(created_at)) * 24) AS avg_hours
+            "SELECT AVG({$hoursComp}) AS avg_hours
              FROM maintenance_requests WHERE completed_at IS NOT NULL AND deleted_at IS NULL"
         );
 
         // vendors
-        $vendorTotal    = (int) (Database::fetch('SELECT COUNT(*) AS n FROM marketplace_vendors WHERE deleted_at IS NULL')['n'] ?? 0);
-        $vendorAvgRat   = (float) (Database::fetch('SELECT COALESCE(AVG(rating_avg), 0) AS avg FROM marketplace_vendors WHERE deleted_at IS NULL')['avg'] ?? 0);
+        $vendorTotal    = (int) (Database::fetch('SELECT COUNT(*) AS n FROM vendors WHERE deleted_at IS NULL')['n'] ?? 0);
+        $vendorAvgRat   = (float) (Database::fetch('SELECT COALESCE(AVG(rating_avg), 0) AS avg FROM vendors WHERE deleted_at IS NULL')['avg'] ?? 0);
         $vendorBookings = (int) (Database::fetch('SELECT COUNT(*) AS n FROM vendor_bookings WHERE deleted_at IS NULL')['n'] ?? 0);
         $vendorBkStatus = Database::fetchAll('SELECT status, COUNT(*) AS cnt FROM vendor_bookings WHERE deleted_at IS NULL GROUP BY status');
-        $vendorTopRated = Database::fetchAll('SELECT id, name, rating_avg AS rating FROM marketplace_vendors WHERE deleted_at IS NULL ORDER BY rating_avg DESC LIMIT 5');
+        $vendorTopRated = Database::fetchAll('SELECT id, name, rating_avg AS rating FROM vendors WHERE deleted_at IS NULL ORDER BY rating_avg DESC LIMIT 5');
         $vendorTopBook  = Database::fetchAll(
-            'SELECT mv.id, mv.name, COUNT(vb.id) AS booking_count FROM marketplace_vendors mv
+            'SELECT mv.id, mv.name, COUNT(vb.id) AS booking_count FROM vendors mv
              LEFT JOIN vendor_bookings vb ON vb.vendor_id = mv.id AND vb.deleted_at IS NULL
              WHERE mv.deleted_at IS NULL GROUP BY mv.id, mv.name ORDER BY booking_count DESC LIMIT 5'
         );
         $vendorMonthly  = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count FROM vendor_bookings
-             WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL GROUP BY month ORDER BY month"
+            "SELECT {$month} AS month, COUNT(*) AS count FROM vendor_bookings
+             WHERE created_at >= {$ago6} AND deleted_at IS NULL GROUP BY month ORDER BY month"
         );
 
         // rentals
@@ -424,26 +463,26 @@ class AdminAnalyticsController
         $rentalTypes   = Database::fetchAll('SELECT listing_type AS type, COUNT(*) AS cnt FROM rental_listings WHERE deleted_at IS NULL GROUP BY listing_type');
         $rentalAvgRent = (float) (Database::fetch("SELECT COALESCE(AVG(price), 0) AS avg FROM rental_listings WHERE deleted_at IS NULL AND listing_type = 'Rent'")['avg'] ?? 0);
         $rentalMonthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count FROM rental_listings
-             WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL GROUP BY month ORDER BY month"
+            "SELECT {$month} AS month, COUNT(*) AS count FROM rental_listings
+             WHERE created_at >= {$ago6} AND deleted_at IS NULL GROUP BY month ORDER BY month"
         );
 
         // visitors
-        $visToday     = (int) (Database::fetch("SELECT COUNT(*) AS n FROM visitors WHERE date(entry_time) = date('now') AND deleted_at IS NULL")['n'] ?? 0);
-        $visWeek      = (int) (Database::fetch("SELECT COUNT(*) AS n FROM visitors WHERE entry_time >= date('now', 'weekday 0', '-7 days') AND deleted_at IS NULL")['n'] ?? 0);
-        $visMonth     = (int) (Database::fetch("SELECT COUNT(*) AS n FROM visitors WHERE strftime('%Y-%m', entry_time) = strftime('%Y-%m', 'now') AND deleted_at IS NULL")['n'] ?? 0);
+        $visToday     = (int) (Database::fetch("SELECT COUNT(*) AS n FROM visitors WHERE {$entryDate} = {$curDate} AND deleted_at IS NULL")['n'] ?? 0);
+        $visWeek      = (int) (Database::fetch("SELECT COUNT(*) AS n FROM visitors WHERE entry_time >= :week_start AND deleted_at IS NULL", ['week_start' => $weekStartSunday])['n'] ?? 0);
+        $visMonth     = (int) (Database::fetch("SELECT COUNT(*) AS n FROM visitors WHERE {$entryMonth} = {$monthNow} AND deleted_at IS NULL")['n'] ?? 0);
         $visByDay     = Database::fetchAll(
-            "SELECT CASE CAST(strftime('%w', entry_time) AS INTEGER)
+            "SELECT CASE {$dow}
                     WHEN 0 THEN 'Sun' WHEN 1 THEN 'Mon' WHEN 2 THEN 'Tue'
                     WHEN 3 THEN 'Wed' WHEN 4 THEN 'Thu' WHEN 5 THEN 'Fri'
                     ELSE 'Sat' END AS day,
-                    CAST(strftime('%w', entry_time) AS INTEGER) AS dow,
+                    {$dow} AS dow,
                     COUNT(*) AS cnt
              FROM visitors WHERE deleted_at IS NULL GROUP BY dow ORDER BY dow"
         );
         $visMonthly   = Database::fetchAll(
-            "SELECT strftime('%Y-%m', entry_time) AS month, COUNT(*) AS count FROM visitors
-             WHERE entry_time >= date('now', '-6 months') AND deleted_at IS NULL GROUP BY month ORDER BY month"
+            "SELECT {$entryMonth} AS month, COUNT(*) AS count FROM visitors
+             WHERE entry_time >= {$ago6} AND deleted_at IS NULL GROUP BY month ORDER BY month"
         );
 
         // revenue
@@ -456,10 +495,10 @@ class AdminAnalyticsController
         );
         $revStatus  = Database::fetchAll('SELECT status, COUNT(*) AS cnt FROM invoices WHERE deleted_at IS NULL GROUP BY status');
         $revMonthly = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month,
+            "SELECT {$month} AS month,
                     COALESCE(SUM(paid_amount), 0) AS paid,
                     COALESCE(SUM(amount - paid_amount), 0) AS pending
-             FROM invoices WHERE created_at >= date('now', '-6 months') AND deleted_at IS NULL GROUP BY month ORDER BY month"
+             FROM invoices WHERE created_at >= {$ago6} AND deleted_at IS NULL GROUP BY month ORDER BY month"
         );
 
         // workers

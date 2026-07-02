@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Store, Plus, Trash2, RefreshCcw, Tag, BarChart3, MousePointerClick, Eye, Bell } from 'lucide-react';
+import { Store, Plus, Trash2, RefreshCcw, Tag, MousePointerClick, Eye, Bell } from 'lucide-react';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import SearchInput from '@/components/features/SearchInput';
 import StatusBadge from '@/components/features/StatusBadge';
@@ -20,7 +19,6 @@ export default function AdminBusinessAds() {
   const [adForm, setAdForm] = useState<Partial<BusinessAd> | null>(null);
   const [catForm, setCatForm] = useState<Partial<BusinessCategory> | null>(null);
   const [saving, setSaving] = useState(false);
-  const navigate = useNavigate();
 
   // P23: check if ad expires within 7 days
   const isExpiringWithin7Days = (expiresAt?: string): boolean => {
@@ -91,9 +89,7 @@ export default function AdminBusinessAds() {
           <p className="text-sm text-slate-500">Manage local business advertisements</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => navigate('/ad-billing')} className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
-            <BarChart3 className="h-4 w-4" /> Analytics &amp; Billing
-          </button>
+          {/* Hidden for now: Analytics & Billing button (/ad-billing) */}
           <button onClick={refresh} className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 dark:border-slate-700">
             <RefreshCcw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </button>

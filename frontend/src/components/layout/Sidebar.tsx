@@ -6,8 +6,8 @@ import {
   LayoutDashboard, Building2, UserPlus, UserCheck, Car, CarFront,
   Users, Wrench, HardHat, Package, Droplets, Wallet, BarChart3,
   ChevronLeft, ShieldCheck, QrCode, Settings, Bell, User, Home, UserCog, MessageSquareWarning, Store,
-  Megaphone, ShieldAlert, Briefcase, ClipboardList, MessageCircle, BadgeCheck, TrendingUp, CalendarDays,
-  LayoutGrid, Camera, Crown, BarChart2, CreditCard
+  Megaphone, ShieldAlert, Briefcase, ClipboardList, MessageCircle, BadgeCheck, CalendarDays,
+  LayoutGrid, Camera
 } from 'lucide-react';
 
 interface NavItem {
@@ -50,17 +50,15 @@ const adminNavItems: NavGroup[] = [
   { group: 'Community', items: [
     { to: '/rental', label: 'Rental Marketplace', icon: Home },
     { to: '/business-ads', label: 'Business Ads', icon: Briefcase },
-    { to: '/ad-billing', label: 'Ad Billing', icon: BarChart2 },
+    // Hidden for now: Ad Billing (/ad-billing)
     { to: '/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
     { to: '/daily-workers', label: 'Daily Workers', icon: Users },
     { to: '/events', label: 'Community Events', icon: CalendarDays },
   ]},
-  { group: 'Analytics', items: [
-    { to: '/analytics', label: 'Community Analytics', icon: TrendingUp },
-    { to: '/payments', label: 'Payment Dashboard', icon: CreditCard },
-    { to: '/subscriptions', label: 'Subscriptions', icon: Crown },
+  { group: 'Reports', items: [
     { to: '/reports', label: 'Reports', icon: BarChart3 },
+    // Hidden for now: Community Analytics (/analytics), Payment Dashboard (/payments), Subscriptions (/subscriptions)
   ]},
   { group: 'QR & Access', items: [
     { to: '/qr-codes', label: 'QR Codes & Gates', icon: QrCode },
@@ -91,7 +89,7 @@ const tenantNavItems: NavGroup[] = [
   ]},
   { group: 'Account', items: [
     { to: '/tenant/profile', label: 'My Profile', icon: User },
-    { to: '/tenant/subscription', label: 'My Plan', icon: Crown },
+    // Hidden for now: My Plan (/tenant/subscription)
     { to: '/tenant/change-password', label: 'Change Password', icon: Settings },
   ]},
 ];

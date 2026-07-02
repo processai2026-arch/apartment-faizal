@@ -173,12 +173,12 @@ class AdminBusinessAdController
         );
 
         $monthlyImpressions = Database::fetchAll(
-            "SELECT strftime('%Y-%m', created_at) AS month, COALESCE(SUM(impressions), 0) AS count
+            'SELECT ' . sql_month('created_at') . " AS month, COALESCE(SUM(impressions), 0) AS count
              FROM business_ads
              WHERE deleted_at IS NULL
-               AND created_at >= date('now', '-6 months')
-             GROUP BY strftime('%Y-%m', created_at)
-             ORDER BY month ASC"
+               AND created_at >= " . sql_months_ago(6) . '
+             GROUP BY ' . sql_month('created_at') . '
+             ORDER BY month ASC'
         );
 
         $activeVsExpired = Database::fetch(

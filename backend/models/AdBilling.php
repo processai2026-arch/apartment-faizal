@@ -50,8 +50,8 @@ class AdBilling extends CrudModel
              JOIN business_ads ba ON ba.id = ab.ad_id
              WHERE ab.billing_status = 'Pending'
                AND ab.due_date IS NOT NULL
-               AND ab.due_date < date('now')
-             ORDER BY ab.due_date ASC"
+               AND ab.due_date < " . sql_current_date() . '
+             ORDER BY ab.due_date ASC'
         );
         return array_map([static::class, 'expose'], $rows);
     }

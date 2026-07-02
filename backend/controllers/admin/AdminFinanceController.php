@@ -419,14 +419,14 @@ class AdminFinanceController extends ResourceController
         $todayPayments = (float) (Database::fetch(
             "SELECT COALESCE(SUM(amount),0) AS total FROM invoices
              WHERE deleted_at IS NULL AND status = 'Paid'
-               AND date(payment_completed_at) = date('now')"
+               AND " . sql_date('payment_completed_at') . ' = ' . sql_current_date()
         )['total'] ?? 0.0);
 
         // This month revenue
         $thisMonthRevenue = (float) (Database::fetch(
             "SELECT COALESCE(SUM(amount),0) AS total FROM invoices
              WHERE deleted_at IS NULL AND status = 'Paid'
-               AND strftime('%Y-%m', payment_completed_at) = strftime('%Y-%m','now')"
+               AND " . sql_month('payment_completed_at') . ' = ' . sql_month_now()
         )['total'] ?? 0.0);
 
         // Payment method breakdown (from payment_transactions)

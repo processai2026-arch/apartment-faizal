@@ -87,6 +87,65 @@ function db_time(?int $timestamp = null): string
     return Database::driver() === 'mysql' ? date('Y-m-d H:i:s', $timestamp) : date('c', $timestamp);
 }
 
+/**
+ * Driver-aware SQL fragments. Raw SQL in controllers/models must run on both
+ * SQLite (local/tests) and MySQL/MariaDB (production); these helpers emit the
+ * correct dialect for date/aggregation expressions.
+ */
+function sql_month(string $column): string
+{
+    return Database::driver() === 'mysql'
+        ? "DATE_FORMAT($column, '%Y-%m')"
+        : "strftime('%Y-%m', $column)";
+}
+
+function sql_month_now(): string
+{
+    return Database::driver() === 'mysql'
+        ? "DATE_FORMAT(NOW(), '%Y-%m')"
+        : "strftime('%Y-%m', 'now')";
+}
+
+function sql_current_date(): string
+{
+    return Database::driver() === 'mysql' ? 'CURDATE()' : "date('now')";
+}
+
+function sql_date(string $column): string
+{
+    return Database::driver() === 'mysql' ? "DATE($column)" : "date($column)";
+}
+
+/** Hours elapsed between two datetime columns ($from -> $to). */
+function sql_hours_between(string $from, string $to): string
+{
+    return Database::driver() === 'mysql'
+        ? "TIMESTAMPDIFF(SECOND, $from, $to) / 3600.0"
+        : "(julianday($to) - julianday($from)) * 24";
+}
+
+/** Day of week for a datetime column, normalized to 0=Sunday..6=Saturday. */
+function sql_dow(string $column): string
+{
+    return Database::driver() === 'mysql'
+        ? "(DAYOFWEEK($column) - 1)"
+        : "CAST(strftime('%w', $column) AS INTEGER)";
+}
+
+/** INSERT that silently skips unique-constraint duplicates. */
+function sql_insert_ignore(): string
+{
+    return Database::driver() === 'mysql' ? 'INSERT IGNORE' : 'INSERT OR IGNORE';
+}
+
+/** Date expression for N months before today. */
+function sql_months_ago(int $months): string
+{
+    return Database::driver() === 'mysql'
+        ? "DATE_SUB(CURDATE(), INTERVAL $months MONTH)"
+        : "date('now', '-$months months')";
+}
+
 date_default_timezone_set(config('app.timezone', 'UTC'));
 
 set_exception_handler(function (Throwable $e): void {

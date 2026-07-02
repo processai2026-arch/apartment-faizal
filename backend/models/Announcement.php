@@ -35,7 +35,7 @@ class Announcement extends CrudModel
     public static function markRead(int $announcementId, int $userId): void
     {
         Database::query(
-            'INSERT OR IGNORE INTO announcement_reads (announcement_id, user_id, read_at) VALUES (:aid, :uid, :now)',
+            sql_insert_ignore() . ' INTO announcement_reads (announcement_id, user_id, read_at) VALUES (:aid, :uid, :now)',
             ['aid' => $announcementId, 'uid' => $userId, 'now' => db_time()]
         );
     }

@@ -800,6 +800,7 @@ CREATE TABLE IF NOT EXISTS worker_attendance (
   notes TEXT NULL,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NULL,
+  deleted_at DATETIME NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_worker_attendance (worker_id, work_date),
   KEY idx_worker_attendance_date (work_date),

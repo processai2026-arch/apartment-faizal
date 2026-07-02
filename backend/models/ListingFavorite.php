@@ -17,14 +17,14 @@ class ListingFavorite
                 ['lid' => $listingId, 'uid' => $userId]
             );
             Database::query(
-                'UPDATE rental_listings SET favorite_count = MAX(0, favorite_count - 1), updated_at = :now WHERE id = :id',
+                'UPDATE rental_listings SET favorite_count = CASE WHEN favorite_count > 0 THEN favorite_count - 1 ELSE 0 END, updated_at = :now WHERE id = :id',
                 ['now' => db_time(), 'id' => $listingId]
             );
             return false;
         }
 
         Database::query(
-            'INSERT OR IGNORE INTO listing_favorites (listing_id, user_id, created_at) VALUES (:lid, :uid, :now)',
+            sql_insert_ignore() . ' INTO listing_favorites (listing_id, user_id, created_at) VALUES (:lid, :uid, :now)',
             ['lid' => $listingId, 'uid' => $userId, 'now' => db_time()]
         );
         Database::query(
