@@ -12,7 +12,7 @@ import type { BusinessAd, BusinessCategory } from '@/types';
 type Tab = 'ads' | 'categories' | 'dashboard';
 
 export default function AdminBusinessAds() {
-  const { ads: adminAds, categories, dashboard, loadAdminAds, loadCategories, createAd, updateAd, deleteAd, setStatus, loadDashboard, createCategory, updateCategory, deleteCategory } = useBusinessAdStore();
+  const { ads: adminAds, categories, dashboard, loadAdminAds, loadAdminCategories, createAd, updateAd, deleteAd, setStatus, loadDashboard, createCategory, updateCategory, deleteCategory } = useBusinessAdStore();
   const [tab, setTab] = useState<Tab>('ads');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ export default function AdminBusinessAds() {
 
   const refresh = () => {
     setLoading(true);
-    Promise.all([loadAdminAds({ search: search || undefined }), loadCategories(), loadDashboard()])
+    Promise.all([loadAdminAds({ search: search || undefined }), loadAdminCategories(), loadDashboard()])
       .catch((e) => toast.error(e instanceof Error ? e.message : 'Failed'))
       .finally(() => setLoading(false));
   };

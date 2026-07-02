@@ -13,6 +13,7 @@ interface BusinessAdState {
   loadAds: (params?: Record<string, string | undefined>) => Promise<void>;
   loadAd: (id: string) => Promise<BusinessAd>;
   loadCategories: () => Promise<void>;
+  loadAdminCategories: () => Promise<void>;
   recordClick: (id: string) => Promise<void>;
 
   loadAdminAds: (params?: Record<string, string | undefined>) => Promise<void>;
@@ -54,6 +55,11 @@ export const useBusinessAdStore = create<BusinessAdState>()((set) => ({
     set({ categories });
   },
 
+  loadAdminCategories: async () => {
+    const categories = await api.businessAds.adminCategories();
+    set({ categories });
+  },
+
   recordClick: async (id) => {
     await api.businessAds.click(id);
   },
@@ -79,7 +85,7 @@ export const useBusinessAdStore = create<BusinessAdState>()((set) => ({
   },
 
   deleteAd: async (id) => {
-    await api.businessAds.adminDelete(id);
+    await api.businessAds.adminDestroy(id);
     set((s) => ({ adminAds: s.adminAds.filter((a) => a.id !== id) }));
   },
 
@@ -89,24 +95,24 @@ export const useBusinessAdStore = create<BusinessAdState>()((set) => ({
   },
 
   loadDashboard: async () => {
-    const dashboard = await api.businessAds.adminDashboard();
+    const dashboard = await api.businessAds.dashboard();
     set({ dashboard });
   },
 
   createCategory: async (payload) => {
-    const cat = await api.businessAds.adminCreateCategory(payload);
+    const cat = await api.businessAds.createCategory(payload);
     set((s) => ({ categories: [...s.categories, cat] }));
     return cat;
   },
 
   updateCategory: async (id, payload) => {
-    const updated = await api.businessAds.adminUpdateCategory(id, payload);
+    const updated = await api.businessAds.updateCategory(id, payload);
     set((s) => ({ categories: s.categories.map((c) => (c.id === id ? updated : c)) }));
     return updated;
   },
 
   deleteCategory: async (id) => {
-    await api.businessAds.adminDeleteCategory(id);
+    await api.businessAds.deleteCategory(id);
     set((s) => ({ categories: s.categories.filter((c) => c.id !== id) }));
   },
 }));

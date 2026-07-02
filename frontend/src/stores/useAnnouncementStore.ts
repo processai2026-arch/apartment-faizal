@@ -76,12 +76,12 @@ export const useAnnouncementStore = create<AnnouncementState>()((set) => ({
   },
 
   deleteAnnouncement: async (id) => {
-    await api.announcements.adminDelete(id);
+    await api.announcements.adminDestroy(id);
     set((s) => ({ adminAnnouncements: s.adminAnnouncements.filter((a) => a.id !== id) }));
   },
 
   publishAnnouncement: async (id) => {
-    const updated = await api.announcements.adminPublish(id);
+    const updated = await api.announcements.publish(id);
     set((s) => ({ adminAnnouncements: s.adminAnnouncements.map((a) => (a.id === id ? updated : a)) }));
   },
 }));

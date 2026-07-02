@@ -32,31 +32,31 @@ export const useDailyWorkerStore = create<DailyWorkerState>()((set) => ({
   loadWorkers: async (params) => {
     set({ loading: true });
     try {
-      const workers = await api.dailyWorkers.list(params);
+      const workers = await api.dailyWorkers.adminList(params);
       set({ workers });
     } finally { set({ loading: false }); }
   },
 
   loadWorker: async (id) => {
-    const worker = await api.dailyWorkers.show(id);
+    const worker = await api.dailyWorkers.adminShow(id);
     set({ selectedWorker: worker });
     return worker;
   },
 
   createWorker: async (payload) => {
-    const worker = await api.dailyWorkers.create(payload);
+    const worker = await api.dailyWorkers.adminCreate(payload);
     set((s) => ({ workers: [worker, ...s.workers] }));
     return worker;
   },
 
   updateWorker: async (id, payload) => {
-    const updated = await api.dailyWorkers.update(id, payload);
+    const updated = await api.dailyWorkers.adminUpdate(id, payload);
     set((s) => ({ workers: s.workers.map((w) => (w.id === id ? updated : w)) }));
     return updated;
   },
 
   deleteWorker: async (id) => {
-    await api.dailyWorkers.delete(id);
+    await api.dailyWorkers.adminDestroy(id);
     set((s) => ({ workers: s.workers.filter((w) => w.id !== id) }));
   },
 
@@ -76,7 +76,7 @@ export const useDailyWorkerStore = create<DailyWorkerState>()((set) => ({
   },
 
   loadAttendance: async (params) => {
-    const attendanceList = await api.dailyWorkers.attendanceList(params);
+    const attendanceList = await api.dailyWorkers.attendance(params);
     set({ attendanceList });
   },
 

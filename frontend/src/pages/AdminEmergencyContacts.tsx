@@ -13,7 +13,7 @@ import type { EmergencyContact } from '@/types';
 const CATEGORIES = ['Police', 'Fire', 'Hospital', 'Ambulance', 'Electrician', 'Plumber', 'Apartment Office', 'Security', 'Other'];
 
 export default function AdminEmergencyContacts() {
-  const { contacts, loadContacts, createContact, updateContact, deleteContact } = useEmergencyStore();
+  const { contacts, loadAdminContacts, createContact, updateContact, deleteContact } = useEmergencyStore();
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<Partial<EmergencyContact> | null>(null);
@@ -21,7 +21,7 @@ export default function AdminEmergencyContacts() {
 
   const refresh = () => {
     setLoading(true);
-    loadContacts({ search: search || undefined })
+    loadAdminContacts({ search: search || undefined })
       .catch((e) => toast.error(e instanceof Error ? e.message : 'Failed'))
       .finally(() => setLoading(false));
   };
