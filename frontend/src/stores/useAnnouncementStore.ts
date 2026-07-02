@@ -58,8 +58,8 @@ export const useAnnouncementStore = create<AnnouncementState>()((set) => ({
   loadAdminAnnouncements: async (params) => {
     set({ loading: true });
     try {
-      const adminAnnouncements = await api.announcements.adminList(params);
-      set({ adminAnnouncements });
+      const result = await api.announcements.adminList(params);
+      set({ adminAnnouncements: result.items });
     } finally { set({ loading: false }); }
   },
 

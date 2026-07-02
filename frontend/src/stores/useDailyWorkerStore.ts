@@ -32,8 +32,8 @@ export const useDailyWorkerStore = create<DailyWorkerState>()((set) => ({
   loadWorkers: async (params) => {
     set({ loading: true });
     try {
-      const workers = await api.dailyWorkers.adminList(params);
-      set({ workers });
+      const result = await api.dailyWorkers.adminList(params);
+      set({ workers: result.items });
     } finally { set({ loading: false }); }
   },
 

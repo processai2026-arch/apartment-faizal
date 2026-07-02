@@ -67,8 +67,8 @@ export const useBusinessAdStore = create<BusinessAdState>()((set) => ({
   loadAdminAds: async (params) => {
     set({ loading: true });
     try {
-      const adminAds = await api.businessAds.adminList(params);
-      set({ adminAds });
+      const result = await api.businessAds.adminList(params);
+      set({ adminAds: result.items });
     } finally { set({ loading: false }); }
   },
 

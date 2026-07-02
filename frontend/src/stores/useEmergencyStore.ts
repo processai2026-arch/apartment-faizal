@@ -30,8 +30,8 @@ export const useEmergencyStore = create<EmergencyState>()((set) => ({
   loadAdminContacts: async (params) => {
     set({ loading: true });
     try {
-      const contacts = await api.emergencyContacts.adminList(params);
-      set({ contacts });
+      const result = await api.emergencyContacts.adminList(params);
+      set({ contacts: result.items });
     } finally { set({ loading: false }); }
   },
 
