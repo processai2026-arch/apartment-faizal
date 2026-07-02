@@ -7,7 +7,7 @@ import {
   Users, Wrench, HardHat, Package, Droplets, Wallet, BarChart3,
   ChevronLeft, ShieldCheck, QrCode, Settings, Bell, User, Home, UserCog, MessageSquareWarning, Store,
   Megaphone, ShieldAlert, Briefcase, ClipboardList, MessageCircle, BadgeCheck, CalendarDays,
-  LayoutGrid, Camera
+  LayoutGrid, Camera, TrendingUp, Crown, BarChart2, CreditCard
 } from 'lucide-react';
 
 interface NavItem {
@@ -50,15 +50,17 @@ const adminNavItems: NavGroup[] = [
   { group: 'Community', items: [
     { to: '/rental', label: 'Rental Marketplace', icon: Home },
     { to: '/business-ads', label: 'Business Ads', icon: Briefcase },
-    // Hidden for now: Ad Billing (/ad-billing)
+    { to: '/ad-billing', label: 'Ad Billing', icon: BarChart2 },
     { to: '/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
     { to: '/daily-workers', label: 'Daily Workers', icon: Users },
     { to: '/events', label: 'Community Events', icon: CalendarDays },
   ]},
-  { group: 'Reports', items: [
+  { group: 'Analytics', items: [
+    { to: '/analytics', label: 'Community Analytics', icon: TrendingUp },
+    { to: '/payments', label: 'Payment Dashboard', icon: CreditCard },
+    { to: '/subscriptions', label: 'Subscriptions', icon: Crown },
     { to: '/reports', label: 'Reports', icon: BarChart3 },
-    // Hidden for now: Community Analytics (/analytics), Payment Dashboard (/payments), Subscriptions (/subscriptions)
   ]},
   { group: 'QR & Access', items: [
     { to: '/qr-codes', label: 'QR Codes & Gates', icon: QrCode },
@@ -89,7 +91,7 @@ const tenantNavItems: NavGroup[] = [
   ]},
   { group: 'Account', items: [
     { to: '/tenant/profile', label: 'My Profile', icon: User },
-    // Hidden for now: My Plan (/tenant/subscription)
+    { to: '/tenant/subscription', label: 'My Plan', icon: Crown },
     { to: '/tenant/change-password', label: 'Change Password', icon: Settings },
   ]},
 ];
