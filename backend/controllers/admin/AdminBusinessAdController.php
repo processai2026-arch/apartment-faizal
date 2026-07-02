@@ -325,10 +325,12 @@ class AdminBusinessAdController
         if (!$row) {
             throw new AppException('Billing record not found', 404);
         }
+        $now = db_time();
         Database::query(
-            "UPDATE ad_billing SET billing_status = 'Paid', paid_at = :now, payment_ref = :ref, updated_at = :now WHERE id = :id",
+            "UPDATE ad_billing SET billing_status = 'Paid', paid_at = :now1, payment_ref = :ref, updated_at = :now2 WHERE id = :id",
             [
-                'now' => db_time(),
+                'now1' => $now,
+                'now2' => $now,
                 'ref' => $request->input('payment_ref') ?: ($row['payment_ref'] ?? null),
                 'id'  => $id,
             ]

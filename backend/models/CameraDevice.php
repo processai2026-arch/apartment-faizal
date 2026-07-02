@@ -55,9 +55,10 @@ class CameraDevice extends CrudModel
 
     public static function updateHeartbeat(int $id): void
     {
+        $now = db_time();
         Database::query(
-            'UPDATE camera_devices SET last_heartbeat = :ts, status = :status, updated_at = :ts WHERE id = :id AND deleted_at IS NULL',
-            ['ts' => db_time(), 'status' => 'Online', 'id' => $id]
+            'UPDATE camera_devices SET last_heartbeat = :ts1, status = :status, updated_at = :ts2 WHERE id = :id AND deleted_at IS NULL',
+            ['ts1' => $now, 'ts2' => $now, 'status' => 'Online', 'id' => $id]
         );
     }
 }

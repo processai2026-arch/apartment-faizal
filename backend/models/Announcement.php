@@ -58,15 +58,19 @@ class Announcement extends CrudModel
 
     public static function publishDue(): void
     {
+        // Native MySQL prepared statements (EMULATE_PREPARES=false) reject a
+        // named placeholder bound more than once per query, so :now needs a
+        // distinct name at each occurrence even though the value is identical.
+        $now = db_time();
         Database::query(
-            "UPDATE announcements SET status = 'Published', updated_at = :now
-             WHERE status = 'Scheduled' AND publish_at <= :now AND deleted_at IS NULL",
-            ['now' => db_time()]
+            "UPDATE announcements SET status = 'Published', updated_at = :now1
+             WHERE status = 'Scheduled' AND publish_at <= :now2 AND deleted_at IS NULL",
+            ['now1' => $now, 'now2' => $now]
         );
         Database::query(
-            "UPDATE announcements SET status = 'Expired', updated_at = :now
-             WHERE status = 'Published' AND expires_at IS NOT NULL AND expires_at < :now AND deleted_at IS NULL",
-            ['now' => db_time()]
+            "UPDATE announcements SET status = 'Expired', updated_at = :now1
+             WHERE status = 'Published' AND expires_at IS NOT NULL AND expires_at < :now2 AND deleted_at IS NULL",
+            ['now1' => $now, 'now2' => $now]
         );
     }
 }

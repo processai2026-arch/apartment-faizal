@@ -94,15 +94,17 @@ class AdminSecretaryController
             if ($existing) {
                 throw new AppException('Email already in use', 422);
             }
+            $now = db_time();
             $userId = Database::insert(
                 "INSERT INTO users (name, email, phone, role, is_secretary, password_hash, status, created_at, updated_at)
-                 VALUES (:name, :email, :phone, 'admin', 1, :hash, 'active', :now, :now)",
+                 VALUES (:name, :email, :phone, 'admin', 1, :hash, 'active', :now1, :now2)",
                 [
                     'name'  => (string) $request->input('name'),
                     'email' => $email,
                     'phone' => $request->input('phone') ?: null,
                     'hash'  => password_hash((string) $request->input('password'), PASSWORD_DEFAULT),
-                    'now'   => db_time(),
+                    'now1'  => $now,
+                    'now2'  => $now,
                 ]
             );
         }
