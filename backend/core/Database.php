@@ -28,6 +28,11 @@ class Database
             }
             $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $cfg['host'], $cfg['port'], $cfg['database'], $cfg['charset']);
             self::$pdo = new PDO($dsn, $cfg['username'], $cfg['password']);
+            // Pin the connection collation so comparisons between bound params and
+            // table columns never hit "Illegal mix of collations" (1267). Tables use
+            // utf8mb4_unicode_ci; without this the connection defaults to
+            // utf8mb4_general_ci and every "param = column" comparison can 500.
+            self::$pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
             self::$pdo->exec("SET time_zone = '+05:30'");
         } else {
             throw new AppException('Unsupported database driver', 500);
