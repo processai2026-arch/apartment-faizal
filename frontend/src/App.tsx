@@ -2,12 +2,14 @@ import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 import Layout from '@/components/layout/Layout';
 import ProtectedRoute, { PublicRoute } from '@/components/auth/ProtectedRoute';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useAuthStore, getDashboardPath } from '@/stores/useAuthStore';
 import { useAppStore } from '@/stores/useAppStore';
+import { useEntitlementsStore } from '@/stores/useEntitlementsStore';
+import { featureKeyForLocation } from '@/lib/featureRegistry';
 import Login from '@/pages/auth/Login';
 import { ErrorBoundary } from '@/components/features/ErrorBoundary';
 
@@ -53,8 +55,7 @@ const RentalMarketplace = lazy(() => import('@/pages/RentalMarketplace'));
 const RentalDetails = lazy(() => import('@/pages/RentalDetails'));
 const CreateListing = lazy(() => import('@/pages/CreateListing'));
 const AdminRentalDashboard = lazy(() => import('@/pages/AdminRentalDashboard'));
-// P11 Business Ads
-const BusinessMarketplace = lazy(() => import('@/pages/BusinessMarketplace'));
+// P11 Business Ads (super-admin only; the tenant BusinessMarketplace page is unrouted)
 const AdminBusinessAds = lazy(() => import('@/pages/AdminBusinessAds'));
 // P12 Announcements
 const Announcements = lazy(() => import('@/pages/Announcements'));
@@ -87,6 +88,26 @@ const TenantSubscription = lazy(() => import('@/pages/TenantSubscription'));
 const AdBillingAnalytics = lazy(() => import('@/pages/AdBillingAnalytics'));
 // P24 Razorpay Payment Integration
 const PaymentDashboard = lazy(() => import('@/pages/PaymentDashboard'));
+// Office Expenses (Finance & Expense Management)
+const OfficeExpenses = lazy(() => import('@/pages/OfficeExpenses'));
+// P25 Facility & Daily Operations
+const DailyOperations = lazy(() => import('@/pages/DailyOperations'));
+// IoT Monitoring & Hardware Automation
+const IoTMonitoring = lazy(() => import('@/pages/IoTMonitoring'));
+const HomeAutomation = lazy(() => import('@/pages/HomeAutomation'));
+const TenantHomeAutomation = lazy(() => import('@/pages/TenantHomeAutomation'));
+const DocumentManagement = lazy(() => import('@/pages/DocumentManagement'));
+const NameTransferPage = lazy(() => import('@/pages/NameTransfer'));
+// Asset & Utility Tracking
+const AssetTracking = lazy(() => import('@/pages/AssetTracking'));
+// Payroll & Medical Records
+const Payroll = lazy(() => import('@/pages/Payroll'));
+const MedicalReports = lazy(() => import('@/pages/MedicalReports'));
+// Accounts & Compliance + AMC/DG Maintenance
+const AccountsCompliance = lazy(() => import('@/pages/AccountsCompliance'));
+const AmcMaintenance = lazy(() => import('@/pages/AmcMaintenance'));
+// Super Admin portal (organizations & multi-tenant management)
+const SuperAdminPortal = lazy(() => import('@/pages/SuperAdminPortal'));
 
 const queryClient = new QueryClient();
 
@@ -106,6 +127,7 @@ function DashboardRedirect() {
   }
 
   switch (user.role) {
+    case 'super_admin': // super admin uses the admin dashboard as home
     case 'admin':
       return <Dashboard />;
     case 'security':
@@ -120,6 +142,8 @@ function DashboardRedirect() {
 function AppDataBootstrap() {
   const { hydrateSession, isAuthenticated, user } = useAuthStore();
   const { loadInitialData, resetBackendState, isLoaded } = useAppStore();
+  const loadEntitlements = useEntitlementsStore((s) => s.load);
+  const resetEntitlements = useEntitlementsStore((s) => s.reset);
 
   useEffect(() => {
     hydrateSession();
@@ -134,6 +158,39 @@ function AppDataBootstrap() {
     }
   }, [isAuthenticated, user, isLoaded, loadInitialData, resetBackendState]);
 
+  // Load per-user feature entitlements once authenticated; clear on logout.
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadEntitlements();
+    } else if (!isAuthenticated) {
+      resetEntitlements();
+    }
+  }, [isAuthenticated, user, loadEntitlements, resetEntitlements]);
+
+  return null;
+}
+
+/**
+ * Redirects direct navigation to a disabled-feature path back to the user's
+ * dashboard, so a hidden module can't be reached via the URL bar. Lightweight:
+ * the API also returns 403, this just avoids landing on a broken page. Fail-soft
+ * — while entitlements are unknown (null) or for super_admin, it never redirects.
+ */
+function EntitlementRedirect() {
+  const { isAuthenticated, user } = useAuthStore();
+  const features = useEntitlementsStore((s) => s.features);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || user.role === 'super_admin') return;
+    if (features === null) return; // unknown → allow (fail-soft)
+    const key = featureKeyForLocation(location.pathname);
+    if (key && !features.includes(key)) {
+      navigate(getDashboardPath(user.role), { replace: true });
+    }
+  }, [isAuthenticated, user, features, location.pathname, navigate]);
+
   return null;
 }
 
@@ -144,6 +201,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AppDataBootstrap />
+        <EntitlementRedirect />
         <ErrorBoundary>
           <Suspense fallback={<RouteFallback />}>
           <Routes>
@@ -163,6 +221,7 @@ const App = () => (
             <Route path="/tenant/*" element={<ProtectedRoute allowedRoles={['tenant']}><Layout><Routes>
               <Route path="/" element={<TenantDashboard />} />
               <Route path="/hub" element={<ResidentServiceHub />} />
+              <Route path="/home-automation" element={<TenantHomeAutomation />} />
               <Route path="/complaints" element={<Complaints />} />
               <Route path="/maintenance" element={<Maintenance />} />
               <Route path="/marketplace" element={<VendorMarketplace />} />
@@ -170,7 +229,9 @@ const App = () => (
               <Route path="/rental" element={<RentalMarketplace />} />
               <Route path="/rental/create" element={<CreateListing />} />
               <Route path="/rental/:id" element={<RentalDetails />} />
-              <Route path="/business-ads" element={<BusinessMarketplace />} />
+              {/* /tenant/business-ads (BusinessMarketplace) removed: in-app
+                  advertisements are visible ONLY to the super admin. The
+                  backend /tenant/business-ads routes are super_admin-gated. */}
               <Route path="/announcements" element={<Announcements />} />
               <Route path="/emergency-contacts" element={<EmergencyContacts />} />
               <Route path="/notifications" element={<TenantNotifications />} />
@@ -179,6 +240,9 @@ const App = () => (
               <Route path="/events" element={<TenantEvents />} />
               <Route path="/subscription" element={<TenantSubscription />} />
             </Routes></Layout></ProtectedRoute>} />
+
+            {/* Super Admin portal — exclusive to the super_admin role */}
+            <Route path="/super" element={<ProtectedRoute allowedRoles={['super_admin']}><Layout><SuperAdminPortal /></Layout></ProtectedRoute>} />
 
             <Route path="/*" element={<ProtectedRoute allowedRoles={['admin']}><Layout><Routes>
               <Route path="/" element={<DashboardRedirect />} />
@@ -196,16 +260,27 @@ const App = () => (
               <Route path="/maintenance" element={<AdminMaintenance />} />
               <Route path="/staff" element={<StaffAttendance />} />
               <Route path="/inventory" element={<InventoryAudit />} />
+              <Route path="/assets" element={<AssetTracking />} />
               <Route path="/utilities" element={<UtilityManagement />} />
               <Route path="/financials" element={<FinancialTracking />} />
+              <Route path="/expenses" element={<OfficeExpenses />} />
+              <Route path="/documents" element={<DocumentManagement />} />
+              <Route path="/name-transfers" element={<NameTransferPage />} />
+              <Route path="/payroll" element={<Payroll />} />
+              <Route path="/medical" element={<MedicalReports />} />
+              <Route path="/compliance" element={<AccountsCompliance />} />
+              <Route path="/amc" element={<AmcMaintenance />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/qr-codes" element={<QRCodesPage />} />
               <Route path="/notifications" element={<AdminNotifications />} />
               <Route path="/rental" element={<AdminRentalDashboard />} />
-              <Route path="/business-ads" element={<AdminBusinessAds />} />
+              {/* Advertisements are super-admin-only: nested guard keeps plain
+                  admins out even though the shell route allows 'admin'. */}
+              <Route path="/business-ads" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminBusinessAds /></ProtectedRoute>} />
               <Route path="/announcements" element={<AdminAnnouncements />} />
               <Route path="/emergency-contacts" element={<AdminEmergencyContacts />} />
               <Route path="/daily-workers" element={<DailyWorkers />} />
+              <Route path="/daily-ops" element={<DailyOperations />} />
               <Route path="/secretary" element={<SecretaryDashboard />} />
               <Route path="/secretary-management" element={<SecretaryManagement />} />
               <Route path="/whatsapp" element={<WhatsAppHub />} />
@@ -213,8 +288,10 @@ const App = () => (
               <Route path="/analytics" element={<CommunityAnalytics />} />
               <Route path="/events" element={<AdminEvents />} />
               <Route path="/cameras" element={<CameraManagement />} />
+              <Route path="/iot" element={<IoTMonitoring />} />
+              <Route path="/home-automation" element={<HomeAutomation />} />
               <Route path="/subscriptions" element={<SubscriptionManagement />} />
-              <Route path="/ad-billing" element={<AdBillingAnalytics />} />
+              <Route path="/ad-billing" element={<ProtectedRoute allowedRoles={['super_admin']}><AdBillingAnalytics /></ProtectedRoute>} />
               <Route path="/payments" element={<PaymentDashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/change-password" element={<ChangePassword />} />

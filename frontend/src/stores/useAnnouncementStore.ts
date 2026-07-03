@@ -51,7 +51,7 @@ export const useAnnouncementStore = create<AnnouncementState>()((set) => ({
   },
 
   loadUnreadCount: async () => {
-    const count = await api.announcements.unreadCount();
+    const { count } = await api.announcements.unreadCount();
     set({ unreadCount: count });
   },
 

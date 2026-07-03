@@ -7,7 +7,7 @@ class AdBilling extends CrudModel
     protected static string $table = 'ad_billing';
     protected static array $columns = [
         'ad_id', 'package_id', 'amount', 'billing_status',
-        'due_date', 'paid_at', 'payment_ref', 'renewal_reminded', 'notes',
+        'due_date', 'paid_at', 'payment_ref', 'renewal_reminded', 'notes', 'org_id',
     ];
 
     public const STATUSES = ['Pending', 'Paid', 'Overdue', 'Waived'];

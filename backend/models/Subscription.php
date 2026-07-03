@@ -8,7 +8,7 @@ class Subscription extends CrudModel
     protected static array $columns = [
         'user_id', 'plan_id', 'status', 'billing_cycle',
         'started_at', 'expires_at', 'cancelled_at',
-        'amount_paid', 'payment_ref', 'notes',
+        'amount_paid', 'payment_ref', 'notes', 'org_id',
     ];
     protected static array $searchColumns = ['payment_ref', 'notes'];
 
@@ -40,6 +40,14 @@ class Subscription extends CrudModel
             $where[]           = '(u.name LIKE :search0 OR u.email LIKE :search1)';
             $params['search0'] = '%' . $request->query['search'] . '%';
             $params['search1'] = '%' . $request->query['search'] . '%';
+        }
+
+        // Organization scoping: admins see their own org; super_admin sees all
+        // orgs and may narrow with ?orgId=.
+        $orgId = OrgScope::orgIdFor($request);
+        if ($orgId !== null) {
+            $where[]             = 's.org_id = :org_scope';
+            $params['org_scope'] = $orgId;
         }
 
         return [$where ? 'WHERE ' . implode(' AND ', $where) : '', $params];

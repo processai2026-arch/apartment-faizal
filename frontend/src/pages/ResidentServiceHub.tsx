@@ -115,16 +115,8 @@ const SERVICES: ServiceDef[] = [
     iconBg: 'bg-purple-50',
     iconText: 'text-purple-600',
   },
-  {
-    key: 'business-ads',
-    name: 'Business Ads',
-    description: 'Local businesses & offers',
-    icon: Briefcase,
-    route: '/tenant/business-ads',
-    colorClass: 'bg-amber-50 text-amber-600',
-    iconBg: 'bg-amber-50',
-    iconText: 'text-amber-600',
-  },
+  // 'Business Ads' tile removed: in-app advertisements are super-admin-only
+  // (route /tenant/business-ads is unregistered and the API is super_admin-gated).
   {
     key: 'profile',
     name: 'My Profile',

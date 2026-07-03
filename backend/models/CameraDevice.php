@@ -7,7 +7,7 @@ class CameraDevice extends CrudModel
     protected static string $table = 'camera_devices';
 
     protected static array $columns = [
-        'name', 'location', 'zone', 'rtsp_url', 'ip_address', 'port',
+        'name', 'location', 'zone', 'rtsp_url', 'hls_url', 'ip_address', 'port',
         'username', 'password_hash', 'manufacturer', 'model', 'resolution',
         'status', 'last_heartbeat', 'snapshot_url', 'is_recording',
         'is_active', 'notes',

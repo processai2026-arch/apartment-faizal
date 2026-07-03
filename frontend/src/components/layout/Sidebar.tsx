@@ -2,12 +2,16 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useEntitlementsStore } from '@/stores/useEntitlementsStore';
+import { featureKeyForNav } from '@/lib/featureRegistry';
 import {
   LayoutDashboard, Building2, UserPlus, UserCheck, Car, CarFront,
   Users, Wrench, HardHat, Package, Droplets, Wallet, BarChart3,
   ChevronLeft, ShieldCheck, QrCode, Settings, Bell, User, Home, UserCog, MessageSquareWarning, Store,
   Megaphone, ShieldAlert, Briefcase, ClipboardList, MessageCircle, BadgeCheck, CalendarDays,
-  LayoutGrid, Camera
+  LayoutGrid, Camera, TrendingUp, CreditCard, Receipt, BadgeDollarSign, Cpu, PackageCheck,
+  HandCoins, Stethoscope,
+  FileText, ArrowLeftRight, FileCheck, Fuel
 } from 'lucide-react';
 
 interface NavItem {
@@ -26,6 +30,7 @@ const adminNavItems: NavGroup[] = [
   { group: 'Main', items: [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/offices', label: 'Manage Offices', icon: Building2 },
+    { to: '/name-transfers', label: 'Name Transfer', icon: ArrowLeftRight },
     { to: '/users', label: 'User Management', icon: UserCog },
   ]},
   { group: 'Visitor & Security', items: [
@@ -41,16 +46,23 @@ const adminNavItems: NavGroup[] = [
     { to: '/vendors', label: 'Vendor Management', icon: Wrench },
     { to: '/vendor-marketplace', label: 'Vendor Marketplace', icon: Store },
     { to: '/staff', label: 'Staff Attendance', icon: HardHat },
+    { to: '/payroll', label: 'Payroll', icon: HandCoins },
+    { to: '/medical', label: 'Medical Reports', icon: Stethoscope },
     { to: '/inventory', label: 'Inventory & Audit', icon: Package },
+    { to: '/assets', label: 'Asset Tracking', icon: PackageCheck },
     { to: '/utilities', label: 'Utility Management', icon: Droplets },
     { to: '/financials', label: 'Financial Tracking', icon: Wallet },
+    { to: '/expenses', label: 'Office Expenses', icon: Receipt },
+    { to: '/documents', label: 'Documents', icon: FileText },
     { to: '/complaints', label: 'Complaint Management', icon: MessageSquareWarning },
     { to: '/maintenance', label: 'Maintenance Requests', icon: Wrench },
+    { to: '/daily-ops', label: 'Daily Operations', icon: ClipboardList },
+    { to: '/amc', label: 'AMC & DG', icon: Fuel },
   ]},
   { group: 'Community', items: [
+    // Business Ads + Ad Billing moved to the super-admin-only group below:
+    // in-app advertisements are managed exclusively by the super admin.
     { to: '/rental', label: 'Rental Marketplace', icon: Home },
-    { to: '/business-ads', label: 'Business Ads', icon: Briefcase },
-    // Hidden for now: Ad Billing (/ad-billing)
     { to: '/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
     { to: '/daily-workers', label: 'Daily Workers', icon: Users },
@@ -58,10 +70,15 @@ const adminNavItems: NavGroup[] = [
   ]},
   { group: 'Reports', items: [
     { to: '/reports', label: 'Reports', icon: BarChart3 },
-    // Hidden for now: Community Analytics (/analytics), Payment Dashboard (/payments), Subscriptions (/subscriptions)
+    { to: '/compliance', label: 'Accounts & Compliance', icon: FileCheck },
+    { to: '/analytics', label: 'Community Analytics', icon: TrendingUp },
+    { to: '/payments', label: 'Payment Dashboard', icon: CreditCard },
+    { to: '/subscriptions', label: 'Subscriptions', icon: BadgeDollarSign },
   ]},
   { group: 'QR & Access', items: [
     { to: '/qr-codes', label: 'QR Codes & Gates', icon: QrCode },
+    { to: '/iot', label: 'IoT Monitoring', icon: Cpu },
+    { to: '/home-automation', label: 'Home Automation', icon: Home },
     { to: '/notifications', label: 'Notification Center', icon: Bell },
   ]},
   { group: 'Settings', items: [
@@ -71,25 +88,35 @@ const adminNavItems: NavGroup[] = [
   ]},
 ];
 
+// Rendered ONLY for the super_admin role, ahead of the full admin nav.
+const superAdminNavItems: NavGroup[] = [
+  { group: 'Super Admin', items: [
+    { to: '/super', label: 'Super Admin', icon: ShieldCheck },
+    { to: '/business-ads', label: 'Business Ads', icon: Briefcase },
+    { to: '/ad-billing', label: 'Ad Billing', icon: Receipt },
+  ]},
+];
+
 const tenantNavItems: NavGroup[] = [
   { group: 'Main', items: [
     { to: '/tenant/hub', label: 'Service Hub', icon: LayoutGrid },
     { to: '/tenant', label: 'Dashboard', icon: Home },
     { to: '/tenant/complaints', label: 'Complaints', icon: MessageSquareWarning },
     { to: '/tenant/maintenance', label: 'Maintenance', icon: Wrench },
+    { to: '/tenant/home-automation', label: 'My Home', icon: Home },
     { to: '/tenant/marketplace', label: 'Vendor Marketplace', icon: Store },
     { to: '/tenant/notifications', label: 'Notifications', icon: Bell },
   ]},
   { group: 'Community', items: [
+    // 'Local Businesses' (/tenant/business-ads) removed: ads are super-admin-only.
     { to: '/tenant/rental', label: 'Rental Marketplace', icon: Home },
-    { to: '/tenant/business-ads', label: 'Local Businesses', icon: Briefcase },
     { to: '/tenant/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/tenant/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
     { to: '/tenant/events', label: 'Events', icon: CalendarDays },
   ]},
   { group: 'Account', items: [
     { to: '/tenant/profile', label: 'My Profile', icon: User },
-    // Hidden for now: My Plan (/tenant/subscription)
+    { to: '/tenant/subscription', label: 'My Plan', icon: CreditCard },
     { to: '/tenant/change-password', label: 'Change Password', icon: Settings },
   ]},
 ];
@@ -125,6 +152,7 @@ const MODULE_LABELS: Record<string, string> = {
 export default function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, visitors, vehicles, unreadCount } = useAppStore();
   const { user } = useAuthStore();
+  const entitledFeatures = useEntitlementsStore((s) => s.features);
   const location = useLocation();
 
   const insideCount = visitors.filter(v => v.status === 'Inside').length;
@@ -147,6 +175,9 @@ export default function Sidebar() {
   let navItems: NavGroup[];
   if (user?.role === 'tenant') {
     navItems = tenantNavItems;
+  } else if (user?.role === 'super_admin') {
+    // Super admin: exclusive group (portal + relocated ad modules) + full admin nav
+    navItems = [...superAdminNavItems, ...adminNavItems];
   } else if (isSecretary) {
     // Secretary admin: show secretary group first, then all admin nav
     const secretaryGroup: NavGroup = {
@@ -165,6 +196,23 @@ export default function Sidebar() {
     navItems = [secretaryGroup, ...adminNavItems];
   } else {
     navItems = adminNavItems;
+  }
+
+  // Entitlement filtering: hide nav items whose `to` maps to a feature key that
+  // is disabled for this organization. super_admin sees everything (no filter);
+  // always-on items (featureKeyForNav → undefined) are always kept. Fail-soft:
+  // when entitlements are unknown (null — not loaded or endpoint errored) we
+  // keep every item so the nav never flashes empty and no one is locked out.
+  if (user?.role !== 'super_admin' && entitledFeatures !== null) {
+    navItems = navItems
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const key = featureKeyForNav(item.to);
+          return key === undefined || entitledFeatures.includes(key);
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
   }
 
   return (
@@ -198,7 +246,7 @@ export default function Sidebar() {
           <div className="border-b border-slate-800 px-4 py-3">
             <div className="flex items-center gap-2">
               <span className="rounded-lg bg-indigo-500/20 px-2 py-1 text-xs font-medium capitalize text-indigo-400">
-                {user.role}
+                {user.role.replace('_', ' ')}
               </span>
               {isSecretary && (
                 <span className="rounded-lg bg-purple-500/20 px-2 py-1 text-xs font-medium text-purple-400">

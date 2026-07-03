@@ -483,4 +483,108 @@ class AdminFinanceController extends ResourceController
             'by_status'           => $txByStatus,
         ]);
     }
+
+    /**
+     * GET /admin/financials/gst-report?from&to
+     * Output tax (GST charged on invoices) vs input tax (GST paid on office
+     * expenses) for the period, with per-rate breakup and net GST liability.
+     */
+    public function gstReport(Request $request): void
+    {
+        $from = (string) ($request->query['from'] ?? date('Y-m-01'));
+        $to   = (string) ($request->query['to'] ?? date('Y-m-d'));
+
+        // ── Output tax: invoices raised in the period carrying GST fields ──
+        $invoiceRows = Database::fetchAll(
+            "SELECT * FROM invoices
+             WHERE deleted_at IS NULL
+               AND status <> 'Cancelled'
+               AND (gst_rate IS NOT NULL OR COALESCE(gst_total, 0) <> 0)
+               AND " . sql_date('created_at') . ' BETWEEN :from AND :to
+             ORDER BY id ASC',
+            ['from' => $from, 'to' => $to]
+        );
+
+        $output = ['taxable' => 0.0, 'cgst' => 0.0, 'sgst' => 0.0, 'igst' => 0.0, 'total' => 0.0, 'byRate' => [], 'invoices' => []];
+        $outputByRate = [];
+        foreach ($invoiceRows as $row) {
+            $rate    = (float) ($row['gst_rate'] ?? 0);
+            $taxable = (float) ($row['taxable_amount'] ?? 0);
+            $tax     = (float) ($row['gst_total'] ?? 0);
+            $output['taxable'] += $taxable;
+            $output['cgst']    += (float) ($row['cgst_amount'] ?? 0);
+            $output['sgst']    += (float) ($row['sgst_amount'] ?? 0);
+            $output['igst']    += (float) ($row['igst_amount'] ?? 0);
+            $output['total']   += $tax;
+            $key = (string) $rate;
+            $outputByRate[$key] ??= ['rate' => $rate, 'taxable' => 0.0, 'tax' => 0.0];
+            $outputByRate[$key]['taxable'] += $taxable;
+            $outputByRate[$key]['tax']     += $tax;
+            $output['invoices'][] = [
+                'id'             => (int) $row['id'],
+                'invoice_no'     => $row['invoice_no'],
+                'date'           => $row['created_at'],
+                'gstin'          => $row['gstin'] ?? null,
+                'taxable_amount' => $taxable,
+                'gst_rate'       => $rate,
+                'cgst_amount'    => (float) ($row['cgst_amount'] ?? 0),
+                'sgst_amount'    => (float) ($row['sgst_amount'] ?? 0),
+                'igst_amount'    => (float) ($row['igst_amount'] ?? 0),
+                'gst_total'      => $tax,
+                'amount'         => (float) ($row['amount'] ?? 0),
+                'status'         => $row['status'],
+            ];
+        }
+        ksort($outputByRate, SORT_NUMERIC);
+        $output['byRate'] = array_values($outputByRate);
+
+        // ── Input tax: GST paid on office expenses (amount is GST-inclusive) ──
+        $expenseRows = Database::fetchAll(
+            "SELECT * FROM office_expenses
+             WHERE deleted_at IS NULL
+               AND status <> 'Rejected'
+               AND (gst_rate IS NOT NULL OR COALESCE(gst_amount, 0) <> 0)
+               AND " . sql_date('expense_date') . ' BETWEEN :from AND :to
+             ORDER BY id ASC',
+            ['from' => $from, 'to' => $to]
+        );
+
+        $input = ['taxable' => 0.0, 'cgst' => 0.0, 'sgst' => 0.0, 'igst' => 0.0, 'total' => 0.0, 'byRate' => [], 'expenses' => []];
+        $inputByRate = [];
+        foreach ($expenseRows as $row) {
+            $rate    = (float) ($row['gst_rate'] ?? 0);
+            $tax     = (float) ($row['gst_amount'] ?? 0);
+            $taxable = max(0.0, (float) ($row['amount'] ?? 0) - $tax);
+            $input['taxable'] += $taxable;
+            $input['cgst']    += $tax / 2;
+            $input['sgst']    += $tax / 2;
+            $input['total']   += $tax;
+            $key = (string) $rate;
+            $inputByRate[$key] ??= ['rate' => $rate, 'taxable' => 0.0, 'tax' => 0.0];
+            $inputByRate[$key]['taxable'] += $taxable;
+            $inputByRate[$key]['tax']     += $tax;
+            $input['expenses'][] = [
+                'id'             => (int) $row['id'],
+                'expense_no'     => $row['expense_no'],
+                'date'           => $row['expense_date'],
+                'payee'          => $row['payee'] ?? null,
+                'gstin'          => $row['gstin'] ?? null,
+                'category'       => $row['category'],
+                'taxable_amount' => $taxable,
+                'gst_rate'       => $rate,
+                'gst_amount'     => $tax,
+                'amount'         => (float) ($row['amount'] ?? 0),
+            ];
+        }
+        ksort($inputByRate, SORT_NUMERIC);
+        $input['byRate'] = array_values($inputByRate);
+
+        Response::success([
+            'from'      => $from,
+            'to'        => $to,
+            'outputTax' => $output,
+            'inputTax'  => $input,
+            'netGst'    => round($output['total'] - $input['total'], 2),
+        ]);
+    }
 }

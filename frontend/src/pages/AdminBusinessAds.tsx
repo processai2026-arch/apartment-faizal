@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Store, Plus, Trash2, RefreshCcw, Tag, MousePointerClick, Eye, Bell } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Store, Plus, Trash2, RefreshCcw, Tag, MousePointerClick, Eye, Bell, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import SearchInput from '@/components/features/SearchInput';
@@ -89,7 +90,9 @@ export default function AdminBusinessAds() {
           <p className="text-sm text-slate-500">Manage local business advertisements</p>
         </div>
         <div className="flex gap-2">
-          {/* Hidden for now: Analytics & Billing button (/ad-billing) */}
+          <Link to="/ad-billing" className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300">
+            <BarChart3 className="h-4 w-4" /> Analytics &amp; Billing
+          </Link>
           <button onClick={refresh} className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 dark:border-slate-700">
             <RefreshCcw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </button>

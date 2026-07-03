@@ -37,6 +37,7 @@ class AdminBusinessAdController
             'priority'            => $request->input('priority') !== null ? (int) $request->input('priority') : 0,
             'status'              => 'Active',
             'expires_at'          => $request->input('expires_at') ?: null,
+            'org_id'              => OrgScope::stampFor($request),
         ]);
         AuditService::log((int) $request->user['id'], 'business_ad.create', 'business_ad', (int) $ad['id']);
         Response::success($ad, 'Ad created', 201);
@@ -278,13 +279,23 @@ class AdminBusinessAdController
 
     public function billing(Request $request): void
     {
+        // Optional organization filter (?orgId=) for the super admin.
+        $params = [];
+        $where  = '';
+        $orgId  = OrgScope::orgIdFor($request);
+        if ($orgId !== null) {
+            $where               = 'WHERE ab.org_id = :org_scope';
+            $params['org_scope'] = $orgId;
+        }
         $rows = Database::fetchAll(
             "SELECT ab.*, ba.business_name, ap.name AS package_name
              FROM ad_billing ab
              JOIN business_ads ba ON ba.id = ab.ad_id
              LEFT JOIN ad_packages ap ON ap.id = ab.package_id
+             {$where}
              ORDER BY ab.id DESC
-             LIMIT 200"
+             LIMIT 200",
+            $params
         );
         $mapped = array_map(function (array $row): array {
             $row['id']               = (int) $row['id'];
@@ -313,6 +324,8 @@ class AdminBusinessAdController
             'due_date'       => $request->input('due_date') ?: null,
             'payment_ref'    => $request->input('payment_ref') ?: null,
             'notes'          => $request->input('notes') ?: null,
+            // Billing inherits the ad's organization so rollups stay coherent.
+            'org_id'         => isset($ad['org_id']) && $ad['org_id'] !== null ? (int) $ad['org_id'] : OrgScope::stampFor($request),
         ]);
         AuditService::log((int) $request->user['id'], 'ad_billing.create', 'ad_billing', (int) $record['id']);
         Response::success($record, 'Billing record created', 201);

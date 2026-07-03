@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import DataTable from '@/components/features/DataTable';
 import type { Column } from '@/components/features/DataTable';
 import StatusBadge from '@/components/features/StatusBadge';
+import CameraLiveView from '@/components/features/CameraLiveView';
 import { useCameraStore } from '@/stores/useCameraStore';
 import type { CameraDevice, CameraEvent, CameraSnapshot } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -53,7 +54,7 @@ function CameraFormDialog({ open, onClose, initial, onSaved }: CameraFormDialogP
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    name: '', location: '', zone: '', ipAddress: '', rtspUrl: '',
+    name: '', location: '', zone: '', ipAddress: '', rtspUrl: '', hlsUrl: '',
     manufacturer: '', model: '', resolution: '', notes: '',
     status: 'Offline' as CameraDevice['status'],
   });
@@ -66,6 +67,7 @@ function CameraFormDialog({ open, onClose, initial, onSaved }: CameraFormDialogP
         zone: initial?.zone ?? '',
         ipAddress: initial?.ipAddress ?? '',
         rtspUrl: initial?.rtspUrl ?? '',
+        hlsUrl: initial?.hlsUrl ?? '',
         manufacturer: initial?.manufacturer ?? '',
         model: initial?.model ?? '',
         resolution: initial?.resolution ?? '',
@@ -144,7 +146,12 @@ function CameraFormDialog({ open, onClose, initial, onSaved }: CameraFormDialogP
             </div>
             <div className="space-y-1">
               <Label>RTSP URL</Label>
-              <Input value={form.rtspUrl} onChange={f('rtspUrl')} placeholder="rtsp://..." />
+              <Input value={form.rtspUrl} onChange={f('rtspUrl')} placeholder="rtsp://... (source stream)" />
+            </div>
+            <div className="space-y-1">
+              <Label>Live Stream URL (HLS / MJPEG)</Label>
+              <Input value={form.hlsUrl} onChange={f('hlsUrl')} placeholder="https://nvr.example/stream.m3u8" />
+              <p className="text-[11px] text-slate-500">Browser-playable stream (HLS .m3u8 or MJPEG). RTSP cannot play in a browser — convert it via your NVR / go2rtc / MediaMTX.</p>
             </div>
             <div className="space-y-1">
               <Label>Manufacturer</Label>
@@ -300,17 +307,8 @@ function CameraDetailDialog({ open, camera, onClose }: CameraDetailDialogProps) 
               <div><span className="text-slate-500">Last Ping: </span>{camera.lastHeartbeat ? formatTime(camera.lastHeartbeat) : '—'}</div>
             </div>
 
-            {/* Snapshot placeholder */}
-            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 py-6">
-              {camera.snapshotUrl ? (
-                <img src={camera.snapshotUrl} alt="Snapshot" className="max-h-40 rounded object-contain" />
-              ) : (
-                <>
-                  <Camera className="mb-2 h-10 w-10 text-slate-300" />
-                  <p className="text-sm text-slate-400">Snapshot not available</p>
-                </>
-              )}
-            </div>
+            {/* Live view (falls back to the latest snapshot when no stream is set) */}
+            <CameraLiveView hlsUrl={camera.hlsUrl} snapshotUrl={camera.snapshotUrl} />
 
             {/* Actions */}
             <div className="flex gap-2">

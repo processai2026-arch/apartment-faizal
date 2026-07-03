@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { api, tokenStorage } from '@/lib/api';
 import { requireGateToken } from '@/lib/gateToken';
 import type { EmergencyContact } from '@/types';
-import type { Apartment, AppNotification, Complaint, ComplaintTicket, DailyWorker, FinancialSummary, InventoryItem, Invoice, MaintenanceRequestTicket, Office, Staff, UtilityTask, Vehicle, Vendor, Visitor } from '@/types';
+import type { Apartment, AppNotification, Complaint, ComplaintTicket, DailyWorker, FinancialSummary, InventoryItem, Invoice, InvoiceGstFields, MaintenanceRequestTicket, Office, Staff, UtilityTask, Vehicle, Vendor, Visitor } from '@/types';
 import type { UserRole } from '@/types/auth';
 
 interface AppState {
@@ -78,8 +78,8 @@ interface AppState {
 
   loadAdminInvoices: (params?: { status?: string; officeId?: string; search?: string }) => Promise<void>;
   loadFinancialSummary: () => Promise<void>;
-  createInvoice: (payload: { officeId?: string; invoiceNo: string; description?: string; amount: number; dueDate?: string; status?: Invoice['status'] }) => Promise<Invoice>;
-  updateInvoice: (id: string, payload: Partial<{ description: string; amount: number; dueDate: string; status: Invoice['status'] }>) => Promise<void>;
+  createInvoice: (payload: { officeId?: string; invoiceNo: string; description?: string; amount: number; dueDate?: string; status?: Invoice['status'] } & InvoiceGstFields) => Promise<Invoice>;
+  updateInvoice: (id: string, payload: Partial<{ description: string; amount: number; dueDate: string; status: Invoice['status'] }> & InvoiceGstFields) => Promise<void>;
   recordInvoicePayment: (id: string, amount: number, mode?: string, referenceNo?: string) => Promise<void>;
 }
 
@@ -130,6 +130,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadInitialData: async (role = 'admin') => {
     if (!tokenStorage.getAccessToken()) return;
+    // super_admin consumes the admin data surface (superset role)
+    if (role === 'super_admin') role = 'admin';
     set({ isLoading: true, loadError: null, notificationRole: role });
     try {
       const notificationResult = await api.notifications.list(role, { perPage: 8 });

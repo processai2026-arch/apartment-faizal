@@ -1,5 +1,11 @@
-import type { Announcement, AppNotification, BusinessAd, BusinessAdDashboard, BusinessCategory, CameraDevice, CameraDashboard, CameraEvent, CameraSnapshot, CommunityEvent, ComplaintTicket, ComplaintUpdate, DailyWorker, EmergencyContact, EventDashboard, EventRegistration, FinancialSummary, InventoryItem, Invoice, ListingStatusHistory, MaintenanceRequestTicket, MaintenanceUpdate, MarketplaceVendor, NotificationSummary, Office, RentalDashboard, RentalListing, Staff, UtilityTask, Vehicle, Vendor, VendorBooking, VendorCategory, VendorGalleryItem, VendorMarketplaceDashboard, VendorMarketplaceStats, VendorReview, VendorService, Visitor, VisitorPass, VisitorPassDashboard, WorkerAttendance, WorkerTodaySummary, AnalyticsSummary, OccupancyAnalytics, ComplaintAnalytics, MaintenanceAnalytics, VendorAnalytics, RentalAnalytics, VisitorAnalytics, RevenueAnalytics, WorkerAnalytics, SubscriptionPlan, Subscription, PremiumFeature, SubscriptionDashboard, AdPackage, AdBilling, AdAnalytics, BillingSummary, AdExportRow, PaymentTransaction, RazorpayOrder, PaymentDashboard } from '@/types';
+import type { Announcement, AppNotification, BusinessAd, BusinessAdDashboard, BusinessCategory, CameraDevice, CameraDashboard, CameraEvent, CameraSnapshot, CommunityEvent, ComplaintTicket, ComplaintUpdate, DailyWorker, EmergencyContact, OfficeExpense, ExpenseSummary, ExpenseReport, EventDashboard, EventRegistration, FinancialSummary, InventoryItem, Invoice, ListingStatusHistory, MaintenanceRequestTicket, MaintenanceUpdate, MarketplaceVendor, NotificationSummary, Office, RentalDashboard, RentalListing, Staff, UtilityTask, Vehicle, Vendor, VendorBooking, VendorCategory, VendorGalleryItem, VendorMarketplaceDashboard, VendorMarketplaceStats, VendorReview, VendorService, Visitor, VisitorPass, VisitorPassDashboard, WorkerAttendance, WorkerTodaySummary, AnalyticsSummary, OccupancyAnalytics, ComplaintAnalytics, MaintenanceAnalytics, VendorAnalytics, RentalAnalytics, VisitorAnalytics, RevenueAnalytics, WorkerAnalytics, SubscriptionPlan, Subscription, PremiumFeature, SubscriptionDashboard, AdPackage, AdBilling, AdAnalytics, BillingSummary, AdExportRow, PaymentTransaction, RazorpayOrder, PaymentDashboard, CctvChecklist, CctvDailyCheck, CctvDailySummary, WaterLorryLog, EbLog, HousekeepingLog, DailyOpsReport, DailyOpsMaintenanceItem, DailyOpsUtilityItem, DailyOpsPayment, Asset, AssetAssignment, AssetAudit, AssetSummary } from '@/types';
 import type { User, ManagedUser, UserRole } from '@/types/auth';
+import type { IotDevice, IotEvent, IotSummary } from '@/types';
+import type { PayrollRun, Payslip, PayrollSummary, MedicalReport, MedicalSummary } from '@/types';
+import type { OfficeDocument, DocumentSummary, NameTransfer, NameTransferSummary } from '@/types';
+import type { InvoiceGstFields, GstReport, GstTaxSection, GstInvoiceLine, GstExpenseLine, AuditReport, SuspendedLists, SuspendEntityType, AmcContract, DgMaintenanceLog, DgSummary } from '@/types';
+import type { Organization, OrgRollup, SuperAdminOverview, FeatureCatalogItem, OrgFeatureMap, MeFeatures } from '@/types';
+import type { HomeAutomationHub, HomeAutomationDevice, HomeAutomationSummary } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8010';
 
@@ -112,6 +118,15 @@ function query(params: Record<string, string | number | undefined>) {
 
 function gateHeaders(token: string) {
   return { 'X-Gate-Token': token };
+}
+
+/**
+ * Role-templated API paths (`/{role}/notifications`...) only exist for
+ * admin/security/tenant. super_admin consumes the admin surface (superset
+ * role), so its requests are routed to the /admin/* endpoints.
+ */
+function rolePathSegment(role: UserRole): 'admin' | 'security' | 'tenant' {
+  return role === 'super_admin' ? 'admin' : role;
 }
 
 function unwrapList<T>(path: string) {
@@ -277,7 +292,7 @@ export const api = {
   },
   notifications: {
     list: async (role: UserRole, params: { page?: number; perPage?: number; search?: string; read?: 'read' | 'unread'; priority?: string; category?: string; date?: string; sort?: 'newest' | 'oldest' | 'priority' } = {}): Promise<NotificationListResult> => {
-      const payload = await requestEnvelope<NotificationDto[]>(`/${role}/notifications${query({ perPage: params.perPage ?? 20, page: params.page, search: params.search, read: params.read, priority: params.priority, category: params.category, date: params.date, sort: params.sort })}`);
+      const payload = await requestEnvelope<NotificationDto[]>(`/${rolePathSegment(role)}/notifications${query({ perPage: params.perPage ?? 20, page: params.page, search: params.search, read: params.read, priority: params.priority, category: params.category, date: params.date, sort: params.sort })}`);
       return {
         items: payload.data.map(toNotification),
         pagination: payload.meta?.pagination,
@@ -285,8 +300,8 @@ export const api = {
       };
     },
     show: (id: string) => request<NotificationDto>(`/admin/notifications/${id}`).then(toNotification),
-    markRead: (role: UserRole, id: string) => request<NotificationDto>(`/${role}/notifications/${id}/read`, { method: 'PUT', body: JSON.stringify({}) }).then(toNotification),
-    markAllRead: (role: UserRole) => request<{ updated: number }>(`/${role}/notifications/read-all`, { method: 'PUT', body: JSON.stringify({}) }),
+    markRead: (role: UserRole, id: string) => request<NotificationDto>(`/${rolePathSegment(role)}/notifications/${id}/read`, { method: 'PUT', body: JSON.stringify({}) }).then(toNotification),
+    markAllRead: (role: UserRole) => request<{ updated: number }>(`/${rolePathSegment(role)}/notifications/read-all`, { method: 'PUT', body: JSON.stringify({}) }),
     remove: (id: string) => request<{ id: number | string }>(`/admin/notifications/${id}`, { method: 'DELETE' }),
     create: (payload: NotificationCreatePayload) => request<{ items: NotificationDto[]; created: number }>('/admin/notifications', {
       method: 'POST',
@@ -297,10 +312,10 @@ export const api = {
     list: (params: { status?: string; officeId?: string; search?: string } = {}) =>
       unwrapList<InvoiceDto>(`/admin/invoices${query({ perPage: 100, status: params.status, office_id: params.officeId, search: params.search })}`).then((rows) => rows.map(toInvoice)),
     show: (id: string) => request<InvoiceDto>(`/admin/invoices/${id}`).then(toInvoice),
-    create: (payload: { officeId?: string; invoiceNo: string; description?: string; amount: number; dueDate?: string; status?: Invoice['status'] }) =>
+    create: (payload: { officeId?: string; invoiceNo: string; description?: string; amount: number; dueDate?: string; status?: Invoice['status'] } & InvoiceGstFields) =>
       request<InvoiceDto>('/admin/invoices', { method: 'POST', body: JSON.stringify(fromInvoiceCreate(payload)) }).then(toInvoice),
-    update: (id: string, payload: Partial<{ description: string; amount: number; dueDate: string; status: Invoice['status'] }>) =>
-      request<InvoiceDto>(`/admin/invoices/${id}`, { method: 'PUT', body: JSON.stringify({ description: payload.description, amount: payload.amount, due_date: payload.dueDate, status: payload.status }) }).then(toInvoice),
+    update: (id: string, payload: Partial<{ description: string; amount: number; dueDate: string; status: Invoice['status'] }> & InvoiceGstFields) =>
+      request<InvoiceDto>(`/admin/invoices/${id}`, { method: 'PUT', body: JSON.stringify({ description: payload.description, amount: payload.amount, due_date: payload.dueDate, status: payload.status, ...fromInvoiceGst(payload) }) }).then(toInvoice),
     recordPayment: (id: string, amount: number, mode?: string, referenceNo?: string) =>
       request<InvoiceDto>(`/admin/invoices/${id}/payments`, { method: 'POST', body: JSON.stringify({ amount, mode, reference_no: referenceNo }) }).then(toInvoice),
     summary: () => request<FinancialSummaryDto>('/admin/financials/summary').then(toFinancialSummary),
@@ -490,6 +505,35 @@ export const api = {
     deletePackage: (id: string) => request<unknown>(`/admin/ad-packages/${id}`, { method: 'DELETE' }),
   },
 
+  // ── Super Admin: Organizations & Multi-tenant ─────────────────────────────
+  superAdmin: {
+    organizations: () =>
+      requestEnvelope<OrganizationDto[]>('/super/organizations?perPage=100').then((e) => (e.data ?? []).map(toOrganization)),
+    createOrganization: (payload: Partial<Organization>) =>
+      request<OrganizationDto>('/super/organizations', { method: 'POST', body: JSON.stringify(fromOrganization(payload)) }).then(toOrganization),
+    updateOrganization: (id: string, payload: Partial<Organization>) =>
+      request<OrganizationDto>(`/super/organizations/${id}`, { method: 'PUT', body: JSON.stringify(fromOrganization(payload)) }).then(toOrganization),
+    setOrganizationStatus: (id: string, status: Organization['status']) =>
+      request<OrganizationDto>(`/super/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) }).then(toOrganization),
+    removeOrganization: (id: string) =>
+      request<{ id: number | string }>(`/super/organizations/${id}`, { method: 'DELETE' }),
+    assignUser: (orgId: string, userId: string) =>
+      request<User>(`/super/organizations/${orgId}/assign-user`, { method: 'POST', body: JSON.stringify({ userId: Number(userId) }) }),
+    overview: () =>
+      request<SuperAdminOverviewDto>('/super/overview').then(toSuperAdminOverview),
+
+    // Feature entitlements (per-organization module toggles)
+    featureCatalog: () =>
+      requestEnvelope<FeatureCatalogDto[]>('/super/features/catalog').then((e) => (e.data ?? []).map(toFeatureCatalogItem)),
+    orgFeatures: (id: string) =>
+      request<OrgFeaturesDto>(`/super/organizations/${id}/features`).then(toOrgFeatureMap),
+    setOrgFeatures: (id: string, features: Record<string, boolean>) =>
+      request<OrgFeaturesDto>(`/super/organizations/${id}/features`, { method: 'PUT', body: JSON.stringify({ features }) }).then(toOrgFeatureMap),
+  },
+
+  // Current user's enabled feature keys (drives entitlement-aware nav/routes)
+  meFeatures: () => request<MeFeaturesDto>('/me/features').then(toMeFeatures),
+
   // ── Announcements (P12) ───────────────────────────────────────────────────
   announcements: {
     tenantList: (params?: Record<string, string | undefined>) =>
@@ -540,6 +584,104 @@ export const api = {
     recordEntry: (payload: { workerId: string; officeId?: string; notes?: string }) =>
       request<DailyWorkerDto>('/admin/worker-entry', { method: 'POST', body: JSON.stringify({ worker_id: Number(payload.workerId), office_id: payload.officeId ? Number(payload.officeId) : undefined, notes: payload.notes }) }).then(toDailyWorker),
     recordExit: (visitId: string) => request<{ exit_recorded: boolean }>('/admin/worker-exit', { method: 'POST', body: JSON.stringify({ visit_id: Number(visitId) }) }),
+  },
+
+  // ── Office Expenses ──────────────────────────────────────────────────────
+  officeExpenses: {
+    list: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<OfficeExpenseDto[]>(`/admin/expenses${query({ perPage: 100, ...(params ?? {}) })}`).then((e) => ({ items: (e.data ?? []).map(toOfficeExpense), pagination: e.meta?.pagination })),
+    show: (id: string) => request<OfficeExpenseDto>(`/admin/expenses/${id}`).then(toOfficeExpense),
+    create: (payload: Partial<OfficeExpense>) =>
+      request<OfficeExpenseDto>('/admin/expenses', { method: 'POST', body: JSON.stringify(fromOfficeExpense(payload)) }).then(toOfficeExpense),
+    update: (id: string, payload: Partial<OfficeExpense>) =>
+      request<OfficeExpenseDto>(`/admin/expenses/${id}`, { method: 'PUT', body: JSON.stringify(fromOfficeExpense(payload)) }).then(toOfficeExpense),
+    destroy: (id: string) => request<unknown>(`/admin/expenses/${id}`, { method: 'DELETE' }),
+    summary: () => request<Record<string, DtoValue> & { by_category?: Record<string, DtoValue>[] }>('/admin/expenses/summary').then(toExpenseSummary),
+    report: (params?: { from?: string; to?: string; payment_method?: string }) =>
+      request<{ rows?: OfficeExpenseDto[]; totals?: Record<string, DtoValue> & { by_method?: Record<string, number> }; filters?: Record<string, DtoValue> }>(`/admin/expenses/report${query(params ?? {})}`).then(toExpenseReport),
+  },
+
+  // ── Payroll ──────────────────────────────────────────────────────────────
+  payroll: {
+    listRuns: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<PayrollRunDto[]>(`/admin/payroll/runs${query({ perPage: 100, ...(params ?? {}) })}`).then((e) => ({ items: (e.data ?? []).map(toPayrollRun), pagination: e.meta?.pagination })),
+    showRun: (id: string) => request<PayrollRunDto>(`/admin/payroll/runs/${id}`).then(toPayrollRun),
+    generate: (periodMonth: string, notes?: string) =>
+      request<PayrollRunDto>('/admin/payroll/runs', { method: 'POST', body: JSON.stringify({ period_month: periodMonth, notes: notes ?? null }) }).then(toPayrollRun),
+    finalizeRun: (id: string) => request<PayrollRunDto>(`/admin/payroll/runs/${id}/finalize`, { method: 'POST', body: JSON.stringify({}) }).then(toPayrollRun),
+    markRunPaid: (id: string) => request<PayrollRunDto>(`/admin/payroll/runs/${id}/pay`, { method: 'POST', body: JSON.stringify({}) }).then(toPayrollRun),
+    showPayslip: (id: string) => request<PayslipDto>(`/admin/payroll/payslips/${id}`).then(toPayslip),
+    updatePayslip: (id: string, payload: Partial<Payslip>) =>
+      request<PayslipDto>(`/admin/payroll/payslips/${id}`, { method: 'PUT', body: JSON.stringify(fromPayslip(payload)) }).then(toPayslip),
+    payPayslip: (id: string, paymentMethod?: Payslip['paymentMethod']) =>
+      request<PayslipDto>(`/admin/payroll/payslips/${id}/pay`, { method: 'POST', body: JSON.stringify({ payment_method: paymentMethod ?? null }) }).then(toPayslip),
+    summary: (periodMonth?: string) =>
+      request<Record<string, DtoValue>>(`/admin/payroll/summary${query({ period_month: periodMonth })}`).then(toPayrollSummary),
+  },
+
+  // ── Medical Reports ──────────────────────────────────────────────────────
+  medical: {
+    list: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<MedicalReportDto[]>(`/admin/medical${query({ perPage: 100, ...(params ?? {}) })}`).then((e) => ({ items: (e.data ?? []).map(toMedicalReport), pagination: e.meta?.pagination })),
+    show: (id: string) => request<MedicalReportDto>(`/admin/medical/${id}`).then(toMedicalReport),
+    create: (payload: Partial<MedicalReport>) =>
+      request<MedicalReportDto>('/admin/medical', { method: 'POST', body: JSON.stringify(fromMedicalReport(payload)) }).then(toMedicalReport),
+    update: (id: string, payload: Partial<MedicalReport>) =>
+      request<MedicalReportDto>(`/admin/medical/${id}`, { method: 'PUT', body: JSON.stringify(fromMedicalReport(payload)) }).then(toMedicalReport),
+    destroy: (id: string) => request<unknown>(`/admin/medical/${id}`, { method: 'DELETE' }),
+    summary: () => request<Record<string, DtoValue> & { by_type?: Record<string, DtoValue>[] }>('/admin/medical/summary').then(toMedicalSummary),
+  },
+
+  // ── Documents ─────────────────────────────────────────────────────────────
+  documents: {
+    list: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<DocumentDto[]>(`/admin/documents${query({ perPage: 100, ...(params ?? {}) })}`).then((e) => ({ items: (e.data ?? []).map(toDocument), pagination: e.meta?.pagination })),
+    show: (id: string) => request<DocumentDto>(`/admin/documents/${id}`).then(toDocument),
+    create: (payload: Partial<OfficeDocument>) =>
+      request<DocumentDto>('/admin/documents', { method: 'POST', body: JSON.stringify(fromDocument(payload)) }).then(toDocument),
+    update: (id: string, payload: Partial<OfficeDocument>) =>
+      request<DocumentDto>(`/admin/documents/${id}`, { method: 'PUT', body: JSON.stringify(fromDocument(payload)) }).then(toDocument),
+    destroy: (id: string) => request<unknown>(`/admin/documents/${id}`, { method: 'DELETE' }),
+    summary: () => request<Record<string, DtoValue> & { by_category?: Record<string, DtoValue>[] }>('/admin/documents/summary').then(toDocumentSummary),
+  },
+
+  // ── Name Transfers ────────────────────────────────────────────────────────
+  nameTransfers: {
+    list: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<NameTransferDto[]>(`/admin/name-transfers${query({ perPage: 100, ...(params ?? {}) })}`).then((e) => ({ items: (e.data ?? []).map(toNameTransfer), pagination: e.meta?.pagination })),
+    show: (id: string) => request<NameTransferDto>(`/admin/name-transfers/${id}`).then(toNameTransfer),
+    create: (payload: Partial<NameTransfer>) =>
+      request<NameTransferDto>('/admin/name-transfers', { method: 'POST', body: JSON.stringify(fromNameTransfer(payload)) }).then(toNameTransfer),
+    update: (id: string, payload: Partial<NameTransfer>) =>
+      request<NameTransferDto>(`/admin/name-transfers/${id}`, { method: 'PUT', body: JSON.stringify(fromNameTransfer(payload)) }).then(toNameTransfer),
+    approve: (id: string) => request<NameTransferDto>(`/admin/name-transfers/${id}/approve`, { method: 'POST', body: JSON.stringify({}) }).then(toNameTransfer),
+    reject: (id: string, notes?: string) => request<NameTransferDto>(`/admin/name-transfers/${id}/reject`, { method: 'POST', body: JSON.stringify({ notes: notes ?? null }) }).then(toNameTransfer),
+    complete: (id: string) => request<NameTransferDto>(`/admin/name-transfers/${id}/complete`, { method: 'POST', body: JSON.stringify({}) }).then(toNameTransfer),
+    destroy: (id: string) => request<unknown>(`/admin/name-transfers/${id}`, { method: 'DELETE' }),
+    summary: () => request<Record<string, DtoValue>>('/admin/name-transfers/summary').then(toNameTransferSummary),
+  },
+
+  // ── Asset Tracking ───────────────────────────────────────────────────────
+  assets: {
+    list: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<AssetDto[]>(`/admin/assets${query({ perPage: 100, ...(params ?? {}) })}`).then((e) => ({ items: (e.data ?? []).map(toAsset), pagination: e.meta?.pagination })),
+    show: (id: string) => request<AssetDto>(`/admin/assets/${id}`).then(toAsset),
+    create: (payload: Partial<Asset>) =>
+      request<AssetDto>('/admin/assets', { method: 'POST', body: JSON.stringify(fromAsset(payload)) }).then(toAsset),
+    update: (id: string, payload: Partial<Asset>) =>
+      request<AssetDto>(`/admin/assets/${id}`, { method: 'PUT', body: JSON.stringify(fromAsset(payload)) }).then(toAsset),
+    destroy: (id: string) => request<unknown>(`/admin/assets/${id}`, { method: 'DELETE' }),
+    summary: () => request<Record<string, DtoValue> & { by_category?: Record<string, DtoValue>[] }>('/admin/assets/summary').then(toAssetSummary),
+    checkout: (id: string, payload: { staffId: string; dueAt?: string; notes?: string }) =>
+      request<AssetAssignmentDto>(`/admin/assets/${id}/checkout`, { method: 'POST', body: JSON.stringify({ staff_id: Number(payload.staffId), due_at: payload.dueAt || null, notes: payload.notes || null }) }).then(toAssetAssignment),
+    checkin: (id: string, payload: { returnCondition?: string; notes?: string }) =>
+      request<AssetDto>(`/admin/assets/${id}/checkin`, { method: 'POST', body: JSON.stringify({ return_condition: payload.returnCondition || null, notes: payload.notes || null }) }).then(toAsset),
+    audit: (id: string, payload: { foundStatus: string; condition: string; remarks?: string; auditDate?: string }) =>
+      request<AssetAuditDto>(`/admin/assets/${id}/audit`, { method: 'POST', body: JSON.stringify({ found_status: payload.foundStatus, condition: payload.condition, remarks: payload.remarks || null, audit_date: payload.auditDate || undefined }) }).then(toAssetAudit),
+    audits: (params?: Record<string, string | undefined>) =>
+      request<AssetAuditDto[]>(`/admin/assets/audits${query(params ?? {})}`).then((rows) => (rows ?? []).map(toAssetAudit)),
+    assignments: (params?: Record<string, string | undefined>) =>
+      request<AssetAssignmentDto[]>(`/admin/assets/assignments${query(params ?? {})}`).then((rows) => (rows ?? []).map(toAssetAssignment)),
   },
 
   // ── Visitor Passes (P17) ─────────────────────────────────────────────────
@@ -638,7 +780,7 @@ export const api = {
 
   // ── Community Analytics (P18) ─────────────────────────────────────────────
   analytics: {
-    summary: () => request<AnalyticsSummary>('/admin/analytics/summary').then(toAnalyticsSummary),
+    summary: () => request<Record<string, unknown>>('/admin/analytics/summary').then(toAnalyticsSummary),
     occupancy: () => request<Record<string, unknown>>('/admin/analytics/occupancy').then(toOccupancyAnalytics),
     complaints: () => request<Record<string, unknown>>('/admin/analytics/complaints').then(toComplaintAnalytics),
     maintenance: () => request<Record<string, unknown>>('/admin/analytics/maintenance').then(toMaintenanceAnalytics),
@@ -782,6 +924,183 @@ export const api = {
       }),
     cancelMine: () =>
       request<SubscriptionDto>('/tenant/subscription/cancel', { method: 'POST', body: JSON.stringify({}) }).then(toSubscription),
+  },
+
+  // ── Daily Operations (P25) ────────────────────────────────────────────────
+  dailyOps: {
+    report: (date?: string) =>
+      request<DailyOpsReportDto>(`/admin/daily-ops/report${query({ date })}`).then(toDailyOpsReport),
+    cctvChecklist: (date?: string) =>
+      request<CctvChecklistDto>(`/admin/daily-ops/cctv-checks${query({ date })}`).then(toCctvChecklist),
+    saveCctvCheck: (payload: { checkDate: string; cameraId: string; status: string; remarks?: string }) =>
+      request<CctvDailyCheckDto>('/admin/daily-ops/cctv-checks', {
+        method: 'POST',
+        body: JSON.stringify({
+          check_date: payload.checkDate,
+          camera_id: Number(payload.cameraId),
+          status: payload.status,
+          remarks: payload.remarks ?? null,
+        }),
+      }),
+    saveCctvChecksBulk: (checkDate: string, checks: { cameraId: string; status: string; remarks?: string }[]) =>
+      request<CctvChecklistDto>('/admin/daily-ops/cctv-checks/bulk', {
+        method: 'POST',
+        body: JSON.stringify({
+          check_date: checkDate,
+          checks: checks.map((c) => ({ camera_id: Number(c.cameraId), status: c.status, remarks: c.remarks ?? null })),
+        }),
+      }).then(toCctvChecklist),
+    waterLorryList: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<WaterLorryLogDto[]>(`/admin/daily-ops/water-lorry${query(params ?? {})}`).then((e) => ({ items: (e.data ?? []).map(toWaterLorryLog), pagination: e.meta?.pagination })),
+    waterLorryCreate: (payload: Partial<WaterLorryLog>) =>
+      request<WaterLorryLogDto>('/admin/daily-ops/water-lorry', { method: 'POST', body: JSON.stringify(fromWaterLorryLog(payload)) }).then(toWaterLorryLog),
+    waterLorryUpdate: (id: string, payload: Partial<WaterLorryLog>) =>
+      request<WaterLorryLogDto>(`/admin/daily-ops/water-lorry/${id}`, { method: 'PUT', body: JSON.stringify(fromWaterLorryLog(payload)) }).then(toWaterLorryLog),
+    waterLorryDestroy: (id: string) => request<unknown>(`/admin/daily-ops/water-lorry/${id}`, { method: 'DELETE' }),
+    ebList: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<EbLogDto[]>(`/admin/daily-ops/eb${query(params ?? {})}`).then((e) => ({ items: (e.data ?? []).map(toEbLog), pagination: e.meta?.pagination })),
+    ebCreate: (payload: Partial<EbLog>) =>
+      request<EbLogDto>('/admin/daily-ops/eb', { method: 'POST', body: JSON.stringify(fromEbLog(payload)) }).then(toEbLog),
+    ebUpdate: (id: string, payload: Partial<EbLog>) =>
+      request<EbLogDto>(`/admin/daily-ops/eb/${id}`, { method: 'PUT', body: JSON.stringify(fromEbLog(payload)) }).then(toEbLog),
+    ebDestroy: (id: string) => request<unknown>(`/admin/daily-ops/eb/${id}`, { method: 'DELETE' }),
+    housekeepingList: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<HousekeepingLogDto[]>(`/admin/daily-ops/housekeeping${query(params ?? {})}`).then((e) => ({ items: (e.data ?? []).map(toHousekeepingLog), pagination: e.meta?.pagination })),
+    housekeepingCreate: (payload: Partial<HousekeepingLog>) =>
+      request<HousekeepingLogDto>('/admin/daily-ops/housekeeping', { method: 'POST', body: JSON.stringify(fromHousekeepingLog(payload)) }).then(toHousekeepingLog),
+    housekeepingUpdate: (id: string, payload: Partial<HousekeepingLog>) =>
+      request<HousekeepingLogDto>(`/admin/daily-ops/housekeeping/${id}`, { method: 'PUT', body: JSON.stringify(fromHousekeepingLog(payload)) }).then(toHousekeepingLog),
+    housekeepingDestroy: (id: string) => request<unknown>(`/admin/daily-ops/housekeeping/${id}`, { method: 'DELETE' }),
+  },
+
+  // ── IoT Monitoring ────────────────────────────────────────────────────────
+  iot: {
+    devices: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<IotDeviceDto[]>(`/admin/iot/devices${query(params ?? {})}`).then((e) => ({
+        items: (e.data ?? []).map(toIotDevice),
+        pagination: e.meta?.pagination,
+      })),
+    createDevice: (payload: Partial<IotDevice>) =>
+      request<IotDeviceDto>('/admin/iot/devices', {
+        method: 'POST',
+        body: JSON.stringify(fromIotDevice(payload)),
+      }).then(toIotDevice),
+    showDevice: (id: string) =>
+      request<IotDeviceDto & { recent_events?: IotEventDto[] }>(`/admin/iot/devices/${id}`).then((row) => ({
+        device: toIotDevice(row),
+        recentEvents: ((row.recent_events ?? []) as IotEventDto[]).map(toIotEvent),
+      })),
+    updateDevice: (id: string, payload: Partial<IotDevice>) =>
+      request<IotDeviceDto>(`/admin/iot/devices/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(fromIotDevice(payload)),
+      }).then(toIotDevice),
+    removeDevice: (id: string) =>
+      request<{ id: string | number }>(`/admin/iot/devices/${id}`, { method: 'DELETE' }),
+    regenerateToken: (id: string) =>
+      request<{ id: string | number; api_token: string }>(`/admin/iot/devices/${id}/regenerate-token`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }).then((r) => ({ id: String(r.id), apiToken: r.api_token })),
+    events: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<IotEventDto[]>(`/admin/iot/events${query(params ?? {})}`).then((e) => ({
+        items: (e.data ?? []).map(toIotEvent),
+        pagination: e.meta?.pagination,
+      })),
+    acknowledgeEvent: (eventId: string) =>
+      request<IotEventDto>(`/admin/iot/events/${eventId}/acknowledge`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }).then(toIotEvent),
+    summary: () => request<IotSummaryDto>('/admin/iot/summary').then(toIotSummary),
+  },
+
+  // ── Home Automation (Home Assistant connector) ────────────────────────────
+  homeAutomation: {
+    // Admin
+    summary: () => request<HomeAutomationSummary>('/admin/home-automation/summary').then((r) => r as HomeAutomationSummary),
+    hubs: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<HaHubDto[]>(`/admin/home-automation/hubs${query(params ?? {})}`).then((e) => ({
+        items: (e.data ?? []).map(toHaHub),
+        pagination: e.meta?.pagination,
+      })),
+    createHub: (payload: Partial<HomeAutomationHub> & { accessToken?: string }) =>
+      request<HaHubDto>('/admin/home-automation/hubs', { method: 'POST', body: JSON.stringify(fromHaHub(payload)) }).then(toHaHub),
+    updateHub: (id: string, payload: Partial<HomeAutomationHub> & { accessToken?: string }) =>
+      request<HaHubDto>(`/admin/home-automation/hubs/${id}`, { method: 'PUT', body: JSON.stringify(fromHaHub(payload)) }).then(toHaHub),
+    removeHub: (id: string) =>
+      request<{ id: string | number }>(`/admin/home-automation/hubs/${id}`, { method: 'DELETE' }),
+    checkHealth: (id: string) =>
+      request<{ id: number; ok: boolean; checked_at: string }>(`/admin/home-automation/hubs/${id}/health`, { method: 'POST', body: JSON.stringify({}) }),
+    syncDevices: (id: string) =>
+      request<{ hub_id: number; imported: number; existing: number; total: number }>(`/admin/home-automation/hubs/${id}/sync`, { method: 'POST', body: JSON.stringify({}) }),
+    devices: (hubId: string) =>
+      request<HaDeviceDto[]>(`/admin/home-automation/hubs/${hubId}/devices`).then((rows) => (rows ?? []).map(toHaDevice)),
+    updateDevice: (id: string, payload: { friendlyName?: string; isControllable?: boolean; visibleToOwner?: boolean }) =>
+      request<HaDeviceDto>(`/admin/home-automation/devices/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...(payload.friendlyName !== undefined ? { friendly_name: payload.friendlyName } : {}),
+          ...(payload.isControllable !== undefined ? { is_controllable: payload.isControllable ? 1 : 0 } : {}),
+          ...(payload.visibleToOwner !== undefined ? { visible_to_owner: payload.visibleToOwner ? 1 : 0 } : {}),
+        }),
+      }).then(toHaDevice),
+    removeDevice: (id: string) =>
+      request<{ id: string | number }>(`/admin/home-automation/devices/${id}`, { method: 'DELETE' }),
+    command: (hubId: string, entityId: string, service: string) =>
+      request<{ entity_id: string; service: string }>('/admin/home-automation/command', {
+        method: 'POST',
+        body: JSON.stringify({ hubId: Number(hubId), entityId, service }),
+      }),
+    // Tenant
+    myHubs: () => request<HaHubDto[]>('/tenant/home-automation/hubs').then((rows) => (rows ?? []).map(toHaHub)),
+    myDevices: (hubId: string) =>
+      request<HaDeviceDto[]>(`/tenant/home-automation/hubs/${hubId}/devices`).then((rows) => (rows ?? []).map(toHaDevice)),
+    myCommand: (hubId: string, entityId: string, service: string) =>
+      request<{ entity_id: string; service: string }>('/tenant/home-automation/command', {
+        method: 'POST',
+        body: JSON.stringify({ hubId: Number(hubId), entityId, service }),
+      }),
+  },
+
+  // ── Compliance (GST report / Audit report / Suspend list) ────────────────
+  compliance: {
+    gstReport: (params?: { from?: string; to?: string }) =>
+      request<GstReportDto>(`/admin/financials/gst-report${query(params ?? {})}`).then(toGstReport),
+    auditReport: (params?: { from?: string; to?: string }) =>
+      request<AuditReportDto>(`/admin/reports/audit${query(params ?? {})}`).then(toAuditReport),
+    suspended: () => request<SuspendedListsDto>('/admin/compliance/suspended').then(toSuspendedLists),
+    suspend: (entityType: SuspendEntityType, id: string, reason?: string) =>
+      request<{ entityType: string; id: number | string; status: string }>('/admin/compliance/suspend', {
+        method: 'POST',
+        body: JSON.stringify({ entityType, id: Number(id), reason: reason || null }),
+      }),
+    unsuspend: (entityType: SuspendEntityType, id: string) =>
+      request<{ entityType: string; id: number | string; status: string }>('/admin/compliance/unsuspend', {
+        method: 'POST',
+        body: JSON.stringify({ entityType, id: Number(id) }),
+      }),
+  },
+
+  // ── AMC & DG Maintenance ──────────────────────────────────────────────────
+  amc: {
+    list: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<AmcContractDto[]>(`/admin/amc${query({ perPage: 100, ...(params ?? {}) })}`).then((e) => ({ items: (e.data ?? []).map(toAmcContract), pagination: e.meta?.pagination })),
+    show: (id: string) => request<AmcContractDto>(`/admin/amc/${id}`).then(toAmcContract),
+    create: (payload: Partial<AmcContract>) =>
+      request<AmcContractDto>('/admin/amc', { method: 'POST', body: JSON.stringify(fromAmcContract(payload)) }).then(toAmcContract),
+    update: (id: string, payload: Partial<AmcContract>) =>
+      request<AmcContractDto>(`/admin/amc/${id}`, { method: 'PUT', body: JSON.stringify(fromAmcContract(payload)) }).then(toAmcContract),
+    destroy: (id: string) => request<unknown>(`/admin/amc/${id}`, { method: 'DELETE' }),
+    expiring: () => request<AmcContractDto[]>('/admin/amc/expiring').then((rows) => (rows ?? []).map(toAmcContract)),
+    dgLogs: (params?: Record<string, string | undefined>) =>
+      requestEnvelope<DgLogDto[]>(`/admin/dg/logs${query({ perPage: 100, ...(params ?? {}) })}`).then((e) => ({ items: (e.data ?? []).map(toDgLog), pagination: e.meta?.pagination })),
+    dgCreate: (payload: Partial<DgMaintenanceLog>) =>
+      request<DgLogDto>('/admin/dg/logs', { method: 'POST', body: JSON.stringify(fromDgLog(payload)) }).then(toDgLog),
+    dgUpdate: (id: string, payload: Partial<DgMaintenanceLog>) =>
+      request<DgLogDto>(`/admin/dg/logs/${id}`, { method: 'PUT', body: JSON.stringify(fromDgLog(payload)) }).then(toDgLog),
+    dgDestroy: (id: string) => request<unknown>(`/admin/dg/logs/${id}`, { method: 'DELETE' }),
+    dgSummary: () => request<Record<string, DtoValue>>('/admin/dg/summary').then(toDgSummary),
   },
 };
 
@@ -1220,10 +1539,31 @@ function toInvoice(row: InvoiceDto): Invoice {
     paymentMethod: row.payment_method ? String(row.payment_method) : undefined,
     paymentGatewayStatus: row.payment_gateway_status ? String(row.payment_gateway_status) : undefined,
     refundStatus: row.refund_status ? String(row.refund_status) : undefined,
+    // GST fields (029)
+    gstin: row.gstin ? String(row.gstin) : undefined,
+    taxableAmount: row.taxable_amount != null ? Number(row.taxable_amount) : undefined,
+    gstRate: row.gst_rate != null ? Number(row.gst_rate) : undefined,
+    cgstAmount: row.cgst_amount != null ? Number(row.cgst_amount) : undefined,
+    sgstAmount: row.sgst_amount != null ? Number(row.sgst_amount) : undefined,
+    igstAmount: row.igst_amount != null ? Number(row.igst_amount) : undefined,
+    gstTotal: row.gst_total != null ? Number(row.gst_total) : undefined,
   };
 }
 
-function fromInvoiceCreate(payload: { officeId?: string; invoiceNo: string; description?: string; amount: number; dueDate?: string; status?: Invoice['status'] }) {
+/** Snake-cased GST fields for invoice create/update bodies (only keys that are set). */
+function fromInvoiceGst(payload: InvoiceGstFields): Record<string, string | number | null> {
+  const body: Record<string, string | number | null> = {};
+  if (payload.gstin !== undefined) body.gstin = payload.gstin || null;
+  if (payload.taxableAmount !== undefined) body.taxable_amount = payload.taxableAmount;
+  if (payload.gstRate !== undefined) body.gst_rate = payload.gstRate;
+  if (payload.cgstAmount !== undefined) body.cgst_amount = payload.cgstAmount;
+  if (payload.sgstAmount !== undefined) body.sgst_amount = payload.sgstAmount;
+  if (payload.igstAmount !== undefined) body.igst_amount = payload.igstAmount;
+  if (payload.gstTotal !== undefined) body.gst_total = payload.gstTotal;
+  return body;
+}
+
+function fromInvoiceCreate(payload: { officeId?: string; invoiceNo: string; description?: string; amount: number; dueDate?: string; status?: Invoice['status'] } & InvoiceGstFields) {
   return {
     office_id: payload.officeId ? Number(payload.officeId) : null,
     invoice_no: payload.invoiceNo,
@@ -1231,6 +1571,7 @@ function fromInvoiceCreate(payload: { officeId?: string; invoiceNo: string; desc
     amount: payload.amount,
     due_date: payload.dueDate ?? null,
     status: payload.status ?? 'Pending',
+    ...fromInvoiceGst(payload),
   };
 }
 
@@ -1691,6 +2032,422 @@ function toWorkerAttendance(row: WorkerAttendanceDto): WorkerAttendance {
   };
 }
 
+// ── Office Expense mappers ───────────────────────────────────────────────────
+type OfficeExpenseDto = Record<string, DtoValue>;
+
+function toOfficeExpense(row: OfficeExpenseDto): OfficeExpense {
+  return {
+    id: asString(row.id),
+    expenseNo: asString(row.expense_no),
+    category: asString(row.category),
+    paymentMethod: asEnum(row.payment_method, ['Petty Cash', 'Cheque', 'Bank Transfer', 'Cash'] as const, 'Petty Cash'),
+    payee: asOptionalString(row.payee),
+    description: asOptionalString(row.description),
+    amount: asNumber(row.amount),
+    expenseDate: asOptionalString(row.expense_date),
+    chequeNo: asOptionalString(row.cheque_no),
+    chequeDate: asOptionalString(row.cheque_date),
+    bankName: asOptionalString(row.bank_name),
+    chequeFrontAttachmentId: asOptionalString(row.cheque_front_attachment_id),
+    chequeBackAttachmentId: asOptionalString(row.cheque_back_attachment_id),
+    receiptAttachmentId: asOptionalString(row.receipt_attachment_id),
+    status: asEnum(row.status, ['Pending', 'Approved', 'Paid', 'Rejected'] as const, 'Pending'),
+    approvedBy: asOptionalString(row.approved_by),
+    notes: asOptionalString(row.notes),
+    createdBy: asOptionalString(row.created_by),
+    createdAt: asString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+  };
+}
+
+function fromOfficeExpense(p: Partial<OfficeExpense>) {
+  return {
+    category: p.category,
+    payment_method: p.paymentMethod,
+    payee: p.payee ?? null,
+    description: p.description ?? null,
+    amount: p.amount,
+    expense_date: p.expenseDate ?? null,
+    cheque_no: p.chequeNo ?? null,
+    cheque_date: p.chequeDate ?? null,
+    bank_name: p.bankName ?? null,
+    cheque_front_attachment_id: p.chequeFrontAttachmentId ? Number(p.chequeFrontAttachmentId) : null,
+    cheque_back_attachment_id: p.chequeBackAttachmentId ? Number(p.chequeBackAttachmentId) : null,
+    receipt_attachment_id: p.receiptAttachmentId ? Number(p.receiptAttachmentId) : null,
+    status: p.status,
+    notes: p.notes ?? null,
+  };
+}
+
+function toExpenseSummary(raw: Record<string, DtoValue> & { by_category?: Record<string, DtoValue>[] }): ExpenseSummary {
+  return {
+    monthTotal: asNumber(raw.month_total),
+    pettyCashTotal: asNumber(raw.petty_cash_total),
+    chequeTotal: asNumber(raw.cheque_total),
+    pendingCount: asNumber(raw.pending_count),
+    byCategory: (raw.by_category ?? []).map((r) => ({
+      category: asString(r.category),
+      count: asNumber(r.count),
+      amount: asNumber(r.amount),
+    })),
+  };
+}
+
+function toExpenseReport(raw: { rows?: OfficeExpenseDto[]; totals?: Record<string, DtoValue> & { by_method?: Record<string, number> }; filters?: Record<string, DtoValue> }): ExpenseReport {
+  const totals = raw.totals ?? {};
+  return {
+    rows: (raw.rows ?? []).map(toOfficeExpense),
+    totals: {
+      count: asNumber(totals.count),
+      amount: asNumber(totals.amount),
+      byMethod: totals.by_method ?? {},
+    },
+    filters: {
+      from: asOptionalString(raw.filters?.from),
+      to: asOptionalString(raw.filters?.to),
+      paymentMethod: asOptionalString(raw.filters?.payment_method),
+    },
+  };
+}
+
+// ── Payroll mappers ──────────────────────────────────────────────────────────
+type PayslipDto = Record<string, DtoValue>;
+type PayrollRunDto = Record<string, DtoValue> & { payslips?: PayslipDto[] };
+
+function toPayslip(row: PayslipDto): Payslip {
+  return {
+    id: asString(row.id),
+    payrollRunId: asString(row.payroll_run_id),
+    staffId: asString(row.staff_id),
+    periodMonth: asString(row.period_month),
+    baseSalary: asNumber(row.base_salary),
+    presentDays: asNumber(row.present_days),
+    paidDays: asNumber(row.paid_days),
+    absentDays: asNumber(row.absent_days),
+    overtimeAmount: asNumber(row.overtime_amount),
+    allowances: asNumber(row.allowances),
+    deductions: asNumber(row.deductions),
+    grossPay: asNumber(row.gross_pay),
+    netPay: asNumber(row.net_pay),
+    paymentMethod: asEnum(row.payment_method, ['Bank Transfer', 'Cash', 'Cheque'] as const, 'Bank Transfer'),
+    paidAt: asOptionalString(row.paid_at),
+    notes: asOptionalString(row.notes),
+    staffName: asOptionalString(row.staff_name),
+    staffRole: asOptionalString(row.staff_role),
+    staffDepartment: asOptionalString(row.staff_department),
+    createdAt: asOptionalString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+  };
+}
+
+function fromPayslip(p: Partial<Payslip>) {
+  return {
+    overtime_amount: p.overtimeAmount,
+    allowances: p.allowances,
+    deductions: p.deductions,
+    payment_method: p.paymentMethod,
+    notes: p.notes ?? null,
+  };
+}
+
+function toPayrollRun(row: PayrollRunDto): PayrollRun {
+  return {
+    id: asString(row.id),
+    periodMonth: asString(row.period_month),
+    status: asEnum(row.status, ['Draft', 'Finalized', 'Paid'] as const, 'Draft'),
+    generatedBy: asOptionalString(row.generated_by),
+    notes: asOptionalString(row.notes),
+    staffCount: asNumber(row.staff_count),
+    totalNet: asNumber(row.total_net),
+    totalGross: asNumber(row.total_gross),
+    paidCount: asNumber(row.paid_count),
+    payslips: (row.payslips ?? []).map(toPayslip),
+    createdAt: asString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+  };
+}
+
+function toPayrollSummary(raw: Record<string, DtoValue>): PayrollSummary {
+  return {
+    periodMonth: asString(raw.period_month),
+    monthPayout: asNumber(raw.month_payout),
+    staffCount: asNumber(raw.staff_count),
+    payslipCount: asNumber(raw.payslip_count),
+    paidCount: asNumber(raw.paid_count),
+    pendingCount: asNumber(raw.pending_count),
+    paidAmount: asNumber(raw.paid_amount),
+    pendingAmount: asNumber(raw.pending_amount),
+  };
+}
+
+// ── Medical Report mappers ───────────────────────────────────────────────────
+type MedicalReportDto = Record<string, DtoValue> & { attachment?: Record<string, DtoValue> | null };
+
+function toMedicalReport(row: MedicalReportDto): MedicalReport {
+  const att = row.attachment;
+  return {
+    id: asString(row.id),
+    reportNo: asString(row.report_no),
+    staffId: asOptionalString(row.staff_id),
+    personName: asString(row.person_name),
+    reportType: asEnum(row.report_type, ['Fitness Certificate', 'Checkup', 'Injury', 'Insurance', 'Other'] as const, 'Checkup'),
+    reportDate: asString(row.report_date),
+    provider: asOptionalString(row.provider),
+    summary: asOptionalString(row.summary),
+    result: asEnum(row.result, ['Fit', 'Unfit', 'Follow-up', 'N/A'] as const, 'N/A'),
+    nextCheckupDate: asOptionalString(row.next_checkup_date),
+    attachmentId: asOptionalString(row.attachment_id),
+    confidential: asNumber(row.confidential, 1) !== 0,
+    recordedBy: asOptionalString(row.recorded_by),
+    notes: asOptionalString(row.notes),
+    attachment: att ? {
+      id: asString(att.id),
+      originalName: asOptionalString(att.original_name),
+      storedPath: asOptionalString(att.stored_path),
+      mimeType: asOptionalString(att.mime_type),
+    } : undefined,
+    createdAt: asString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+  };
+}
+
+function fromMedicalReport(p: Partial<MedicalReport>) {
+  return {
+    staff_id: p.staffId ? Number(p.staffId) : null,
+    person_name: p.personName,
+    report_type: p.reportType,
+    report_date: p.reportDate,
+    provider: p.provider ?? null,
+    summary: p.summary ?? null,
+    result: p.result,
+    next_checkup_date: p.nextCheckupDate ?? null,
+    attachment_id: p.attachmentId ? Number(p.attachmentId) : null,
+    confidential: p.confidential === false ? '0' : '1',
+    notes: p.notes ?? null,
+  };
+}
+
+function toMedicalSummary(raw: Record<string, DtoValue> & { by_type?: Record<string, DtoValue>[] }): MedicalSummary {
+  return {
+    total: asNumber(raw.total),
+    fit: asNumber(raw.fit),
+    unfit: asNumber(raw.unfit),
+    followUp: asNumber(raw.follow_up),
+    checkupsDue: asNumber(raw.checkups_due),
+    byType: (raw.by_type ?? []).map((r) => ({
+      reportType: asString(r.report_type),
+      count: asNumber(r.count),
+    })),
+  };
+}
+
+// ── Documents mappers ────────────────────────────────────────────────────────
+type DocumentDto = Record<string, DtoValue> & { attachment?: Record<string, DtoValue> | null };
+
+function toDocument(row: DocumentDto): OfficeDocument {
+  const att = row.attachment;
+  return {
+    id: asString(row.id),
+    docNo: asString(row.doc_no),
+    title: asString(row.title),
+    category: asEnum(row.category, ['Office Documents', 'Legal', 'Financial', 'Compliance', 'Contracts', 'Correspondence', 'Other'] as const, 'Office Documents'),
+    officeId: asOptionalString(row.office_id),
+    attachmentId: asOptionalString(row.attachment_id),
+    fileName: asOptionalString(row.file_name),
+    expiryDate: asOptionalString(row.expiry_date),
+    tags: asOptionalString(row.tags),
+    status: asEnum(row.status, ['Active', 'Archived', 'Expired'] as const, 'Active'),
+    uploadedBy: asOptionalString(row.uploaded_by),
+    notes: asOptionalString(row.notes),
+    createdAt: asString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+    attachment: att
+      ? {
+          id: asString(att.id),
+          originalName: asOptionalString(att.original_name),
+          storedPath: asOptionalString(att.stored_path),
+          mimeType: asOptionalString(att.mime_type),
+          sizeBytes: att.size_bytes != null ? asNumber(att.size_bytes) : undefined,
+        }
+      : undefined,
+  };
+}
+
+function fromDocument(p: Partial<OfficeDocument>) {
+  return {
+    title: p.title,
+    category: p.category,
+    office_id: p.officeId ? Number(p.officeId) : null,
+    attachment_id: p.attachmentId ? Number(p.attachmentId) : null,
+    file_name: p.fileName ?? null,
+    expiry_date: p.expiryDate ?? null,
+    tags: p.tags ?? null,
+    status: p.status,
+    notes: p.notes ?? null,
+  };
+}
+
+function toDocumentSummary(raw: Record<string, DtoValue> & { by_category?: Record<string, DtoValue>[] }): DocumentSummary {
+  return {
+    total: asNumber(raw.total),
+    officeDocs: asNumber(raw.office_docs),
+    expiringSoon: asNumber(raw.expiring_soon),
+    expired: asNumber(raw.expired),
+    byCategory: (raw.by_category ?? []).map((r) => ({
+      category: asString(r.category),
+      count: asNumber(r.count),
+    })),
+  };
+}
+
+// ── Name Transfers mappers ───────────────────────────────────────────────────
+type NameTransferDto = Record<string, DtoValue> & { office?: Record<string, DtoValue> | null };
+
+function toNameTransfer(row: NameTransferDto): NameTransfer {
+  const office = row.office;
+  return {
+    id: asString(row.id),
+    transferNo: asString(row.transfer_no),
+    officeId: asString(row.office_id),
+    fromName: asOptionalString(row.from_name),
+    toName: asString(row.to_name),
+    toContactPerson: asOptionalString(row.to_contact_person),
+    toPhone: asOptionalString(row.to_phone),
+    toEmail: asOptionalString(row.to_email),
+    reason: asOptionalString(row.reason),
+    effectiveDate: asOptionalString(row.effective_date),
+    status: asEnum(row.status, ['Pending', 'Approved', 'Rejected', 'Completed'] as const, 'Pending'),
+    supportingDocAttachmentId: asOptionalString(row.supporting_doc_attachment_id),
+    requestedBy: asOptionalString(row.requested_by),
+    approvedBy: asOptionalString(row.approved_by),
+    notes: asOptionalString(row.notes),
+    createdAt: asString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+    office: office
+      ? {
+          id: asString(office.id),
+          block: asOptionalString(office.block),
+          floorNumber: asOptionalString(office.floor_number),
+          companyName: asOptionalString(office.company_name),
+        }
+      : undefined,
+  };
+}
+
+function fromNameTransfer(p: Partial<NameTransfer>) {
+  return {
+    office_id: p.officeId ? Number(p.officeId) : undefined,
+    to_name: p.toName,
+    to_contact_person: p.toContactPerson ?? null,
+    to_phone: p.toPhone ?? null,
+    to_email: p.toEmail ?? null,
+    reason: p.reason ?? null,
+    effective_date: p.effectiveDate ?? null,
+    supporting_doc_attachment_id: p.supportingDocAttachmentId ? Number(p.supportingDocAttachmentId) : null,
+    notes: p.notes ?? null,
+  };
+}
+
+function toNameTransferSummary(raw: Record<string, DtoValue>): NameTransferSummary {
+  return {
+    pending: asNumber(raw.pending),
+    approved: asNumber(raw.approved),
+    completedThisMonth: asNumber(raw.completed_this_month),
+  };
+}
+
+// ── Asset Tracking DTO types & mappers ───────────────────────────────────────
+type AssetAssignmentDto = Record<string, DtoValue>;
+type AssetAuditDto = Record<string, DtoValue>;
+type AssetDto = Record<string, DtoValue> & {
+  current_assignment?: AssetAssignmentDto | null;
+  assignment_history?: AssetAssignmentDto[];
+  audit_history?: AssetAuditDto[];
+};
+
+function toAssetAssignment(row: AssetAssignmentDto): AssetAssignment {
+  return {
+    id: asString(row.id),
+    assetId: asString(row.asset_id),
+    staffId: asString(row.staff_id),
+    staffName: asOptionalString(row.staff_name),
+    assetTag: asOptionalString(row.asset_tag),
+    assetName: asOptionalString(row.asset_name),
+    assetCategory: asOptionalString(row.asset_category),
+    issuedBy: asOptionalString(row.issued_by),
+    issuedAt: asString(row.issued_at),
+    dueAt: asOptionalString(row.due_at),
+    returnedAt: asOptionalString(row.returned_at),
+    returnCondition: asOptionalString(row.return_condition),
+    notes: asOptionalString(row.notes),
+    createdAt: asOptionalString(row.created_at),
+  };
+}
+
+function toAssetAudit(row: AssetAuditDto): AssetAudit {
+  return {
+    id: asString(row.id),
+    assetId: asString(row.asset_id),
+    assetTag: asOptionalString(row.asset_tag),
+    assetName: asOptionalString(row.asset_name),
+    auditedBy: asOptionalString(row.audited_by),
+    auditDate: asString(row.audit_date),
+    foundStatus: asString(row.found_status),
+    condition: asString(row.condition),
+    remarks: asOptionalString(row.remarks),
+    createdAt: asOptionalString(row.created_at),
+  };
+}
+
+function toAsset(row: AssetDto): Asset {
+  const current = row.current_assignment ? toAssetAssignment(row.current_assignment) : (row.current_assignment === null ? null : undefined);
+  return {
+    id: asString(row.id),
+    assetTag: asString(row.asset_tag),
+    name: asString(row.name),
+    category: asEnum(row.category, ['Safety Gear', 'Cleaning Equipment', 'Tools', 'Utility Gear', 'Other'] as const, 'Other'),
+    assetType: asOptionalString(row.asset_type),
+    serialNo: asOptionalString(row.serial_no),
+    condition: asEnum(row.condition, ['New', 'Good', 'Fair', 'Damaged', 'Retired'] as const, 'Good'),
+    status: asEnum(row.status, ['Available', 'Checked Out', 'Under Maintenance', 'Retired'] as const, 'Available'),
+    photoAttachmentId: asOptionalString(row.photo_attachment_id),
+    purchaseDate: asOptionalString(row.purchase_date),
+    notes: asOptionalString(row.notes),
+    createdAt: asString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+    currentAssignment: current,
+    assignmentHistory: row.assignment_history ? row.assignment_history.map(toAssetAssignment) : undefined,
+    auditHistory: row.audit_history ? row.audit_history.map(toAssetAudit) : undefined,
+  };
+}
+
+function fromAsset(p: Partial<Asset>) {
+  return {
+    name: p.name,
+    category: p.category,
+    asset_type: p.assetType ?? null,
+    serial_no: p.serialNo ?? null,
+    condition: p.condition,
+    status: p.status,
+    photo_attachment_id: p.photoAttachmentId ? Number(p.photoAttachmentId) : null,
+    purchase_date: p.purchaseDate ?? null,
+    notes: p.notes ?? null,
+  };
+}
+
+function toAssetSummary(raw: Record<string, DtoValue> & { by_category?: Record<string, DtoValue>[] }): AssetSummary {
+  return {
+    total: asNumber(raw.total),
+    available: asNumber(raw.available),
+    checkedOut: asNumber(raw.checked_out),
+    underMaintenance: asNumber(raw.under_maintenance),
+    byCategory: (raw.by_category ?? []).map((r) => ({
+      category: asString(r.category),
+      count: asNumber(r.count),
+    })),
+  };
+}
+
 // ── P17 Visitor Pass DTO types & mappers ─────────────────────────────────────
 type VisitorPassDto = Record<string, DtoValue> & { scans?: Record<string, DtoValue>[] };
 type VisitorPassDashboardDto = {
@@ -2023,6 +2780,7 @@ function toCameraDevice(row: CameraDeviceDto): CameraDevice {
     location: asString(row.location),
     zone: asOptionalString(row.zone),
     rtspUrl: asOptionalString(row.rtsp_url),
+    hlsUrl: asOptionalString(row.hls_url),
     ipAddress: asOptionalString(row.ip_address),
     port: row.port != null ? asNumber(row.port) : undefined,
     manufacturer: asOptionalString(row.manufacturer),
@@ -2044,6 +2802,7 @@ function fromCameraDevice(p: Partial<CameraDevice> & { password?: string }) {
     location: p.location,
     zone: p.zone ?? null,
     rtsp_url: p.rtspUrl ?? null,
+    hls_url: p.hlsUrl ?? null,
     ip_address: p.ipAddress ?? null,
     port: p.port ?? 554,
     manufacturer: p.manufacturer ?? null,
@@ -2320,5 +3079,746 @@ function toPaymentDashboard(row: PaymentDashboardDto): PaymentDashboard {
     paymentMethods: (row.payment_methods ?? {}) as Record<string, number>,
     recentTransactions: (row.recent_transactions ?? []).map(toPaymentTransaction),
     byStatus: (row.by_status ?? {}) as Record<string, number>,
+  };
+}
+
+// ── P25 Daily Operations DTO types & mappers ─────────────────────────────────
+type CctvDailyCheckDto = Record<string, DtoValue>;
+type WaterLorryLogDto = Record<string, DtoValue>;
+type EbLogDto = Record<string, DtoValue>;
+type HousekeepingLogDto = Record<string, DtoValue>;
+type CctvChecklistDto = {
+  date?: string;
+  summary?: Record<string, number>;
+  checks?: CctvDailyCheckDto[];
+};
+type DailyOpsReportDto = {
+  date?: string;
+  cctv?: Record<string, DtoValue> & { checks?: CctvDailyCheckDto[] };
+  water_lorry?: Record<string, DtoValue> & { logs?: WaterLorryLogDto[] };
+  eb?: { logs?: EbLogDto[]; total_power_cut_minutes?: number };
+  housekeeping?: Record<string, DtoValue> & { logs?: HousekeepingLogDto[] };
+  staff_attendance?: Record<string, DtoValue>;
+  maintenance_due?: Record<string, DtoValue>[];
+  utility_tasks?: Record<string, DtoValue>[];
+  vendor_payments?: { entries?: number; total_amount?: number; payments?: Record<string, DtoValue>[] };
+};
+
+function toCctvDailyCheck(row: CctvDailyCheckDto): CctvDailyCheck {
+  return {
+    cameraId: asString(row.camera_id),
+    cameraName: asString(row.camera_name),
+    location: asOptionalString(row.location),
+    zone: asOptionalString(row.zone),
+    checkId: row.check_id != null ? asString(row.check_id) : undefined,
+    status: row.status != null ? asEnum(row.status, ['Working', 'Faulty', 'Offline'] as const, 'Working') : undefined,
+    remarks: asOptionalString(row.remarks),
+    checkedBy: row.checked_by != null ? asString(row.checked_by) : undefined,
+    checkedAt: asOptionalString(row.created_at),
+  };
+}
+
+function toCctvDailySummary(row: Record<string, DtoValue> | Record<string, number> | undefined): CctvDailySummary {
+  const r = (row ?? {}) as Record<string, DtoValue>;
+  return {
+    totalCameras: asNumber(r.total_cameras),
+    checked: asNumber(r.checked),
+    working: asNumber(r.working),
+    faulty: asNumber(r.faulty),
+    offline: asNumber(r.offline),
+    unchecked: asNumber(r.unchecked),
+  };
+}
+
+function toCctvChecklist(row: CctvChecklistDto): CctvChecklist {
+  return {
+    date: asString(row.date),
+    summary: toCctvDailySummary(row.summary),
+    checks: (row.checks ?? []).map(toCctvDailyCheck),
+  };
+}
+
+function toWaterLorryLog(row: WaterLorryLogDto): WaterLorryLog {
+  return {
+    id: asString(row.id),
+    logDate: asString(row.log_date),
+    supplierName: asString(row.supplier_name),
+    vehicleNo: asOptionalString(row.vehicle_no),
+    capacityLitres: row.capacity_litres != null ? asNumber(row.capacity_litres) : undefined,
+    trips: asNumber(row.trips, 1),
+    amount: row.amount != null ? asNumber(row.amount) : undefined,
+    notes: asOptionalString(row.notes),
+    createdAt: asString(row.created_at),
+  };
+}
+
+function fromWaterLorryLog(p: Partial<WaterLorryLog>) {
+  return {
+    log_date: p.logDate,
+    supplier_name: p.supplierName,
+    vehicle_no: p.vehicleNo ?? null,
+    capacity_litres: p.capacityLitres ?? null,
+    trips: p.trips ?? 1,
+    amount: p.amount ?? null,
+    notes: p.notes ?? null,
+  };
+}
+
+function toEbLog(row: EbLogDto): EbLog {
+  return {
+    id: asString(row.id),
+    logDate: asString(row.log_date),
+    meterStart: row.meter_start != null ? asNumber(row.meter_start) : undefined,
+    meterEnd: row.meter_end != null ? asNumber(row.meter_end) : undefined,
+    powerCutMinutes: asNumber(row.power_cut_minutes),
+    generatorNote: asOptionalString(row.generator_note),
+    notes: asOptionalString(row.notes),
+    createdAt: asString(row.created_at),
+  };
+}
+
+function fromEbLog(p: Partial<EbLog>) {
+  return {
+    log_date: p.logDate,
+    meter_start: p.meterStart ?? null,
+    meter_end: p.meterEnd ?? null,
+    power_cut_minutes: p.powerCutMinutes ?? 0,
+    generator_note: p.generatorNote ?? null,
+    notes: p.notes ?? null,
+  };
+}
+
+function toHousekeepingLog(row: HousekeepingLogDto): HousekeepingLog {
+  return {
+    id: asString(row.id),
+    logDate: asString(row.log_date),
+    area: asString(row.area),
+    task: asString(row.task),
+    status: asEnum(row.status, ['Done', 'Pending', 'Partial'] as const, 'Pending'),
+    staffName: asOptionalString(row.staff_name),
+    remarks: asOptionalString(row.remarks),
+    createdAt: asString(row.created_at),
+  };
+}
+
+function fromHousekeepingLog(p: Partial<HousekeepingLog>) {
+  return {
+    log_date: p.logDate,
+    area: p.area,
+    task: p.task,
+    status: p.status,
+    staff_name: p.staffName ?? null,
+    remarks: p.remarks ?? null,
+  };
+}
+
+function toDailyOpsMaintenanceItem(row: Record<string, DtoValue>): DailyOpsMaintenanceItem {
+  return {
+    id: asString(row.id),
+    title: asString(row.title),
+    category: asOptionalString(row.category),
+    priority: asString(row.priority, 'Low'),
+    status: asString(row.status, 'Open'),
+    expectedCompletion: asOptionalString(row.expected_completion),
+    officeBlock: asOptionalString(row.office_block),
+    officeName: asOptionalString(row.office_name),
+    staffName: asOptionalString(row.staff_name),
+  };
+}
+
+function toDailyOpsUtilityItem(row: Record<string, DtoValue>): DailyOpsUtilityItem {
+  return {
+    id: asString(row.id),
+    description: asString(row.description),
+    type: asOptionalString(row.type),
+    scheduledDate: asOptionalString(row.scheduled_date),
+    status: asString(row.status, 'Upcoming'),
+    assignedStaff: asOptionalString(row.assigned_staff),
+    notes: asOptionalString(row.notes),
+  };
+}
+
+function toDailyOpsPayment(row: Record<string, DtoValue>): DailyOpsPayment {
+  return {
+    id: asString(row.id),
+    invoiceId: asString(row.invoice_id),
+    invoiceNo: asOptionalString(row.invoice_no),
+    invoiceDescription: asOptionalString(row.invoice_description),
+    amount: asNumber(row.amount),
+    paidAt: asString(row.paid_at),
+    mode: asOptionalString(row.mode),
+    referenceNo: asOptionalString(row.reference_no),
+  };
+}
+
+function toDailyOpsReport(row: DailyOpsReportDto): DailyOpsReport {
+  const water = (row.water_lorry ?? {}) as Record<string, DtoValue> & { logs?: WaterLorryLogDto[] };
+  const hk = (row.housekeeping ?? {}) as Record<string, DtoValue> & { logs?: HousekeepingLogDto[] };
+  const staff = (row.staff_attendance ?? {}) as Record<string, DtoValue>;
+  return {
+    date: asString(row.date),
+    cctv: {
+      ...toCctvDailySummary(row.cctv as Record<string, DtoValue>),
+      checks: (row.cctv?.checks ?? []).map(toCctvDailyCheck),
+    },
+    waterLorry: {
+      entries: asNumber(water.entries),
+      totalTrips: asNumber(water.total_trips),
+      totalLitres: asNumber(water.total_litres),
+      totalAmount: asNumber(water.total_amount),
+      logs: (water.logs ?? []).map(toWaterLorryLog),
+    },
+    eb: {
+      logs: (row.eb?.logs ?? []).map(toEbLog),
+      totalPowerCutMinutes: Number(row.eb?.total_power_cut_minutes ?? 0),
+    },
+    housekeeping: {
+      total: asNumber(hk.total),
+      done: asNumber(hk.done),
+      pending: asNumber(hk.pending),
+      partial: asNumber(hk.partial),
+      completion: asNumber(hk.completion),
+      logs: (hk.logs ?? []).map(toHousekeepingLog),
+    },
+    staffAttendance: {
+      totalStaff: asNumber(staff.total_staff),
+      present: asNumber(staff.present),
+      absent: asNumber(staff.absent),
+      halfDay: asNumber(staff.half_day),
+      unmarked: asNumber(staff.unmarked),
+    },
+    maintenanceDue: (row.maintenance_due ?? []).map(toDailyOpsMaintenanceItem),
+    utilityTasks: (row.utility_tasks ?? []).map(toDailyOpsUtilityItem),
+    vendorPayments: {
+      entries: Number(row.vendor_payments?.entries ?? 0),
+      totalAmount: Number(row.vendor_payments?.total_amount ?? 0),
+      payments: (row.vendor_payments?.payments ?? []).map(toDailyOpsPayment),
+    },
+  };
+}
+
+// ── IoT Monitoring DTO types & mappers ────────────────────────────────────────
+type IotDeviceDto = Record<string, DtoValue>;
+type IotEventDto = Record<string, DtoValue>;
+type IotSummaryDto = {
+  total_devices?: number;
+  active_devices?: number;
+  online_devices?: number;
+  offline_devices?: IotDeviceDto[];
+  offline_count?: number;
+  offline_threshold_minutes?: number;
+  unacknowledged_critical?: number;
+  unacknowledged_alerts?: number;
+  events_today?: number;
+};
+
+function toIotDevice(row: IotDeviceDto): IotDevice {
+  return {
+    id: asString(row.id),
+    name: asString(row.name),
+    deviceType: asEnum(row.device_type, ['lift', 'electrical_board', 'sensor', 'gateway', 'other'] as const, 'other'),
+    protocol: asEnum(row.protocol, ['http', 'mqtt', 'modbus'] as const, 'http'),
+    ipAddress: asOptionalString(row.ip_address),
+    ioLines: row.io_lines != null ? asNumber(row.io_lines) : undefined,
+    apiToken: asOptionalString(row.api_token),
+    location: asOptionalString(row.location),
+    status: asEnum(row.status, ['Active', 'Inactive'] as const, 'Active'),
+    lastSeenAt: asOptionalString(row.last_seen_at),
+    notes: asOptionalString(row.notes),
+    createdAt: asString(row.created_at),
+  };
+}
+
+function fromIotDevice(p: Partial<IotDevice>) {
+  return {
+    name: p.name,
+    device_type: p.deviceType,
+    protocol: p.protocol,
+    ip_address: p.ipAddress ?? null,
+    io_lines: p.ioLines ?? null,
+    location: p.location ?? null,
+    status: p.status,
+    notes: p.notes ?? null,
+  };
+}
+
+type HaHubDto = Record<string, DtoValue>;
+type HaDeviceDto = Record<string, DtoValue>;
+
+function toHaHub(row: HaHubDto): HomeAutomationHub {
+  return {
+    id: asString(row.id),
+    name: asString(row.name),
+    ownerUserId: row.owner_user_id != null ? asString(row.owner_user_id) : null,
+    officeId: row.office_id != null ? asString(row.office_id) : null,
+    provider: asString(row.provider),
+    baseUrl: asString(row.base_url),
+    status: asEnum(row.status, ['Active', 'Disabled'] as const, 'Active'),
+    lastCheckAt: asOptionalString(row.last_check_at) ?? null,
+    lastCheckOk: row.last_check_ok != null ? asNumber(row.last_check_ok) : null,
+    accessTokenMasked: asOptionalString(row.access_token_masked) ?? null,
+    notes: asOptionalString(row.notes),
+    createdAt: asOptionalString(row.created_at),
+  };
+}
+
+function fromHaHub(p: Partial<HomeAutomationHub> & { accessToken?: string }) {
+  const body: Record<string, unknown> = {};
+  if (p.name !== undefined) body.name = p.name;
+  if (p.baseUrl !== undefined) body.base_url = p.baseUrl;
+  if (p.accessToken !== undefined && p.accessToken !== '') body.access_token = p.accessToken;
+  if (p.status !== undefined) body.status = p.status;
+  if (p.ownerUserId !== undefined) body.owner_user_id = p.ownerUserId ?? null;
+  if (p.officeId !== undefined) body.office_id = p.officeId ?? null;
+  if (p.notes !== undefined) body.notes = p.notes ?? null;
+  return body;
+}
+
+function toHaDevice(row: HaDeviceDto): HomeAutomationDevice {
+  return {
+    id: asString(row.id),
+    hubId: asString(row.hub_id),
+    entityId: asString(row.entity_id),
+    friendlyName: asOptionalString(row.friendly_name),
+    domain: asEnum(row.domain, ['switch', 'light', 'sensor', 'climate', 'cover', 'lock', 'binary_sensor', 'other'] as const, 'other'),
+    isControllable: asNumber(row.is_controllable),
+    visibleToOwner: asNumber(row.visible_to_owner),
+    state: row.state != null ? asString(row.state) : null,
+    unit: row.unit != null ? asString(row.unit) : null,
+    reachable: row.reachable === true,
+  };
+}
+
+function toIotEvent(row: IotEventDto): IotEvent {
+  return {
+    id: asString(row.id),
+    deviceId: asString(row.device_id),
+    deviceName: asOptionalString(row.device_name),
+    deviceType: asOptionalString(row.device_type),
+    eventType: asEnum(row.event_type, ['fault', 'voltage_fluctuation', 'status_change', 'heartbeat', 'test'] as const, 'fault'),
+    severity: asEnum(row.severity, ['info', 'warning', 'critical'] as const, 'info'),
+    ioLine: row.io_line != null ? asNumber(row.io_line) : undefined,
+    value: asOptionalString(row.value),
+    message: asOptionalString(row.message),
+    payload: asOptionalString(row.payload),
+    acknowledgedAt: asOptionalString(row.acknowledged_at),
+    acknowledgedBy: row.acknowledged_by != null ? asString(row.acknowledged_by) : undefined,
+    createdAt: asString(row.created_at),
+  };
+}
+
+function toIotSummary(row: IotSummaryDto): IotSummary {
+  return {
+    totalDevices: Number(row.total_devices ?? 0),
+    activeDevices: Number(row.active_devices ?? 0),
+    onlineDevices: Number(row.online_devices ?? 0),
+    offlineDevices: (row.offline_devices ?? []).map(toIotDevice),
+    offlineCount: Number(row.offline_count ?? 0),
+    offlineThresholdMinutes: Number(row.offline_threshold_minutes ?? 10),
+    unacknowledgedCritical: Number(row.unacknowledged_critical ?? 0),
+    unacknowledgedAlerts: Number(row.unacknowledged_alerts ?? 0),
+    eventsToday: Number(row.events_today ?? 0),
+  };
+}
+
+// ── Compliance (GST / Audit / Suspend) DTO types & mappers ────────────────────
+
+type GstTaxSectionDto = {
+  taxable?: number; cgst?: number; sgst?: number; igst?: number; total?: number;
+  byRate?: { rate?: number; taxable?: number; tax?: number }[];
+  invoices?: Record<string, DtoValue>[];
+  expenses?: Record<string, DtoValue>[];
+};
+type GstReportDto = { from?: string; to?: string; outputTax?: GstTaxSectionDto; inputTax?: GstTaxSectionDto; netGst?: number };
+
+function toGstTaxSection(row?: GstTaxSectionDto): GstTaxSection {
+  return {
+    taxable: Number(row?.taxable ?? 0),
+    cgst: Number(row?.cgst ?? 0),
+    sgst: Number(row?.sgst ?? 0),
+    igst: Number(row?.igst ?? 0),
+    total: Number(row?.total ?? 0),
+    byRate: (row?.byRate ?? []).map((r) => ({ rate: Number(r.rate ?? 0), taxable: Number(r.taxable ?? 0), tax: Number(r.tax ?? 0) })),
+  };
+}
+
+function toGstInvoiceLine(row: Record<string, DtoValue>): GstInvoiceLine {
+  return {
+    id: asString(row.id),
+    invoiceNo: asString(row.invoice_no),
+    date: asOptionalString(row.date),
+    gstin: asOptionalString(row.gstin),
+    taxableAmount: asNumber(row.taxable_amount),
+    gstRate: asNumber(row.gst_rate),
+    cgstAmount: asNumber(row.cgst_amount),
+    sgstAmount: asNumber(row.sgst_amount),
+    igstAmount: asNumber(row.igst_amount),
+    gstTotal: asNumber(row.gst_total),
+    amount: asNumber(row.amount),
+    status: asOptionalString(row.status),
+  };
+}
+
+function toGstExpenseLine(row: Record<string, DtoValue>): GstExpenseLine {
+  return {
+    id: asString(row.id),
+    expenseNo: asOptionalString(row.expense_no),
+    date: asOptionalString(row.date),
+    payee: asOptionalString(row.payee),
+    gstin: asOptionalString(row.gstin),
+    category: asOptionalString(row.category),
+    taxableAmount: asNumber(row.taxable_amount),
+    gstRate: asNumber(row.gst_rate),
+    gstAmount: asNumber(row.gst_amount),
+    amount: asNumber(row.amount),
+  };
+}
+
+function toGstReport(row: GstReportDto): GstReport {
+  return {
+    from: String(row.from ?? ''),
+    to: String(row.to ?? ''),
+    outputTax: { ...toGstTaxSection(row.outputTax), invoices: (row.outputTax?.invoices ?? []).map(toGstInvoiceLine) },
+    inputTax: { ...toGstTaxSection(row.inputTax), expenses: (row.inputTax?.expenses ?? []).map(toGstExpenseLine) },
+    netGst: Number(row.netGst ?? 0),
+  };
+}
+
+type AuditReportDto = {
+  period?: { from?: string; to?: string };
+  financials?: {
+    invoices?: { count?: number; billed?: number; collected?: number; gstCollected?: number; byStatus?: { status?: string; count?: number; amount?: number }[] };
+    payments?: { count?: number; amount?: number };
+    expenses?: { count?: number; amount?: number; gstPaid?: number; byCategory?: { category?: string; count?: number; amount?: number; gst?: number }[] };
+    netCashFlow?: number;
+  };
+  inventory?: {
+    items?: number; totalQuantity?: number; usedQuantity?: number; stockValue?: number;
+    assets?: { total?: number; byStatus?: { status?: string; count?: number }[] };
+  };
+  payroll?: { runs?: number; payslips?: number; grossPay?: number; netPay?: number; paidSlips?: number };
+  documents?: { total?: number; active?: number };
+  amc?: { active?: number; expiringSoon?: number; contracts?: AmcContractDto[] };
+};
+
+function toAuditReport(row: AuditReportDto): AuditReport {
+  return {
+    period: { from: String(row.period?.from ?? ''), to: String(row.period?.to ?? '') },
+    financials: {
+      invoices: {
+        count: Number(row.financials?.invoices?.count ?? 0),
+        billed: Number(row.financials?.invoices?.billed ?? 0),
+        collected: Number(row.financials?.invoices?.collected ?? 0),
+        gstCollected: Number(row.financials?.invoices?.gstCollected ?? 0),
+        byStatus: (row.financials?.invoices?.byStatus ?? []).map((s) => ({ status: String(s.status ?? ''), count: Number(s.count ?? 0), amount: Number(s.amount ?? 0) })),
+      },
+      payments: {
+        count: Number(row.financials?.payments?.count ?? 0),
+        amount: Number(row.financials?.payments?.amount ?? 0),
+      },
+      expenses: {
+        count: Number(row.financials?.expenses?.count ?? 0),
+        amount: Number(row.financials?.expenses?.amount ?? 0),
+        gstPaid: Number(row.financials?.expenses?.gstPaid ?? 0),
+        byCategory: (row.financials?.expenses?.byCategory ?? []).map((c) => ({ category: String(c.category ?? ''), count: Number(c.count ?? 0), amount: Number(c.amount ?? 0), gst: Number(c.gst ?? 0) })),
+      },
+      netCashFlow: Number(row.financials?.netCashFlow ?? 0),
+    },
+    inventory: {
+      items: Number(row.inventory?.items ?? 0),
+      totalQuantity: Number(row.inventory?.totalQuantity ?? 0),
+      usedQuantity: Number(row.inventory?.usedQuantity ?? 0),
+      stockValue: Number(row.inventory?.stockValue ?? 0),
+      assets: {
+        total: Number(row.inventory?.assets?.total ?? 0),
+        byStatus: (row.inventory?.assets?.byStatus ?? []).map((s) => ({ status: String(s.status ?? ''), count: Number(s.count ?? 0) })),
+      },
+    },
+    payroll: {
+      runs: Number(row.payroll?.runs ?? 0),
+      payslips: Number(row.payroll?.payslips ?? 0),
+      grossPay: Number(row.payroll?.grossPay ?? 0),
+      netPay: Number(row.payroll?.netPay ?? 0),
+      paidSlips: Number(row.payroll?.paidSlips ?? 0),
+    },
+    documents: { total: Number(row.documents?.total ?? 0), active: Number(row.documents?.active ?? 0) },
+    amc: {
+      active: Number(row.amc?.active ?? 0),
+      expiringSoon: Number(row.amc?.expiringSoon ?? 0),
+      contracts: (row.amc?.contracts ?? []).map(toAmcContract),
+    },
+  };
+}
+
+type SuspendedListsDto = {
+  users?: Record<string, DtoValue>[];
+  vendors?: Record<string, DtoValue>[];
+  offices?: Record<string, DtoValue>[];
+};
+
+function toSuspendedLists(row: SuspendedListsDto): SuspendedLists {
+  return {
+    users: (row.users ?? []).map((u) => ({
+      id: asString(u.id),
+      name: asString(u.name),
+      email: asOptionalString(u.email),
+      phone: asOptionalString(u.phone),
+      role: asString(u.role),
+      status: asString(u.status),
+      updatedAt: asOptionalString(u.updated_at),
+    })),
+    vendors: (row.vendors ?? []).map((v) => ({
+      id: asString(v.id),
+      name: asString(v.name),
+      company: asOptionalString(v.company),
+      serviceType: asOptionalString(v.service_type),
+      contact: asOptionalString(v.contact),
+      status: asString(v.status),
+      updatedAt: asOptionalString(v.updated_at),
+    })),
+    offices: (row.offices ?? []).map((o) => ({
+      id: asString(o.id),
+      block: asOptionalString(o.block),
+      floorNumber: asOptionalString(o.floor_number),
+      companyName: asString(o.company_name),
+      contactPerson: asOptionalString(o.contact_person),
+      status: asString(o.status),
+      updatedAt: asOptionalString(o.updated_at),
+    })),
+  };
+}
+
+// ── AMC & DG Maintenance DTO types & mappers ──────────────────────────────────
+
+type AmcContractDto = Record<string, DtoValue>;
+type DgLogDto = Record<string, DtoValue>;
+
+function toAmcContract(row: AmcContractDto): AmcContract {
+  return {
+    id: asString(row.id),
+    contractNo: asString(row.contract_no),
+    title: asString(row.title),
+    contractType: asEnum(row.contract_type, ['AMC', 'DG Maintenance', 'Lift AMC', 'Fire Safety', 'Other'] as const, 'AMC'),
+    vendorId: row.vendor_id != null ? String(row.vendor_id) : undefined,
+    vendorName: asOptionalString(row.vendor_name),
+    startDate: asOptionalString(row.start_date),
+    endDate: asOptionalString(row.end_date),
+    amount: asNumber(row.amount),
+    paymentFrequency: asEnum(row.payment_frequency, ['Monthly', 'Quarterly', 'Half-Yearly', 'Yearly', 'One-Time'] as const, 'Yearly'),
+    reminderDays: asNumber(row.reminder_days, 30),
+    documentAttachmentId: row.document_attachment_id != null ? String(row.document_attachment_id) : undefined,
+    status: asEnum(row.status, ['Active', 'Expired', 'Cancelled'] as const, 'Active'),
+    notes: asOptionalString(row.notes),
+    createdAt: asOptionalString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+  };
+}
+
+function fromAmcContract(payload: Partial<AmcContract>) {
+  return {
+    title: payload.title,
+    contract_type: payload.contractType,
+    vendor_id: payload.vendorId ? Number(payload.vendorId) : null,
+    vendor_name: payload.vendorName ?? null,
+    start_date: payload.startDate ?? null,
+    end_date: payload.endDate ?? null,
+    amount: payload.amount ?? 0,
+    payment_frequency: payload.paymentFrequency ?? 'Yearly',
+    reminder_days: payload.reminderDays ?? 30,
+    document_attachment_id: payload.documentAttachmentId ? Number(payload.documentAttachmentId) : null,
+    status: payload.status ?? 'Active',
+    notes: payload.notes ?? null,
+  };
+}
+
+function toDgLog(row: DgLogDto): DgMaintenanceLog {
+  return {
+    id: asString(row.id),
+    logDate: asString(row.log_date),
+    dgName: asString(row.dg_name, 'DG-1'),
+    runHours: asNumber(row.run_hours),
+    dieselAddedLitres: asNumber(row.diesel_added_litres),
+    dieselCost: asNumber(row.diesel_cost),
+    servicePerformed: asOptionalString(row.service_performed),
+    nextServiceDate: asOptionalString(row.next_service_date),
+    performedBy: asOptionalString(row.performed_by),
+    remarks: asOptionalString(row.remarks),
+    attachmentId: row.attachment_id != null ? String(row.attachment_id) : undefined,
+    createdAt: asOptionalString(row.created_at),
+    updatedAt: asOptionalString(row.updated_at),
+  };
+}
+
+function fromDgLog(payload: Partial<DgMaintenanceLog>) {
+  return {
+    log_date: payload.logDate,
+    dg_name: payload.dgName ?? 'DG-1',
+    run_hours: payload.runHours ?? 0,
+    diesel_added_litres: payload.dieselAddedLitres ?? 0,
+    diesel_cost: payload.dieselCost ?? 0,
+    service_performed: payload.servicePerformed ?? null,
+    next_service_date: payload.nextServiceDate ?? null,
+    performed_by: payload.performedBy ?? null,
+    remarks: payload.remarks ?? null,
+    attachment_id: payload.attachmentId ? Number(payload.attachmentId) : null,
+  };
+}
+
+function toDgSummary(row: Record<string, DtoValue>): DgSummary {
+  return {
+    monthLogs: asNumber(row.month_logs),
+    monthRunHours: asNumber(row.month_run_hours),
+    monthDieselLitres: asNumber(row.month_diesel_litres),
+    monthDieselCost: asNumber(row.month_diesel_cost),
+    nextServiceDate: asOptionalString(row.next_service_date),
+    nextServiceDg: asOptionalString(row.next_service_dg),
+  };
+}
+
+// ── Super Admin DTO types & mappers ──────────────────────────────────────────
+interface OrganizationDto {
+  id: number | string;
+  name: string;
+  slug: string;
+  contact_person?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  plan: string;
+  status: string;
+  ads_enabled?: boolean | number;
+  notes?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+function toOrganization(dto: OrganizationDto): Organization {
+  return {
+    id: String(dto.id),
+    name: dto.name,
+    slug: dto.slug,
+    contactPerson: dto.contact_person ?? undefined,
+    contactEmail: dto.contact_email ?? undefined,
+    contactPhone: dto.contact_phone ?? undefined,
+    plan: (dto.plan as Organization['plan']) ?? 'Free',
+    status: (dto.status as Organization['status']) ?? 'Trial',
+    adsEnabled: dto.ads_enabled === true || dto.ads_enabled === 1,
+    notes: dto.notes ?? undefined,
+    createdAt: dto.created_at,
+    updatedAt: dto.updated_at ?? undefined,
+  };
+}
+
+function fromOrganization(payload: Partial<Organization>): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  if (payload.name !== undefined) body.name = payload.name;
+  if (payload.slug !== undefined && payload.slug !== '') body.slug = payload.slug;
+  if (payload.contactPerson !== undefined) body.contact_person = payload.contactPerson || null;
+  if (payload.contactEmail !== undefined) body.contact_email = payload.contactEmail || null;
+  if (payload.contactPhone !== undefined) body.contact_phone = payload.contactPhone || null;
+  if (payload.plan !== undefined) body.plan = payload.plan;
+  if (payload.status !== undefined) body.status = payload.status;
+  if (payload.adsEnabled !== undefined) body.ads_enabled = payload.adsEnabled ? 1 : 0;
+  if (payload.notes !== undefined) body.notes = payload.notes || null;
+  return body;
+}
+
+interface OrgRollupDto {
+  org: OrganizationDto;
+  users: number;
+  active_subscriptions: number;
+  subscription_revenue: number;
+  business_ads: number;
+  ad_billing_total: number;
+  vendors: number;
+}
+
+interface SuperAdminOverviewDto {
+  organizations: OrgRollupDto[];
+  totals: {
+    organizations: number;
+    users: number;
+    active_subscriptions: number;
+    subscription_revenue: number;
+    business_ads: number;
+    ad_billing_total: number;
+    vendors: number;
+  };
+}
+
+function toOrgRollup(dto: OrgRollupDto): OrgRollup {
+  return {
+    org: toOrganization(dto.org),
+    users: Number(dto.users ?? 0),
+    activeSubscriptions: Number(dto.active_subscriptions ?? 0),
+    subscriptionRevenue: Number(dto.subscription_revenue ?? 0),
+    businessAds: Number(dto.business_ads ?? 0),
+    adBillingTotal: Number(dto.ad_billing_total ?? 0),
+    vendors: Number(dto.vendors ?? 0),
+  };
+}
+
+function toSuperAdminOverview(dto: SuperAdminOverviewDto): SuperAdminOverview {
+  return {
+    organizations: (dto.organizations ?? []).map(toOrgRollup),
+    totals: {
+      organizations: Number(dto.totals?.organizations ?? 0),
+      users: Number(dto.totals?.users ?? 0),
+      activeSubscriptions: Number(dto.totals?.active_subscriptions ?? 0),
+      subscriptionRevenue: Number(dto.totals?.subscription_revenue ?? 0),
+      businessAds: Number(dto.totals?.business_ads ?? 0),
+      adBillingTotal: Number(dto.totals?.ad_billing_total ?? 0),
+      vendors: Number(dto.totals?.vendors ?? 0),
+    },
+  };
+}
+
+// ── Feature Entitlement DTO types & mappers ──────────────────────────────────
+interface FeatureCatalogDto {
+  key: string;
+  label?: string;
+  group?: string;
+  roles?: string[];
+}
+
+interface OrgFeaturesDto {
+  orgId?: number | string;
+  org_id?: number | string;
+  features?: Record<string, boolean | number>;
+}
+
+interface MeFeaturesDto {
+  role?: string;
+  orgId?: number | string | null;
+  org_id?: number | string | null;
+  features?: string[];
+}
+
+function toFeatureCatalogItem(dto: FeatureCatalogDto): FeatureCatalogItem {
+  return {
+    key: String(dto.key),
+    label: dto.label ?? String(dto.key),
+    group: dto.group ?? 'General',
+    roles: Array.isArray(dto.roles) ? dto.roles.map(String) : [],
+  };
+}
+
+function toOrgFeatureMap(dto: OrgFeaturesDto): OrgFeatureMap {
+  const raw = dto.features ?? {};
+  const features: Record<string, boolean> = {};
+  Object.entries(raw).forEach(([key, value]) => {
+    features[key] = value === true || value === 1;
+  });
+  return {
+    orgId: String(dto.orgId ?? dto.org_id ?? ''),
+    features,
+  };
+}
+
+function toMeFeatures(dto: MeFeaturesDto): MeFeatures {
+  const rawOrg = dto.orgId ?? dto.org_id ?? null;
+  return {
+    role: String(dto.role ?? ''),
+    orgId: rawOrg === null || rawOrg === undefined ? null : Number(rawOrg),
+    features: Array.isArray(dto.features) ? dto.features.map(String) : [],
   };
 }

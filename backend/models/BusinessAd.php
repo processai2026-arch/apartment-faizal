@@ -8,7 +8,7 @@ class BusinessAd extends CrudModel
     protected static array $columns = [
         'category_id', 'business_name', 'description', 'offer', 'website', 'phone', 'whatsapp',
         'address', 'logo_attachment_id', 'banner_attachment_id', 'featured', 'priority',
-        'status', 'expires_at',
+        'status', 'expires_at', 'org_id',
     ];
     protected static array $searchColumns = ['business_name', 'description', 'offer', 'address'];
 
@@ -26,6 +26,13 @@ class BusinessAd extends CrudModel
         if (($request->query['featured'] ?? '') !== '') {
             $conditions[] = 'featured = :featured';
             $params['featured'] = (int) (bool) $request->query['featured'];
+        }
+
+        // Organization scoping (super_admin: all orgs or ?orgId=; others: own org).
+        $orgId = OrgScope::orgIdFor($request);
+        if ($orgId !== null) {
+            $conditions[] = 'org_id = :org_scope';
+            $params['org_scope'] = $orgId;
         }
 
         return [$conditions ? 'WHERE ' . implode(' AND ', $conditions) : '', $params];

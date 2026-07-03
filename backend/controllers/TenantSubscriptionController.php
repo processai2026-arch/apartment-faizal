@@ -73,6 +73,7 @@ class TenantSubscriptionController
             'amount_paid'   => 0,
             'payment_ref'   => 'PENDING',
             'notes'         => 'Upgrade request — awaiting payment integration',
+            'org_id'        => OrgScope::stampFor($request),
         ]);
 
         AuditService::log($userId, 'subscription.upgrade_request', 'subscriptions', (int) $sub['id']);

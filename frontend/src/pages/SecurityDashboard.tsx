@@ -189,7 +189,7 @@ export default function SecurityDashboard() {
   );
   const filteredWorkers = activeWorkers.filter(w =>
     w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    w.apartmentNo.toLowerCase().includes(searchQuery.toLowerCase())
+    (w.workerType ?? '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleLogout = () => {

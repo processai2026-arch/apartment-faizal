@@ -103,6 +103,7 @@ function normalizeUser(user: User): User {
 // Helper hook to get role-specific dashboard path
 export function getDashboardPath(role: UserRole): string {
   switch (role) {
+    case 'super_admin': // super admin lands on the admin dashboard
     case 'admin':
       return '/';
     case 'security':

@@ -1,5 +1,7 @@
-// User roles - Admin, Security, and Tenant/Owner
-export type UserRole = 'admin' | 'security' | 'tenant';
+// User roles - Super Admin (platform operator), Admin, Security, and Tenant/Owner.
+// 'super_admin' is a strict superset of 'admin': it satisfies every admin route
+// guard (see ProtectedRoute) and additionally unlocks the Super Admin portal.
+export type UserRole = 'super_admin' | 'admin' | 'security' | 'tenant';
 
 export interface User {
   id: string;
@@ -10,6 +12,7 @@ export interface User {
   createdAt: string;
   isSecretary?: boolean;
   secretaryPermissions?: string[];  // list of modules they can access
+  orgId?: number | null;            // organization (multi-tenant) membership
 }
 
 // A user account managed by the admin (security / tenant logins)
@@ -33,6 +36,27 @@ export interface LoginCredentials {
 
 // Role-based permissions
 export const rolePermissions: Record<UserRole, string[]> = {
+  super_admin: [
+    // Everything the admin can do, plus platform-level management.
+    'dashboard.view',
+    'apartments.manage',
+    'visitors.manage',
+    'visitors.entry',
+    'visitors.checkout',
+    'vehicles.manage',
+    'vehicles.entry',
+    'vehicles.checkout',
+    'vendors.manage',
+    'staff.manage',
+    'inventory.manage',
+    'utilities.manage',
+    'financials.manage',
+    'reports.view',
+    'qr.manage',
+    'settings.manage',
+    'organizations.manage',
+    'ads.manage',
+  ],
   admin: [
     'dashboard.view',
     'apartments.manage',

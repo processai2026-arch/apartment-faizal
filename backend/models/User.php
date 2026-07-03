@@ -31,6 +31,7 @@ class User
             'status' => $user['status'],
             'createdAt' => $user['created_at'],
             'isSecretary' => isset($user['is_secretary']) ? (bool)(int) $user['is_secretary'] : false,
+            'orgId' => isset($user['org_id']) && $user['org_id'] !== null ? (int) $user['org_id'] : null,
         ];
     }
 }

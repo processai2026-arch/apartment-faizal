@@ -301,7 +301,18 @@ export interface MaintenanceUpdate {
   createdAt: string;
 }
 
-export interface Invoice {
+/** Optional GST fields carried on invoices (029). */
+export interface InvoiceGstFields {
+  gstin?: string;
+  taxableAmount?: number;
+  gstRate?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  gstTotal?: number;
+}
+
+export interface Invoice extends InvoiceGstFields {
   id: string;
   officeId?: string;
   invoiceNo: string;
@@ -558,6 +569,110 @@ export interface WorkerTodaySummary {
   total: number;
 }
 
+// ── Office Expenses ───────────────────────────────────────────────────────────
+export type ExpensePaymentMethod = 'Petty Cash' | 'Cheque' | 'Bank Transfer' | 'Cash';
+export type ExpenseStatus = 'Pending' | 'Approved' | 'Paid' | 'Rejected';
+
+export interface OfficeExpense {
+  id: string;
+  expenseNo: string;
+  category: string;
+  paymentMethod: ExpensePaymentMethod;
+  payee?: string;
+  description?: string;
+  amount: number;
+  expenseDate?: string;
+  chequeNo?: string;
+  chequeDate?: string;
+  bankName?: string;
+  chequeFrontAttachmentId?: string;
+  chequeBackAttachmentId?: string;
+  receiptAttachmentId?: string;
+  status: ExpenseStatus;
+  approvedBy?: string;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ExpenseSummary {
+  monthTotal: number;
+  pettyCashTotal: number;
+  chequeTotal: number;
+  pendingCount: number;
+  byCategory: { category: string; count: number; amount: number }[];
+}
+
+export interface ExpenseReport {
+  rows: OfficeExpense[];
+  totals: { count: number; amount: number; byMethod: Record<string, number> };
+  filters: { from?: string; to?: string; paymentMethod?: string };
+}
+
+// ── Asset & Utility Tracking ──────────────────────────────────────────────────
+
+export type AssetCategory = 'Safety Gear' | 'Cleaning Equipment' | 'Tools' | 'Utility Gear' | 'Other';
+export type AssetCondition = 'New' | 'Good' | 'Fair' | 'Damaged' | 'Retired';
+export type AssetStatus = 'Available' | 'Checked Out' | 'Under Maintenance' | 'Retired';
+
+export interface AssetAssignment {
+  id: string;
+  assetId: string;
+  staffId: string;
+  staffName?: string;
+  assetTag?: string;
+  assetName?: string;
+  assetCategory?: string;
+  issuedBy?: string;
+  issuedAt: string;
+  dueAt?: string;
+  returnedAt?: string;
+  returnCondition?: string;
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface AssetAudit {
+  id: string;
+  assetId: string;
+  assetTag?: string;
+  assetName?: string;
+  auditedBy?: string;
+  auditDate: string;
+  foundStatus: string;
+  condition: string;
+  remarks?: string;
+  createdAt?: string;
+}
+
+export interface Asset {
+  id: string;
+  assetTag: string;
+  name: string;
+  category: AssetCategory;
+  assetType?: string;
+  serialNo?: string;
+  condition: AssetCondition;
+  status: AssetStatus;
+  photoAttachmentId?: string;
+  purchaseDate?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+  currentAssignment?: AssetAssignment | null;
+  assignmentHistory?: AssetAssignment[];
+  auditHistory?: AssetAudit[];
+}
+
+export interface AssetSummary {
+  total: number;
+  available: number;
+  checkedOut: number;
+  underMaintenance: number;
+  byCategory: { category: string; count: number }[];
+}
+
 // ── Visitor Passes (P17) ──────────────────────────────────────────────────────
 
 export type VisitorPassType = 'Temporary' | 'One Day' | 'Recurring' | 'Delivery' | 'Worker' | 'Guest';
@@ -754,6 +869,8 @@ export interface CameraDevice {
   location: string;
   zone?: string;
   rtspUrl?: string;
+  /** Browser-playable live stream (HLS .m3u8 or MJPEG) produced from the RTSP source. */
+  hlsUrl?: string;
   ipAddress?: string;
   port?: number;
   manufacturer?: string;
@@ -957,4 +1074,605 @@ export interface PaymentDashboard {
   byStatus: Record<string, number>;
 }
 
+// ── Facility & Daily Operations (P25) ─────────────────────────────────────────
+
+export type CctvCheckStatus = 'Working' | 'Faulty' | 'Offline';
+
+/** One camera row in the daily CCTV checklist (camera + its check for the day, if any). */
+export interface CctvDailyCheck {
+  cameraId: string;
+  cameraName: string;
+  location?: string;
+  zone?: string;
+  checkId?: string;
+  status?: CctvCheckStatus;
+  remarks?: string;
+  checkedBy?: string;
+  checkedAt?: string;
+}
+
+export interface CctvDailySummary {
+  totalCameras: number;
+  checked: number;
+  working: number;
+  faulty: number;
+  offline: number;
+  unchecked: number;
+}
+
+export interface CctvChecklist {
+  date: string;
+  summary: CctvDailySummary;
+  checks: CctvDailyCheck[];
+}
+
+export interface WaterLorryLog {
+  id: string;
+  logDate: string;
+  supplierName: string;
+  vehicleNo?: string;
+  capacityLitres?: number;
+  trips: number;
+  amount?: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface EbLog {
+  id: string;
+  logDate: string;
+  meterStart?: number;
+  meterEnd?: number;
+  powerCutMinutes: number;
+  generatorNote?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface HousekeepingLog {
+  id: string;
+  logDate: string;
+  area: string;
+  task: string;
+  status: 'Done' | 'Pending' | 'Partial';
+  staffName?: string;
+  remarks?: string;
+  createdAt: string;
+}
+
+export interface DailyOpsMaintenanceItem {
+  id: string;
+  title: string;
+  category?: string;
+  priority: string;
+  status: string;
+  expectedCompletion?: string;
+  officeBlock?: string;
+  officeName?: string;
+  staffName?: string;
+}
+
+export interface DailyOpsUtilityItem {
+  id: string;
+  description: string;
+  type?: string;
+  scheduledDate?: string;
+  status: string;
+  assignedStaff?: string;
+  notes?: string;
+}
+
+export interface DailyOpsPayment {
+  id: string;
+  invoiceId: string;
+  invoiceNo?: string;
+  invoiceDescription?: string;
+  amount: number;
+  paidAt: string;
+  mode?: string;
+  referenceNo?: string;
+}
+
+/** Aggregated Daily Activity Report (GET /admin/daily-ops/report). */
+export interface DailyOpsReport {
+  date: string;
+  cctv: CctvDailySummary & { checks: CctvDailyCheck[] };
+  waterLorry: { entries: number; totalTrips: number; totalLitres: number; totalAmount: number; logs: WaterLorryLog[] };
+  eb: { logs: EbLog[]; totalPowerCutMinutes: number };
+  housekeeping: { total: number; done: number; pending: number; partial: number; completion: number; logs: HousekeepingLog[] };
+  staffAttendance: { totalStaff: number; present: number; absent: number; halfDay: number; unmarked: number };
+  maintenanceDue: DailyOpsMaintenanceItem[];
+  utilityTasks: DailyOpsUtilityItem[];
+  vendorPayments: { entries: number; totalAmount: number; payments: DailyOpsPayment[] };
+}
+
+// ── IoT Monitoring & Hardware Automation ──────────────────────────────────────
+
+export type IotDeviceType = 'lift' | 'electrical_board' | 'sensor' | 'gateway' | 'other';
+export type IotProtocol = 'http' | 'mqtt' | 'modbus';
+export type IotEventType = 'fault' | 'voltage_fluctuation' | 'status_change' | 'heartbeat' | 'test';
+export type IotSeverity = 'info' | 'warning' | 'critical';
+
+export interface IotDevice {
+  id: string;
+  name: string;
+  deviceType: IotDeviceType;
+  protocol: IotProtocol;
+  ipAddress?: string;
+  ioLines?: number;
+  /** Only present in create / regenerate-token responses — shown once. */
+  apiToken?: string;
+  location?: string;
+  status: 'Active' | 'Inactive';
+  lastSeenAt?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface IotEvent {
+  id: string;
+  deviceId: string;
+  deviceName?: string;
+  deviceType?: string;
+  eventType: IotEventType;
+  severity: IotSeverity;
+  ioLine?: number;
+  value?: string;
+  message?: string;
+  payload?: string;
+  acknowledgedAt?: string;
+  acknowledgedBy?: string;
+  createdAt: string;
+}
+
+export interface IotSummary {
+  totalDevices: number;
+  activeDevices: number;
+  onlineDevices: number;
+  offlineDevices: IotDevice[];
+  offlineCount: number;
+  offlineThresholdMinutes: number;
+  unacknowledgedCritical: number;
+  unacknowledgedAlerts: number;
+  eventsToday: number;
+}
+
+// ── Home Automation (Home Assistant REST connector) ──────────────────────────
+export type HaHubStatus = 'Active' | 'Disabled';
+export type HaDeviceDomain = 'switch' | 'light' | 'sensor' | 'climate' | 'cover' | 'lock' | 'binary_sensor' | 'other';
+
+export interface HomeAutomationHub {
+  id: string;
+  name: string;
+  ownerUserId?: string | null;
+  officeId?: string | null;
+  provider: string;
+  baseUrl: string;
+  status: HaHubStatus;
+  lastCheckAt?: string | null;
+  /** 1 reachable, 0 failed, null never checked. */
+  lastCheckOk?: number | null;
+  /** Masked token preview (e.g. "abc***"); the real token is never returned. */
+  accessTokenMasked?: string | null;
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface HomeAutomationDevice {
+  id: string;
+  hubId: string;
+  entityId: string;
+  friendlyName?: string;
+  domain: HaDeviceDomain;
+  isControllable: number;
+  visibleToOwner: number;
+  /** Live values merged in by the devices endpoints (best-effort). */
+  state?: string | null;
+  unit?: string | null;
+  reachable?: boolean;
+}
+
+export interface HomeAutomationSummary {
+  hubs: number;
+  activeHubs: number;
+  reachableHubs: number;
+  devices: number;
+}
+
+// ── Documents (Office Documents storage & maintenance) ───────────────────────
+export type DocumentCategory = 'Office Documents' | 'Legal' | 'Financial' | 'Compliance' | 'Contracts' | 'Correspondence' | 'Other';
+export type DocumentStatus = 'Active' | 'Archived' | 'Expired';
+
+export interface DocumentAttachment {
+  id: string;
+  originalName?: string;
+  storedPath?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+}
+
+export interface OfficeDocument {
+  id: string;
+  docNo: string;
+  title: string;
+  category: DocumentCategory;
+  officeId?: string;
+  attachmentId?: string;
+  fileName?: string;
+  expiryDate?: string;
+  tags?: string;
+  status: DocumentStatus;
+  uploadedBy?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+  attachment?: DocumentAttachment;
+}
+
+export interface DocumentSummary {
+  total: number;
+  officeDocs: number;
+  expiringSoon: number;
+  expired: number;
+  byCategory: { category: string; count: number }[];
+}
+
+// ── Name Transfers (Association module — incoming tenants) ────────────────────
+export type NameTransferStatus = 'Pending' | 'Approved' | 'Rejected' | 'Completed';
+
+export interface NameTransferOffice {
+  id: string;
+  block?: string;
+  floorNumber?: string;
+  companyName?: string;
+}
+
+export interface NameTransfer {
+  id: string;
+  transferNo: string;
+  officeId: string;
+  fromName?: string;
+  toName: string;
+  toContactPerson?: string;
+  toPhone?: string;
+  toEmail?: string;
+  reason?: string;
+  effectiveDate?: string;
+  status: NameTransferStatus;
+  supportingDocAttachmentId?: string;
+  requestedBy?: string;
+  approvedBy?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+  office?: NameTransferOffice;
+}
+
+export interface NameTransferSummary {
+  pending: number;
+  approved: number;
+  completedThisMonth: number;
+}
+
+// ── Staff Payroll ──────────────────────────────────────────────────────────
+export type PayrollRunStatus = 'Draft' | 'Finalized' | 'Paid';
+export type PayslipPaymentMethod = 'Bank Transfer' | 'Cash' | 'Cheque';
+
+export interface Payslip {
+  id: string;
+  payrollRunId: string;
+  staffId: string;
+  periodMonth: string;
+  baseSalary: number;
+  presentDays: number;
+  paidDays: number;
+  absentDays: number;
+  overtimeAmount: number;
+  allowances: number;
+  deductions: number;
+  grossPay: number;
+  netPay: number;
+  paymentMethod: PayslipPaymentMethod;
+  paidAt?: string;
+  notes?: string;
+  staffName?: string;
+  staffRole?: string;
+  staffDepartment?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PayrollRun {
+  id: string;
+  periodMonth: string;
+  status: PayrollRunStatus;
+  generatedBy?: string;
+  notes?: string;
+  staffCount?: number;
+  totalNet?: number;
+  totalGross?: number;
+  paidCount?: number;
+  payslips?: Payslip[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface PayrollSummary {
+  periodMonth: string;
+  monthPayout: number;
+  staffCount: number;
+  payslipCount: number;
+  paidCount: number;
+  pendingCount: number;
+  paidAmount: number;
+  pendingAmount: number;
+}
+
+// ── Medical Reports ────────────────────────────────────────────────────────
+export type MedicalReportType = 'Fitness Certificate' | 'Checkup' | 'Injury' | 'Insurance' | 'Other';
+export type MedicalResult = 'Fit' | 'Unfit' | 'Follow-up' | 'N/A';
+
+export interface MedicalAttachment {
+  id: string;
+  originalName?: string;
+  storedPath?: string;
+  mimeType?: string;
+}
+
+export interface MedicalReport {
+  id: string;
+  reportNo: string;
+  staffId?: string;
+  personName: string;
+  reportType: MedicalReportType;
+  reportDate: string;
+  provider?: string;
+  summary?: string;
+  result: MedicalResult;
+  nextCheckupDate?: string;
+  attachmentId?: string;
+  confidential: boolean;
+  recordedBy?: string;
+  notes?: string;
+  attachment?: MedicalAttachment;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface MedicalSummary {
+  total: number;
+  fit: number;
+  unfit: number;
+  followUp: number;
+  checkupsDue: number;
+  byType: { reportType: string; count: number }[];
+}
+
+// ── Accounts & Compliance (GST report / Audit report / Suspend list) ─────────
+
+export interface GstRateLine {
+  rate: number;
+  taxable: number;
+  tax: number;
+}
+
+export interface GstTaxSection {
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+  byRate: GstRateLine[];
+}
+
+export interface GstInvoiceLine {
+  id: string;
+  invoiceNo: string;
+  date?: string;
+  gstin?: string;
+  taxableAmount: number;
+  gstRate: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  igstAmount: number;
+  gstTotal: number;
+  amount: number;
+  status?: string;
+}
+
+export interface GstExpenseLine {
+  id: string;
+  expenseNo?: string;
+  date?: string;
+  payee?: string;
+  gstin?: string;
+  category?: string;
+  taxableAmount: number;
+  gstRate: number;
+  gstAmount: number;
+  amount: number;
+}
+
+export interface GstReport {
+  from: string;
+  to: string;
+  outputTax: GstTaxSection & { invoices: GstInvoiceLine[] };
+  inputTax: GstTaxSection & { expenses: GstExpenseLine[] };
+  netGst: number;
+}
+
+export interface AuditReport {
+  period: { from: string; to: string };
+  financials: {
+    invoices: { count: number; billed: number; collected: number; gstCollected: number; byStatus: { status: string; count: number; amount: number }[] };
+    payments: { count: number; amount: number };
+    expenses: { count: number; amount: number; gstPaid: number; byCategory: { category: string; count: number; amount: number; gst: number }[] };
+    netCashFlow: number;
+  };
+  inventory: {
+    items: number;
+    totalQuantity: number;
+    usedQuantity: number;
+    stockValue: number;
+    assets: { total: number; byStatus: { status: string; count: number }[] };
+  };
+  payroll: { runs: number; payslips: number; grossPay: number; netPay: number; paidSlips: number };
+  documents: { total: number; active: number };
+  amc: { active: number; expiringSoon: number; contracts: AmcContract[] };
+}
+
+export type SuspendEntityType = 'user' | 'vendor' | 'office';
+
+export interface SuspendedUser {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role: string;
+  status: string;
+  updatedAt?: string;
+}
+
+export interface SuspendedVendor {
+  id: string;
+  name: string;
+  company?: string;
+  serviceType?: string;
+  contact?: string;
+  status: string;
+  updatedAt?: string;
+}
+
+export interface SuspendedOffice {
+  id: string;
+  block?: string;
+  floorNumber?: string;
+  companyName: string;
+  contactPerson?: string;
+  status: string;
+  updatedAt?: string;
+}
+
+export interface SuspendedLists {
+  users: SuspendedUser[];
+  vendors: SuspendedVendor[];
+  offices: SuspendedOffice[];
+}
+
+// ── AMC Contracts & DG Maintenance ────────────────────────────────────────────
+
+export type AmcContractType = 'AMC' | 'DG Maintenance' | 'Lift AMC' | 'Fire Safety' | 'Other';
+export type AmcPaymentFrequency = 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly' | 'One-Time';
+export type AmcStatus = 'Active' | 'Expired' | 'Cancelled';
+
+export interface AmcContract {
+  id: string;
+  contractNo: string;
+  title: string;
+  contractType: AmcContractType;
+  vendorId?: string;
+  vendorName?: string;
+  startDate?: string;
+  endDate?: string;
+  amount: number;
+  paymentFrequency: AmcPaymentFrequency;
+  reminderDays: number;
+  documentAttachmentId?: string;
+  status: AmcStatus;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DgMaintenanceLog {
+  id: string;
+  logDate: string;
+  dgName: string;
+  runHours: number;
+  dieselAddedLitres: number;
+  dieselCost: number;
+  servicePerformed?: string;
+  nextServiceDate?: string;
+  performedBy?: string;
+  remarks?: string;
+  attachmentId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DgSummary {
+  monthLogs: number;
+  monthRunHours: number;
+  monthDieselLitres: number;
+  monthDieselCost: number;
+  nextServiceDate?: string;
+  nextServiceDg?: string;
+}
+
+// ── Super Admin: Organizations & Multi-tenant ────────────────────────────────
+export type OrganizationPlan = 'Free' | 'Standard' | 'Premium';
+export type OrganizationStatus = 'Active' | 'Suspended' | 'Trial';
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  plan: OrganizationPlan;
+  status: OrganizationStatus;
+  adsEnabled: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** Per-organization rollup returned by GET /super/overview. */
+export interface OrgRollup {
+  org: Organization;
+  users: number;
+  activeSubscriptions: number;
+  subscriptionRevenue: number;
+  businessAds: number;
+  adBillingTotal: number;
+  vendors: number;
+}
+
+export interface SuperAdminTotals {
+  organizations: number;
+  users: number;
+  activeSubscriptions: number;
+  subscriptionRevenue: number;
+  businessAds: number;
+  adBillingTotal: number;
+  vendors: number;
+}
+
+export interface SuperAdminOverview {
+  organizations: OrgRollup[];
+  totals: SuperAdminTotals;
+}
+
+// ── Feature Entitlements ─────────────────────────────────────────────────────
+/** One selectable module in the super-admin feature catalog. */
+export interface FeatureCatalogItem {
+  key: string;
+  label: string;
+  group: string;
+  roles: string[];
+}
+
+/** An organization's per-feature enabled state (GET/PUT org features). */
+export interface OrgFeatureMap {
+  orgId: string;
+  features: Record<string, boolean>;
+}
+
+/** The current user's enabled feature keys (GET /me/features). */
+export interface MeFeatures {
+  role: string;
+  orgId: number | null;
+  features: string[];
+}
 

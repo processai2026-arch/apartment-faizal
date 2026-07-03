@@ -3,13 +3,14 @@ import { cn } from '@/lib/utils';
 // ---------------------------------------------------------------------------
 // Primitive: base animated pulse block
 // ---------------------------------------------------------------------------
-function SkeletonBlock({ className }: { className?: string }) {
+function SkeletonBlock({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
       className={cn(
         'animate-pulse rounded-md bg-slate-200 dark:bg-slate-700',
         className,
       )}
+      style={style}
     />
   );
 }

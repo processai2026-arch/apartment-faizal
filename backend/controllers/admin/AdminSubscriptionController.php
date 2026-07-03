@@ -139,6 +139,7 @@ class AdminSubscriptionController
             'amount_paid'   => (float) ($request->input('amount_paid') ?? 0),
             'payment_ref'   => $request->input('payment_ref') ?: null,
             'notes'         => $request->input('notes') ?: null,
+            'org_id'        => OrgScope::stampFor($request),
         ]);
 
         AuditService::log((int) $request->user['id'], 'subscription.create', 'subscriptions', (int) $sub['id']);

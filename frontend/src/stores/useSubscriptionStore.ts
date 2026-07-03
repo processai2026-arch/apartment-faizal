@@ -110,7 +110,7 @@ export const useSubscriptionStore = create<SubscriptionState>()((set, get) => ({
         const freePlan = tenantPlans.find((p) => p.slug === 'free') ?? null;
         set({ myPlan: freePlan, mySubscription: null });
       } else {
-        const sub = rawMyPlan as Subscription;
+        const sub = rawMyPlan as unknown as Subscription;
         const plan = tenantPlans.find((p) => p.id === sub.planId) ?? null;
         set({ mySubscription: sub, myPlan: plan });
       }

@@ -9,6 +9,8 @@ class Vendor extends CrudModel
         'name', 'company', 'service_type', 'category', 'contact', 'last_visit', 'next_visit', 'status',
         // Marketplace extensions
         'description', 'service_area', 'availability', 'is_verified', 'is_featured', 'category_id',
+        // Multi-tenant scoping
+        'org_id',
     ];
     protected static array $searchColumns = ['name', 'company', 'service_type', 'contact', 'service_area', 'description'];
 
@@ -40,6 +42,13 @@ class Vendor extends CrudModel
         if (($request->query['min_rating'] ?? '') !== '') {
             $conditions[] = 'rating_avg >= :min_rating';
             $params['min_rating'] = (float) $request->query['min_rating'];
+        }
+
+        // Organization scoping (super_admin: all orgs or ?orgId=; others: own org).
+        $orgId = OrgScope::orgIdFor($request);
+        if ($orgId !== null) {
+            $conditions[] = 'org_id = :org_scope';
+            $params['org_scope'] = $orgId;
         }
 
         return [$conditions ? 'WHERE ' . implode(' AND ', $conditions) : '', $params];

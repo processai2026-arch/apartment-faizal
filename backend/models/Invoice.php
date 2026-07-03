@@ -5,7 +5,13 @@ declare(strict_types=1);
 class Invoice extends CrudModel
 {
     protected static string $table = 'invoices';
-    protected static array $columns = ['office_id', 'invoice_no', 'description', 'amount', 'paid_amount', 'due_date', 'status'];
+    protected static array $columns = [
+        'office_id', 'invoice_no', 'description', 'amount', 'paid_amount', 'due_date', 'status',
+        // GST (029)
+        'gstin', 'taxable_amount', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'gst_total',
+    ];
+
+    public const GST_RATES = [0.0, 5.0, 12.0, 18.0, 28.0];
     protected static array $searchColumns = ['invoice_no', 'description', 'status'];
 
     protected static function filters(Request $request): array

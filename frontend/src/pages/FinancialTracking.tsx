@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Download, Plus, X, Eye, EyeOff, Edit3, Save, RotateCcw, CreditCard } from 'lucide-react';
+import { CheckCircle, ChevronDown, Download, Plus, X, Eye, EyeOff, Edit3, Save, RotateCcw, CreditCard } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import StatusBadge from '@/components/features/StatusBadge';
@@ -37,6 +37,24 @@ export default function FinancialTracking() {
     amount: 50000,
     dueDate: '',
   });
+
+  // GST details (optional, collapsible section in the add dialog)
+  const [showGst, setShowGst] = useState(false);
+  const [gstForm, setGstForm] = useState({ gstin: '', gstRate: '', taxableAmount: '' });
+
+  const GST_RATES = ['0', '5', '12', '18', '28'];
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const gstTaxable = Number(gstForm.taxableAmount) || 0;
+  const gstRateNum = gstForm.gstRate === '' ? null : Number(gstForm.gstRate);
+  // CGST/SGST are each half of the rate applied on the taxable value (intra-state).
+  const gstHalf = gstRateNum != null ? round2((gstTaxable * gstRateNum) / 200) : 0;
+  const gstTotal = gstRateNum != null ? round2((gstTaxable * gstRateNum) / 100) : 0;
+
+  const resetForm = () => {
+    setForm({ invoiceNo: '', officeId: '', description: '', amount: 50000, dueDate: '' });
+    setGstForm({ gstin: '', gstRate: '', taxableAmount: '' });
+    setShowGst(false);
+  };
 
   const pageSettings = settings.financialTracking;
 
@@ -203,10 +221,20 @@ export default function FinancialTracking() {
         description: form.description || undefined,
         amount: form.amount,
         dueDate: form.dueDate || undefined,
+        // GST details are only sent when a rate has been picked.
+        ...(gstRateNum != null ? {
+          gstin: gstForm.gstin.trim() || undefined,
+          taxableAmount: gstTaxable,
+          gstRate: gstRateNum,
+          cgstAmount: gstHalf,
+          sgstAmount: gstHalf,
+          igstAmount: 0,
+          gstTotal,
+        } : {}),
       });
       toast.success('Invoice created successfully');
       setShowModal(false);
-      setForm({ invoiceNo: '', officeId: '', description: '', amount: 50000, dueDate: '' });
+      resetForm();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not create invoice');
     } finally {
@@ -733,6 +761,63 @@ export default function FinancialTracking() {
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
+                </div>
+
+                {/* GST Details — optional, collapsed by default */}
+                <div className="rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowGst(s => !s)}
+                    className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl"
+                  >
+                    <span>GST Details {gstRateNum != null && <span className="ml-1 text-xs font-normal text-indigo-600">({gstForm.gstRate}% • ₹{gstTotal.toLocaleString()})</span>}</span>
+                    <ChevronDown className={cn('w-4 h-4 transition-transform', showGst && 'rotate-180')} />
+                  </button>
+                  {showGst && (
+                    <div className="space-y-3 border-t border-slate-100 p-3">
+                      <div>
+                        <label className="text-xs font-medium text-slate-600 mb-1 block">GSTIN</label>
+                        <input
+                          value={gstForm.gstin}
+                          onChange={e => setGstForm(f => ({ ...f, gstin: e.target.value.toUpperCase() }))}
+                          placeholder="e.g., 33ABCDE1234F1Z5"
+                          maxLength={15}
+                          className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium text-slate-600 mb-1 block">Taxable Amount (₹)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={gstForm.taxableAmount}
+                            onChange={e => setGstForm(f => ({ ...f, taxableAmount: e.target.value }))}
+                            placeholder={String(form.amount)}
+                            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-slate-600 mb-1 block">GST Rate</label>
+                          <select
+                            value={gstForm.gstRate}
+                            onChange={e => setGstForm(f => ({ ...f, gstRate: e.target.value }))}
+                            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                          >
+                            <option value="">No GST</option>
+                            {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      {gstRateNum != null && (
+                        <div className="flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-700">
+                          <span>CGST ₹{gstHalf.toLocaleString()} + SGST ₹{gstHalf.toLocaleString()}</span>
+                          <span className="font-semibold">Total GST ₹{gstTotal.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex gap-3 mt-6">

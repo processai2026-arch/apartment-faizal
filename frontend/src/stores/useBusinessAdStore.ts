@@ -100,7 +100,7 @@ export const useBusinessAdStore = create<BusinessAdState>()((set) => ({
   },
 
   createCategory: async (payload) => {
-    const cat = await api.businessAds.createCategory(payload);
+    const cat = await api.businessAds.createCategory(payload as { name: string; slug: string; icon?: string });
     set((s) => ({ categories: [...s.categories, cat] }));
     return cat;
   },

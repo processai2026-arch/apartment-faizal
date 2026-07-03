@@ -36,3 +36,4 @@ apartments-demo.kynetropo.com/
 public_html-upload.zip
 *-upload.zip
 backend-*-upload.zip
+.deploy.sh

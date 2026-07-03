@@ -61,13 +61,13 @@ export const useDailyWorkerStore = create<DailyWorkerState>()((set) => ({
   },
 
   generateQr: async (id) => {
-    const qr = await api.dailyWorkers.generateQr(id);
-    set((s) => ({ workers: s.workers.map((w) => w.id === id ? { ...w, qrCode: qr } : w) }));
-    return qr;
+    const { qr_code } = await api.dailyWorkers.generateQr(id);
+    set((s) => ({ workers: s.workers.map((w) => w.id === id ? { ...w, qrCode: qr_code } : w) }));
+    return qr_code;
   },
 
   markAttendance: async (workerId, status, notes) => {
-    await api.dailyWorkers.markAttendance(workerId, status, notes);
+    await api.dailyWorkers.markAttendance({ workerId, status, notes });
   },
 
   loadTodaySummary: async () => {
@@ -81,7 +81,7 @@ export const useDailyWorkerStore = create<DailyWorkerState>()((set) => ({
   },
 
   recordEntry: async (workerId, authorizedBy) => {
-    await api.dailyWorkers.recordEntry(workerId, authorizedBy);
+    await api.dailyWorkers.recordEntry({ workerId, notes: authorizedBy });
   },
 
   recordExit: async (workerId) => {

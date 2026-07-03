@@ -25,4 +25,9 @@ return [
     'razorpay_key_secret' => env('RAZORPAY_KEY_SECRET', ''),
     'razorpay_webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET', ''),
     'razorpay_mode' => env('RAZORPAY_MODE', 'test'),
+    // IoT Monitoring & alert mail
+    'secretary_alert_email' => env('SECRETARY_ALERT_EMAIL', ''),
+    'mail_from' => env('MAIL_FROM', ''),
+    'iot_offline_minutes' => (int) env('IOT_OFFLINE_MINUTES', 10),
+    'iot_alert_cooldown' => (int) env('IOT_ALERT_COOLDOWN_SECONDS', 900),
 ];

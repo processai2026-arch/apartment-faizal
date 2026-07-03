@@ -8,16 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import StatusBadge from '@/components/features/StatusBadge';
 import { cn } from '@/lib/utils';
+import type { UserRole } from '@/types/auth';
 
 const POLL_MS = 30000;
 
-function notificationIndexPath(role: 'admin' | 'security' | 'tenant') {
+function notificationIndexPath(role: UserRole) {
   switch (role) {
     case 'security':
       return '/security/notifications';
     case 'tenant':
       return '/tenant/notifications';
     default:
+      // admin and super_admin share the admin notification center
       return '/notifications';
   }
 }

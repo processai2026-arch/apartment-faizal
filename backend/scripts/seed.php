@@ -144,11 +144,32 @@ foreach ($users as [$email, $password, $name, $phone, $role, $userOfficeId]) {
         'password_hash' => password_hash($password, PASSWORD_DEFAULT),
         'role' => $role,
         'office_id' => $userOfficeId,
+        'org_id' => 1,
         'status' => 'active',
         'created_at' => $now,
         'updated_at' => $now,
     ]);
 }
+
+// Super admin: multi-tenant management portal (organizations, business ads,
+// ad billing). Belongs to the default organization (id 1, seeded by 030).
+$superAdminEmail = (string) env('SEED_SUPERADMIN_EMAIL', 'superadmin@officegate.local');
+insert_if_missing('users', 'email', strtolower($superAdminEmail), [
+    'name' => 'Super Admin',
+    'email' => strtolower($superAdminEmail),
+    'phone' => '+919876533333',
+    'password_hash' => password_hash(seed_password('SEED_SUPERADMIN_PASSWORD'), PASSWORD_DEFAULT),
+    'role' => 'super_admin',
+    'office_id' => null,
+    'org_id' => 1,
+    'status' => 'active',
+    'created_at' => $now,
+    'updated_at' => $now,
+]);
+
+// Feature entitlements: seed the default organization (id 1) with every
+// registry feature enabled. Idempotent — existing rows are left untouched.
+OrganizationFeature::seedDefaults(OrgScope::DEFAULT_ORG_ID);
 
 $offices = [
     ['8th FLOOR', 'M2K ADVISORS', 'Mr. Sharma', '+919876543211', 5],
@@ -193,6 +214,7 @@ insert_if_missing('vendors', 'contact', '+919876511111', [
     'last_visit' => '2026-05-05',
     'next_visit' => '2026-06-05',
     'status' => 'Active',
+    'org_id' => 1,
     'created_at' => $now,
     'updated_at' => $now,
 ]);

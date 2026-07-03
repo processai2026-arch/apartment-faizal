@@ -14,8 +14,9 @@ export default defineConfig({
     },
   },
   build: {
-    // Use esbuild (Vite default) — no separate terser dependency needed
-    minify: "esbuild",
+    // Vite 8 is rolldown-powered: esbuild is no longer bundled and oxc is the
+    // native minifier/transpiler. Using "oxc" avoids a separate esbuild install.
+    minify: "oxc",
     // Disable source maps in production for smaller output
     sourcemap: false,
     // Raise warning threshold; large deps are expected given the feature set

@@ -103,7 +103,7 @@ export function doughnutChartConfig(
   labels: string[],
   data: number[],
   colors?: string[]
-): ChartConfiguration {
+): ChartConfiguration<'doughnut'> {
   const palette = colors ?? CHART_COLORS.slice(0, labels.length);
   return {
     type: 'doughnut',

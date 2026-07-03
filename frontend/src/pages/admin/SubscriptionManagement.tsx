@@ -256,15 +256,15 @@ export default function SubscriptionManagement() {
   ];
 
   const subscriberColumns: Column<Subscription>[] = [
-    { key: 'id', header: 'ID', render: (s) => <span className="text-xs text-slate-400">#{s.id}</span> },
-    { key: 'userId', header: 'User', render: (s) => <span className="text-white">{(s as Subscription & { user_name?: string }).user_name ?? `User #${s.userId}`}</span> },
-    { key: 'planName', header: 'Plan', render: (s) => <span className="font-medium text-indigo-400">{s.planName ?? '—'}</span> },
-    { key: 'status', header: 'Status', render: (s) => (
+    { key: 'id', label: 'ID', render: (s) => <span className="text-xs text-slate-400">#{s.id}</span> },
+    { key: 'userId', label: 'User', render: (s) => <span className="text-white">{(s as Subscription & { user_name?: string }).user_name ?? `User #${s.userId}`}</span> },
+    { key: 'planName', label: 'Plan', render: (s) => <span className="font-medium text-indigo-400">{s.planName ?? '—'}</span> },
+    { key: 'status', label: 'Status', render: (s) => (
       <StatusBadge status={s.status} />
     )},
-    { key: 'billingCycle', header: 'Billing', render: (s) => <span className="text-slate-300">{s.billingCycle}</span> },
-    { key: 'amountPaid', header: 'Amount', render: (s) => <span className="text-green-400">{formatCurrency(s.amountPaid)}</span> },
-    { key: 'expiresAt', header: 'Expires', render: (s) => <span className="text-slate-400 text-xs">{formatDate(s.expiresAt)}</span> },
+    { key: 'billingCycle', label: 'Billing', render: (s) => <span className="text-slate-300">{s.billingCycle}</span> },
+    { key: 'amountPaid', label: 'Amount', render: (s) => <span className="text-green-400">{formatCurrency(s.amountPaid)}</span> },
+    { key: 'expiresAt', label: 'Expires', render: (s) => <span className="text-slate-400 text-xs">{formatDate(s.expiresAt)}</span> },
   ];
 
   const planColors: Record<string, string> = {
@@ -422,7 +422,7 @@ export default function SubscriptionManagement() {
         <DataTable
           data={subscriptions}
           columns={subscriberColumns}
-          emptyMessage="No subscriptions found"
+          empty={<div className="p-8 text-center text-sm text-slate-400">No subscriptions found</div>}
         />
       )}
 
