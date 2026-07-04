@@ -13,14 +13,14 @@ import type { ColumnConfig } from '@/types/uiSettings';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Tab = 'Regular Maintenance' | 'Utility Providers' | 'Ad-Hoc Vendors';
-const tabs: Tab[] = ['Regular Maintenance', 'Utility Providers', 'Ad-Hoc Vendors'];
+type Tab = 'Regular Maintenance';
+const tabs: Tab[] = ['Regular Maintenance'];
 
 const tabBadgeColor: Record<Tab, string> = {
   'Regular Maintenance': 'bg-indigo-50 text-indigo-700',
-  'Utility Providers': 'bg-blue-50 text-blue-700',
-  'Ad-Hoc Vendors': 'bg-amber-50 text-amber-700',
 };
+
+const activeTab: Tab = 'Regular Maintenance';
 
 const emptyForm = { name: '', company: '', serviceType: '', contact: '', category: 'Regular Maintenance' as Tab, nextVisit: '' };
 
@@ -45,7 +45,6 @@ const waLink = (contact: string) => {
 export default function VendorManagement() {
   const { vendors, addVendor } = useAppStore();
   const { settings, updateColumnOrder, resetPageSettings } = useUISettingsStore();
-  const [activeTab, setActiveTab] = useState<Tab>('Regular Maintenance');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState('');
@@ -67,9 +66,6 @@ export default function VendorManagement() {
       setHasChanges(false);
     }
   }, [isEditMode, pageSettings.columns]);
-
-  // Reset selection when switching tabs.
-  useEffect(() => { setSelectedIds([]); }, [activeTab]);
 
   const isColumnVisible = (columnId: string) => {
     if (isEditMode) return localColumns.find(c => c.id === columnId)?.visible ?? true;
@@ -109,7 +105,7 @@ export default function VendorManagement() {
     return byTab.filter(v =>
       [v.name, v.company, v.serviceType, v.contact].some(f => String(f ?? '').toLowerCase().includes(q))
     );
-  }, [vendors, activeTab, search]);
+  }, [vendors, search]);
 
   const visibleColumnIds = isEditMode
     ? localColumns.filter(c => c.visible).map(c => c.id)
@@ -146,7 +142,6 @@ export default function VendorManagement() {
   const columns = allColumns.filter(col => visibleColumnIds.includes(String(col.key)));
 
   const openAdd = () => {
-    // Pre-select the vendor type based on the active tab.
     setForm({ ...emptyForm, category: activeTab });
     setShowModal(true);
   };
@@ -177,19 +172,11 @@ export default function VendorManagement() {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {/* Toolbar: tabs + search + column controls + add (no floating FAB) */}
+        {/* Toolbar: title + search + column controls + add (no floating FAB) */}
         <div className="p-4 border-b border-slate-100 space-y-4">
           <TableToolbar
             title={
-              <div className="flex bg-slate-100 rounded-xl p-1">
-                {tabs.map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)}
-                    className={cn('px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
-                      activeTab === tab ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900')}>
-                    {tab}
-                  </button>
-                ))}
-              </div>
+              <span className="text-sm font-semibold text-slate-800">Vendor Maintenance</span>
             }
             filters={
               <SearchInput value={search} onChange={setSearch} placeholder="Search vendors..." />
@@ -284,7 +271,7 @@ export default function VendorManagement() {
           empty={
             <EmptyState
               icon={Wrench}
-              title={`No ${activeTab.toLowerCase()} yet`}
+              title="No vendors yet"
               description={search ? 'No vendors match your search.' : 'Add your first vendor to start tracking visits and contacts.'}
               action={search ? undefined : { label: 'Add Vendor', icon: Plus, onClick: openAdd }}
             />

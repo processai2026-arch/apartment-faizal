@@ -40,11 +40,20 @@ function OrgStatusBadge({ status }: { status: Organization['status'] }) {
 }
 
 // ── Organization Form Dialog ─────────────────────────────────────────────────
+interface SecretaryCredentials {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+}
+
+type OrgFormPayload = Partial<Organization> & { secretary?: SecretaryCredentials };
+
 interface OrgFormProps {
   open: boolean;
   org: Organization | null;
   onClose: () => void;
-  onSave: (payload: Partial<Organization>) => Promise<void>;
+  onSave: (payload: OrgFormPayload) => Promise<void>;
 }
 
 function OrgFormDialog({ open, org, onClose, onSave }: OrgFormProps) {
@@ -57,6 +66,14 @@ function OrgFormDialog({ open, org, onClose, onSave }: OrgFormProps) {
   const [contactPhone, setContactPhone] = useState('');
   const [adsEnabled, setAdsEnabled] = useState(false);
   const [notes, setNotes] = useState('');
+
+  // Secretary credentials — only relevant when creating a new org
+  const [secName, setSecName] = useState('');
+  const [secEmail, setSecEmail] = useState('');
+  const [secPhone, setSecPhone] = useState('');
+  const [secPassword, setSecPassword] = useState('');
+  const [secConfirmPassword, setSecConfirmPassword] = useState('');
+
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -74,13 +91,24 @@ function OrgFormDialog({ open, org, onClose, onSave }: OrgFormProps) {
       setName(''); setSlug(''); setPlan('Free'); setStatus('Trial');
       setContactPerson(''); setContactEmail(''); setContactPhone('');
       setAdsEnabled(false); setNotes('');
+      setSecName(''); setSecEmail(''); setSecPhone('');
+      setSecPassword(''); setSecConfirmPassword('');
     }
   }, [org, open]);
+
+  const isCreateMode = !org;
+
+  const secValid = !isCreateMode || (
+    secName.trim() !== '' &&
+    secEmail.trim() !== '' &&
+    secPassword !== '' &&
+    secPassword === secConfirmPassword
+  );
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave({
+      const payload: OrgFormPayload = {
         name,
         slug: slug || undefined,
         plan,
@@ -90,7 +118,16 @@ function OrgFormDialog({ open, org, onClose, onSave }: OrgFormProps) {
         contactPhone,
         adsEnabled,
         notes,
-      });
+      };
+      if (isCreateMode) {
+        payload.secretary = {
+          name: secName,
+          email: secEmail,
+          phone: secPhone,
+          password: secPassword,
+        };
+      }
+      await onSave(payload);
       onClose();
     } finally {
       setSaving(false);
@@ -103,7 +140,7 @@ function OrgFormDialog({ open, org, onClose, onSave }: OrgFormProps) {
         <DialogHeader>
           <DialogTitle>{org ? 'Edit Organization' : 'Add Organization'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 py-2">
+        <div className="max-h-[70vh] space-y-3 overflow-y-auto py-2 pr-1">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Name</Label>
@@ -163,10 +200,84 @@ function OrgFormDialog({ open, org, onClose, onSave }: OrgFormProps) {
             />
             Business advertisements enabled for this organization
           </label>
+
+          {/* Secretary Credentials — shown only when creating a new org */}
+          {isCreateMode && (
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Secretary Credentials
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>
+                    Secretary Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={secName}
+                    onChange={(e) => setSecName(e.target.value)}
+                    placeholder="Jane Doe"
+                  />
+                </div>
+                <div>
+                  <Label>Secretary Phone</Label>
+                  <Input
+                    value={secPhone}
+                    onChange={(e) => setSecPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>
+                  Secretary Email <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="email"
+                  value={secEmail}
+                  onChange={(e) => setSecEmail(e.target.value)}
+                  placeholder="secretary@example.com"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>
+                    Password <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="password"
+                    value={secPassword}
+                    onChange={(e) => setSecPassword(e.target.value)}
+                    placeholder="Min. 8 characters"
+                  />
+                </div>
+                <div>
+                  <Label>
+                    Confirm Password <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="password"
+                    value={secConfirmPassword}
+                    onChange={(e) => setSecConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                  />
+                </div>
+              </div>
+              {secPassword && secConfirmPassword && secPassword !== secConfirmPassword && (
+                <p className="text-xs font-medium text-red-500">Passwords do not match.</p>
+              )}
+              <p className="text-xs text-slate-500">
+                A secretary admin account will be created automatically for this organization.
+              </p>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !name.trim()} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button
+            onClick={handleSave}
+            disabled={saving || !name.trim() || !secValid}
+            className="bg-indigo-600 hover:bg-indigo-700"
+          >
             {saving ? 'Saving...' : org ? 'Save Changes' : 'Create Organization'}
           </Button>
         </DialogFooter>
@@ -322,14 +433,14 @@ export default function SuperAdminPortal() {
     }
   };
 
-  const handleSave = async (payload: Partial<Organization>) => {
+  const handleSave = async (payload: OrgFormPayload) => {
     try {
       if (editing) {
         await updateOrganization(editing.id, payload);
         toast({ title: 'Organization updated' });
       } else {
         await createOrganization(payload);
-        toast({ title: 'Organization created' });
+        toast({ title: 'Organization created and secretary account set up successfully.' });
       }
       loadOverview().catch(() => undefined);
     } catch (err) {

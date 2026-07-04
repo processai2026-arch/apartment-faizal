@@ -337,10 +337,6 @@ function CameraDetailDialog({ open, camera, onClose }: CameraDetailDialogProps) 
               </div>
             )}
 
-            {/* AI detection callout */}
-            <div className="rounded-lg bg-slate-100 px-4 py-3 text-xs text-slate-500">
-              <span className="font-semibold text-slate-600">AI Detection Ready</span> — Motion analysis, unknown person detection, and vehicle recognition will be enabled in a future release via the RTSP stream integration.
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>Close</Button>
@@ -615,10 +611,6 @@ export default function CameraManagement() {
             </CardContent>
           </Card>
 
-          {/* AI Detection callout */}
-          <div className="rounded-lg bg-slate-100 px-5 py-4 text-sm text-slate-500">
-            <span className="font-semibold text-slate-700">AI Detection Ready</span> — Motion analysis, unknown person detection, and vehicle recognition will be enabled in a future release via the RTSP stream integration.
-          </div>
         </TabsContent>
 
         {/* ── Tab: Cameras ─────────────────────────────────────────────────── */}

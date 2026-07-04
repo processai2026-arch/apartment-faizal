@@ -215,14 +215,13 @@ $router->delete('/tenant/rental/listings/{id}', [TenantRentalController::class, 
 $router->post('/tenant/rental/listings/{id}/favorite', [TenantRentalController::class, 'toggleFavorite'], ['RoleMiddleware:tenant', 'FeatureMiddleware:rental']);
 $router->get('/tenant/rental/favorites', [TenantRentalController::class, 'myFavorites'], ['RoleMiddleware:tenant', 'FeatureMiddleware:rental']);
 
-// ── Local Business Ads (P11) — SUPER ADMIN ONLY ──────────────────────────────
-// Advertisements shown inside the software are a super-admin concern: every
-// business-ad / ad-billing / ad-package / business-category route (admin AND
-// tenant facing) now requires the 'super_admin' role. Regular admins and
-// tenants get 403; the tenant marketplace page is also unrouted client-side.
-$router->get('/admin/business-ads', [AdminBusinessAdController::class, 'index'], ['RoleMiddleware:super_admin']);
-$router->post('/admin/business-ads', [AdminBusinessAdController::class, 'store'], ['RoleMiddleware:super_admin']);
-$router->get('/admin/business-ads/dashboard', [AdminBusinessAdController::class, 'dashboard'], ['RoleMiddleware:super_admin']);
+// ── Local Business Ads (P11) ─────────────────────────────────────────────────
+// Management routes (index/store/update/delete) are admin-only.
+// Tenant-facing read routes are open to tenant, security, and admin roles.
+// Super-admin billing / analytics / ad-packages remain super_admin only.
+$router->get('/admin/business-ads', [AdminBusinessAdController::class, 'index'], ['RoleMiddleware:admin']);
+$router->post('/admin/business-ads', [AdminBusinessAdController::class, 'store'], ['RoleMiddleware:admin']);
+$router->get('/admin/business-ads/dashboard', [AdminBusinessAdController::class, 'dashboard'], ['RoleMiddleware:admin']);
 
 // ── Ad Billing & Analytics (P23) — SUPER ADMIN ONLY ──────────────────────
 $router->get('/admin/business-ads/analytics', [AdminBusinessAdController::class, 'analytics'], ['RoleMiddleware:super_admin']);
@@ -235,23 +234,23 @@ $router->post('/admin/ad-packages', [AdminBusinessAdController::class, 'createPa
 $router->put('/admin/ad-packages/{id}', [AdminBusinessAdController::class, 'updatePackage'], ['RoleMiddleware:super_admin']);
 $router->delete('/admin/ad-packages/{id}', [AdminBusinessAdController::class, 'destroyPackage'], ['RoleMiddleware:super_admin']);
 
-$router->get('/admin/business-ads/{id}', [AdminBusinessAdController::class, 'show'], ['RoleMiddleware:super_admin']);
-$router->put('/admin/business-ads/{id}', [AdminBusinessAdController::class, 'update'], ['RoleMiddleware:super_admin']);
-$router->delete('/admin/business-ads/{id}', [AdminBusinessAdController::class, 'destroy'], ['RoleMiddleware:super_admin']);
-$router->post('/admin/business-ads/{id}/status', [AdminBusinessAdController::class, 'status'], ['RoleMiddleware:super_admin']);
-$router->post('/admin/business-ads/{id}/impression', [AdminBusinessAdController::class, 'trackImpression'], ['RoleMiddleware:super_admin']);
-$router->post('/admin/business-ads/{id}/renewal-reminder', [AdminBusinessAdController::class, 'sendRenewalReminder'], ['RoleMiddleware:super_admin']);
+$router->get('/admin/business-ads/{id}', [AdminBusinessAdController::class, 'show'], ['RoleMiddleware:admin']);
+$router->put('/admin/business-ads/{id}', [AdminBusinessAdController::class, 'update'], ['RoleMiddleware:admin']);
+$router->delete('/admin/business-ads/{id}', [AdminBusinessAdController::class, 'destroy'], ['RoleMiddleware:admin']);
+$router->post('/admin/business-ads/{id}/status', [AdminBusinessAdController::class, 'status'], ['RoleMiddleware:admin']);
+$router->post('/admin/business-ads/{id}/impression', [AdminBusinessAdController::class, 'trackImpression'], ['RoleMiddleware:admin']);
+$router->post('/admin/business-ads/{id}/renewal-reminder', [AdminBusinessAdController::class, 'sendRenewalReminder'], ['RoleMiddleware:admin']);
 $router->post('/admin/business-ads/billing/{id}/pay', [AdminBusinessAdController::class, 'payBilling'], ['RoleMiddleware:super_admin']);
-$router->get('/admin/business-categories', [AdminBusinessAdController::class, 'categories'], ['RoleMiddleware:super_admin']);
-$router->post('/admin/business-categories', [AdminBusinessAdController::class, 'createCategory'], ['RoleMiddleware:super_admin']);
-$router->put('/admin/business-categories/{id}', [AdminBusinessAdController::class, 'updateCategory'], ['RoleMiddleware:super_admin']);
-$router->delete('/admin/business-categories/{id}', [AdminBusinessAdController::class, 'deleteCategory'], ['RoleMiddleware:super_admin']);
+$router->get('/admin/business-categories', [AdminBusinessAdController::class, 'categories'], ['RoleMiddleware:admin']);
+$router->post('/admin/business-categories', [AdminBusinessAdController::class, 'createCategory'], ['RoleMiddleware:admin']);
+$router->put('/admin/business-categories/{id}', [AdminBusinessAdController::class, 'updateCategory'], ['RoleMiddleware:admin']);
+$router->delete('/admin/business-categories/{id}', [AdminBusinessAdController::class, 'deleteCategory'], ['RoleMiddleware:admin']);
 
-// Tenant-facing ad routes are super_admin-gated too (ads hidden from tenants).
-$router->get('/tenant/business-ads', [TenantBusinessAdController::class, 'index'], ['RoleMiddleware:super_admin']);
-$router->get('/tenant/business-ads/{id}', [TenantBusinessAdController::class, 'show'], ['RoleMiddleware:super_admin']);
-$router->post('/tenant/business-ads/{id}/click', [TenantBusinessAdController::class, 'click'], ['RoleMiddleware:super_admin']);
-$router->get('/tenant/business-categories', [TenantBusinessAdController::class, 'categories'], ['RoleMiddleware:super_admin']);
+// Tenant-facing ad routes: open to tenant, security, and admin roles.
+$router->get('/tenant/business-ads', [TenantBusinessAdController::class, 'index'], ['RoleMiddleware:tenant,security,admin']);
+$router->get('/tenant/business-ads/{id}', [TenantBusinessAdController::class, 'show'], ['RoleMiddleware:tenant,security,admin']);
+$router->post('/tenant/business-ads/{id}/click', [TenantBusinessAdController::class, 'click'], ['RoleMiddleware:tenant,security,admin']);
+$router->get('/tenant/business-categories', [TenantBusinessAdController::class, 'categories'], ['RoleMiddleware:tenant,security,admin']);
 
 // ── Announcements (P12) ───────────────────────────────────────────────────────
 $router->get('/admin/announcements', [AdminAnnouncementController::class, 'index'], ['RoleMiddleware:admin', 'FeatureMiddleware:announcements']);

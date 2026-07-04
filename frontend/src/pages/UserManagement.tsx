@@ -122,8 +122,8 @@ export default function UserManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 font-[Outfit]">User Management</h1>
-        <p className="text-sm text-slate-500">Create and manage Security & Tenant login accounts.</p>
+        <h1 className="text-xl font-bold text-slate-900 font-[Outfit]">Security Management</h1>
+        <p className="text-sm text-slate-500">Manage tenant and security accounts for this apartment</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -195,10 +195,11 @@ export default function UserManagement() {
               {!editing && (
                 <div>
                   <label className="text-xs font-medium text-slate-600 mb-1 block">Role</label>
-                  <div className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-700 flex items-center gap-2">
-                    {form.role === 'security' ? <Shield className="w-4 h-4 text-amber-600" /> : <Users className="w-4 h-4 text-blue-600" />}
-                    {form.role === 'security' ? 'Security' : 'Tenant'}
-                  </div>
+                  <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as Role }))}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                    <option value="tenant">Tenant</option>
+                    <option value="security">Security</option>
+                  </select>
                 </div>
               )}
 

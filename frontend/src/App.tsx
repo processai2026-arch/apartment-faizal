@@ -57,6 +57,7 @@ const CreateListing = lazy(() => import('@/pages/CreateListing'));
 const AdminRentalDashboard = lazy(() => import('@/pages/AdminRentalDashboard'));
 // P11 Business Ads (super-admin only; the tenant BusinessMarketplace page is unrouted)
 const AdminBusinessAds = lazy(() => import('@/pages/AdminBusinessAds'));
+const BusinessMarketplace = lazy(() => import('@/pages/BusinessMarketplace'));
 // P12 Announcements
 const Announcements = lazy(() => import('@/pages/Announcements'));
 const AdminAnnouncements = lazy(() => import('@/pages/AdminAnnouncements'));
@@ -127,7 +128,8 @@ function DashboardRedirect() {
   }
 
   switch (user.role) {
-    case 'super_admin': // super admin uses the admin dashboard as home
+    case 'super_admin':
+      return <Navigate to="/super" replace />;
     case 'admin':
       return <Dashboard />;
     case 'security':
@@ -213,10 +215,19 @@ const App = () => (
             <Route path="/scan/vehicle-entry" element={<ScanVehicleEntry />} />
             <Route path="/scan/vehicle-checkout" element={<ScanVehicleCheckout />} />
 
-            <Route path="/security" element={<ProtectedRoute allowedRoles={['security']}><SecurityDashboard /></ProtectedRoute>} />
-            <Route path="/security/notifications" element={<ProtectedRoute allowedRoles={['security']}><SecurityNotifications /></ProtectedRoute>} />
-            <Route path="/security/emergency-contacts" element={<ProtectedRoute allowedRoles={['security']}><EmergencyContacts /></ProtectedRoute>} />
-            <Route path="/security/daily-workers" element={<ProtectedRoute allowedRoles={['security']}><DailyWorkers /></ProtectedRoute>} />
+            <Route path="/security/*" element={<ProtectedRoute allowedRoles={['security']}><Layout><Routes>
+              <Route path="/" element={<SecurityDashboard />} />
+              <Route path="/visitors/entry" element={<EntryVisitors />} />
+              <Route path="/visitors/checkout" element={<CheckOutVisitors />} />
+              <Route path="/vehicles/entry" element={<VehicleRegistry />} />
+              <Route path="/vehicles/checkout" element={<CheckOutVehicle />} />
+              <Route path="/visitor-passes" element={<VisitorPassManagement />} />
+              <Route path="/daily-workers" element={<DailyWorkers />} />
+              <Route path="/emergency-contacts" element={<EmergencyContacts />} />
+              <Route path="/cameras" element={<CameraManagement />} />
+              <Route path="/notifications" element={<SecurityNotifications />} />
+              <Route path="/business-ads" element={<BusinessMarketplace />} />
+            </Routes></Layout></ProtectedRoute>} />
 
             <Route path="/tenant/*" element={<ProtectedRoute allowedRoles={['tenant']}><Layout><Routes>
               <Route path="/" element={<TenantDashboard />} />
@@ -229,16 +240,13 @@ const App = () => (
               <Route path="/rental" element={<RentalMarketplace />} />
               <Route path="/rental/create" element={<CreateListing />} />
               <Route path="/rental/:id" element={<RentalDetails />} />
-              {/* /tenant/business-ads (BusinessMarketplace) removed: in-app
-                  advertisements are visible ONLY to the super admin. The
-                  backend /tenant/business-ads routes are super_admin-gated. */}
+              <Route path="/business-ads" element={<BusinessMarketplace />} />
               <Route path="/announcements" element={<Announcements />} />
               <Route path="/emergency-contacts" element={<EmergencyContacts />} />
               <Route path="/notifications" element={<TenantNotifications />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/change-password" element={<ChangePassword />} />
               <Route path="/events" element={<TenantEvents />} />
-              <Route path="/subscription" element={<TenantSubscription />} />
             </Routes></Layout></ProtectedRoute>} />
 
             {/* Super Admin portal — exclusive to the super_admin role */}

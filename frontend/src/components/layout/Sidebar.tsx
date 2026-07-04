@@ -29,9 +29,8 @@ interface NavGroup {
 const adminNavItems: NavGroup[] = [
   { group: 'Main', items: [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/offices', label: 'Manage Offices', icon: Building2 },
-    { to: '/name-transfers', label: 'Name Transfer', icon: ArrowLeftRight },
-    { to: '/users', label: 'User Management', icon: UserCog },
+    { to: '/offices', label: 'Manage User/Tenant', icon: Building2 },
+    { to: '/users', label: 'Security Management', icon: UserCog },
   ]},
   { group: 'Visitor & Security', items: [
     { to: '/visitors/entry', label: 'Entry Visitors', icon: UserPlus },
@@ -57,11 +56,8 @@ const adminNavItems: NavGroup[] = [
     { to: '/complaints', label: 'Complaint Management', icon: MessageSquareWarning },
     { to: '/maintenance', label: 'Maintenance Requests', icon: Wrench },
     { to: '/daily-ops', label: 'Daily Operations', icon: ClipboardList },
-    { to: '/amc', label: 'AMC & DG', icon: Fuel },
   ]},
   { group: 'Community', items: [
-    // Business Ads + Ad Billing moved to the super-admin-only group below:
-    // in-app advertisements are managed exclusively by the super admin.
     { to: '/rental', label: 'Rental Marketplace', icon: Home },
     { to: '/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
@@ -72,8 +68,7 @@ const adminNavItems: NavGroup[] = [
     { to: '/reports', label: 'Reports', icon: BarChart3 },
     { to: '/compliance', label: 'Accounts & Compliance', icon: FileCheck },
     { to: '/analytics', label: 'Community Analytics', icon: TrendingUp },
-    { to: '/payments', label: 'Payment Dashboard', icon: CreditCard },
-    { to: '/subscriptions', label: 'Subscriptions', icon: BadgeDollarSign },
+    { to: '/financials', label: 'Payments', icon: CreditCard },
   ]},
   { group: 'QR & Access', items: [
     { to: '/qr-codes', label: 'QR Codes & Gates', icon: QrCode },
@@ -82,18 +77,23 @@ const adminNavItems: NavGroup[] = [
     { to: '/notifications', label: 'Notification Center', icon: Bell },
   ]},
   { group: 'Settings', items: [
-    { to: '/secretary-management', label: 'Secretary Management', icon: UserCog },
-    { to: '/whatsapp', label: 'WhatsApp Hub', icon: MessageCircle },
     { to: '/settings', label: 'UI Settings', icon: Settings },
   ]},
 ];
 
-// Rendered ONLY for the super_admin role, ahead of the full admin nav.
+// Rendered ONLY for the super_admin role — SaaS provisioning operator view.
 const superAdminNavItems: NavGroup[] = [
-  { group: 'Super Admin', items: [
-    { to: '/super', label: 'Super Admin', icon: ShieldCheck },
+  { group: 'Platform', items: [
+    { to: '/super', label: 'Organizations', icon: ShieldCheck },
+    { to: '/subscriptions', label: 'Subscriptions', icon: BadgeDollarSign },
+  ]},
+  { group: 'Revenue', items: [
     { to: '/business-ads', label: 'Business Ads', icon: Briefcase },
     { to: '/ad-billing', label: 'Ad Billing', icon: Receipt },
+    { to: '/amc', label: 'AMC', icon: Fuel },
+  ]},
+  { group: 'Settings', items: [
+    { to: '/settings', label: 'UI Settings', icon: Settings },
   ]},
 ];
 
@@ -108,16 +108,32 @@ const tenantNavItems: NavGroup[] = [
     { to: '/tenant/notifications', label: 'Notifications', icon: Bell },
   ]},
   { group: 'Community', items: [
-    // 'Local Businesses' (/tenant/business-ads) removed: ads are super-admin-only.
     { to: '/tenant/rental', label: 'Rental Marketplace', icon: Home },
     { to: '/tenant/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/tenant/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
     { to: '/tenant/events', label: 'Events', icon: CalendarDays },
+    { to: '/tenant/business-ads', label: 'Local Businesses', icon: Briefcase },
   ]},
   { group: 'Account', items: [
     { to: '/tenant/profile', label: 'My Profile', icon: User },
-    { to: '/tenant/subscription', label: 'My Plan', icon: CreditCard },
     { to: '/tenant/change-password', label: 'Change Password', icon: Settings },
+  ]},
+];
+
+const securityNavItems: NavGroup[] = [
+  { group: 'Security Ops', items: [
+    { to: '/security', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/security/visitors/entry', label: 'Visitor Entry', icon: UserPlus },
+    { to: '/security/visitors/checkout', label: 'Visitor Checkout', icon: UserCheck, badge: 'inside' },
+    { to: '/security/vehicles/entry', label: 'Vehicle Entry', icon: Car },
+    { to: '/security/vehicles/checkout', label: 'Vehicle Checkout', icon: CarFront, badge: 'vehicle' },
+    { to: '/security/visitor-passes', label: 'Scan Visitor Pass', icon: BadgeCheck },
+    { to: '/security/daily-workers', label: 'Daily Workers', icon: Users },
+  ]},
+  { group: 'Information', items: [
+    { to: '/security/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
+    { to: '/security/cameras', label: 'CCTV View', icon: Camera },
+    { to: '/security/notifications', label: 'Notifications', icon: Bell },
   ]},
 ];
 
@@ -165,10 +181,6 @@ export default function Sidebar() {
     return 0;
   };
 
-  if (user?.role === 'security') {
-    return null;
-  }
-
   const isSecretary = user?.role === 'admin' && user?.isSecretary === true;
   const secretaryModules: string[] = user?.secretaryPermissions ?? [];
 
@@ -176,10 +188,10 @@ export default function Sidebar() {
   if (user?.role === 'tenant') {
     navItems = tenantNavItems;
   } else if (user?.role === 'super_admin') {
-    // Super admin: exclusive group (portal + relocated ad modules) + full admin nav
-    navItems = [...superAdminNavItems, ...adminNavItems];
+    navItems = superAdminNavItems;
+  } else if (user?.role === 'security') {
+    navItems = securityNavItems;
   } else if (isSecretary) {
-    // Secretary admin: show secretary group first, then all admin nav
     const secretaryGroup: NavGroup = {
       group: 'Secretary',
       items: [
