@@ -17,13 +17,10 @@ class TenantComplaintController extends ComplaintController
     {
         Validator::require($request->all(), ['category', 'subject', 'description']);
         $officeId = $request->user['officeId'] ?? null;
-        if (!$officeId) {
-            throw new AppException('No office linked to this account', 422);
-        }
 
         $row = Complaint::create([
             'tenant_id' => (int) $request->user['id'],
-            'office_id' => (int) $officeId,
+            'office_id' => $officeId ? (int) $officeId : null,
             'category' => $request->input('category'),
             'subject' => $request->input('subject'),
             'description' => $request->input('description'),

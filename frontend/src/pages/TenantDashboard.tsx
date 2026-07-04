@@ -160,7 +160,6 @@ export default function TenantDashboard() {
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'approvals', label: 'Visitor Approvals', icon: Users, badge: pendingApprovals.length },
     { id: 'parcels', label: 'Parcels', icon: Package, badge: parcelsToCollect },
-    { id: 'payments', label: 'Payments', icon: CreditCard },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 

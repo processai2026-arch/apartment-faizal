@@ -275,7 +275,7 @@ export default function Sidebar() {
               )}
               {group.items.map(({ to, label, icon: Icon, badge }) => {
                 const badgeCount = badge === undefined && label.toLowerCase().includes('notification') ? unreadCount : getBadge(badge);
-                const isActive = to === '/'
+                const isActive = to === '/' || to === '/tenant' || to === '/security'
                   ? location.pathname === to
                   : location.pathname.startsWith(to);
                 return (

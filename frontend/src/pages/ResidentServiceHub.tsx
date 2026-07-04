@@ -443,20 +443,21 @@ export default function ResidentServiceHub() {
             const matches = filteredKeys.has(service.key);
             const isPinned = pinned.includes(service.key);
 
+            // Hide non-matching items when searching
+            if (search && !matches) return null;
+
             return (
               <div
                 key={service.key}
                 className={cn(
                   'relative bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-start gap-3 group transition-all',
-                  search && !matches ? 'opacity-40' : 'hover:shadow-md hover:border-slate-200 cursor-pointer'
+                  'hover:shadow-md hover:border-slate-200 cursor-pointer'
                 )}
-                onClick={() => {
-                  if (!search || matches) navigate(service.route);
-                }}
+                onClick={() => navigate(service.route)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  if ((e.key === 'Enter' || e.key === ' ') && (!search || matches)) navigate(service.route);
+                  if (e.key === 'Enter' || e.key === ' ') navigate(service.route);
                 }}
               >
                 {/* Icon */}
