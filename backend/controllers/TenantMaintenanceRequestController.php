@@ -8,6 +8,7 @@ class TenantMaintenanceRequestController extends MaintenanceRequestController
     {
         $officeId = $request->user['officeId'] ?? null;
         $request->query['office_id'] = $officeId ? (string) $officeId : '0';
+        $request->query['tenant_id'] = (string) $request->user['id'];
         [$rows, $total, $page, $perPage] = MaintenanceRequest::list($request);
         Response::paginated($rows, $total, $page, $perPage);
     }

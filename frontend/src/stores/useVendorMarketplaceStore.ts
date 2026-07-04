@@ -44,6 +44,7 @@ interface VendorMarketplaceState {
   loadBookings: (params?: { vendorId?: string }) => Promise<void>;
   verifyVendor: (id: string, verified: boolean) => Promise<void>;
   featureVendor: (id: string, featured: boolean) => Promise<void>;
+  setVendorRating: (id: string, ratingAvg: number) => Promise<void>;
   moderateReview: (id: string, status: VendorReview['status']) => Promise<void>;
   setBookingStatus: (id: string, status: VendorBooking['status']) => Promise<void>;
 }
@@ -152,6 +153,11 @@ export const useVendorMarketplaceStore = create<VendorMarketplaceState>()(
 
       featureVendor: async (id, featured) => {
         const updated = await api.vendorMarketplace.feature(id, featured);
+        set((s) => ({ adminVendors: s.adminVendors.map((v) => (v.id === id ? updated : v)) }));
+      },
+
+      setVendorRating: async (id, ratingAvg) => {
+        const updated = await api.vendorMarketplace.setRating(id, ratingAvg);
         set((s) => ({ adminVendors: s.adminVendors.map((v) => (v.id === id ? updated : v)) }));
       },
 

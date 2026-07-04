@@ -21,7 +21,8 @@ class AssetAssignment extends CrudModel
         $data = array_intersect_key($data, array_flip(static::$columns));
         $data['created_at'] = db_time();
         $columns = array_keys($data);
-        $sql = 'INSERT INTO ' . static::$table . ' (' . implode(',', $columns) . ') VALUES (:' . implode(',:', $columns) . ')';
+        $quoted  = array_map(fn ($c) => "`{$c}`", $columns);
+        $sql = 'INSERT INTO `' . static::$table . '` (' . implode(',', $quoted) . ') VALUES (:' . implode(',:', $columns) . ')';
         $id = Database::insert($sql, $data);
         return static::find($id) ?? [];
     }

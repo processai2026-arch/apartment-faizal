@@ -47,6 +47,39 @@ class TenantVendorController
         Response::paginated($rows, $total, $page, $perPage);
     }
 
+    // ---- Vendor Recommendation ----
+
+    /**
+     * Tenant recommends a new vendor.
+     * Saved with status='Pending' so an admin can review before it goes live.
+     */
+    public function store(Request $request): void
+    {
+        Validator::require($request->all(), ['name', 'service_type', 'contact']);
+
+        $vendor = Vendor::create([
+            'name'             => $request->input('name'),
+            'service_type'     => $request->input('service_type'),
+            'contact'          => $request->input('contact'),
+            'description'      => $request->input('description') ?: null,
+            'company'          => $request->input('company') ?: null,
+            'status'           => 'Pending',
+            'is_verified'      => 0,
+            'is_featured'      => 0,
+            'recommended_by'   => (int) $request->user['id'],
+        ]);
+
+        AuditService::log(
+            (int) $request->user['id'],
+            'vendor.recommend',
+            'vendor',
+            (int) $vendor['id'],
+            ['name' => $vendor['name']]
+        );
+
+        Response::success($vendor, 'Vendor recommendation submitted for review', 201);
+    }
+
     // ---- Bookings ----
 
     public function bookings(Request $request): void

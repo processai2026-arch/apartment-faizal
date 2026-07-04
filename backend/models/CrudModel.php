@@ -43,7 +43,8 @@ abstract class CrudModel
         $data['updated_at'] = db_time();
 
         $columns = array_keys($data);
-        $sql = 'INSERT INTO ' . static::$table . ' (' . implode(',', $columns) . ') VALUES (:' . implode(',:', $columns) . ')';
+        $quoted  = array_map(fn ($c) => "`{$c}`", $columns);
+        $sql = 'INSERT INTO `' . static::$table . '` (' . implode(',', $quoted) . ') VALUES (:' . implode(',:', $columns) . ')';
         $id = Database::insert($sql, $data);
         return static::find($id);
     }
@@ -55,9 +56,9 @@ abstract class CrudModel
         }
         $data = static::clean($data);
         $data['updated_at'] = db_time();
-        $sets = array_map(fn ($column) => "{$column} = :{$column}", array_keys($data));
+        $sets = array_map(fn ($column) => "`{$column}` = :{$column}", array_keys($data));
         $data['id'] = $id;
-        Database::query('UPDATE ' . static::$table . ' SET ' . implode(', ', $sets) . ' WHERE id = :id AND deleted_at IS NULL', $data);
+        Database::query('UPDATE `' . static::$table . '` SET ' . implode(', ', $sets) . ' WHERE id = :id AND deleted_at IS NULL', $data);
         return static::find($id);
     }
 

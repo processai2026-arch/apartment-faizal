@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, X, MessageSquareWarning, Paperclip, Clock } from 'lucide-react';
+import { Plus, X, MessageSquareWarning, Paperclip, Clock, Loader2 } from 'lucide-react';
 import StatusBadge from '@/components/features/StatusBadge';
 import EmptyState from '@/components/features/EmptyState';
 import SearchInput from '@/components/features/SearchInput';
@@ -26,6 +26,8 @@ export default function Complaints() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<typeof STATUS_FILTERS[number]>('All');
   const [selected, setSelected] = useState<ComplaintTicket | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<ComplaintTicket | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -33,6 +35,17 @@ export default function Complaints() {
       toast.error(error instanceof Error ? error.message : 'Could not load complaints');
     }).finally(() => setLoading(false));
   }, [loadTenantComplaints]);
+
+  useEffect(() => {
+    if (!selected) { setSelectedDetail(null); return; }
+    setSelectedDetail(selected);
+    setLoadingDetail(true);
+    api.complaints.tenantShow(selected.id).then((full) => {
+      setSelectedDetail(full);
+    }).catch(() => {
+      // fallback to list row if show fails
+    }).finally(() => setLoadingDetail(false));
+  }, [selected]);
 
   const filtered = useMemo(() => {
     let rows = complaintTickets;
@@ -198,16 +211,18 @@ export default function Complaints() {
             </div>
             <div className="flex items-center gap-2 mb-4">
               <StatusBadge status={selected.priority} size="sm" />
-              <StatusBadge status={selected.status} />
+              <StatusBadge status={(selectedDetail ?? selected).status} />
               <span className="text-xs text-slate-400">{selected.category}</span>
             </div>
             <p className="text-sm text-slate-700 mb-6">{selected.description}</p>
             <h4 className="text-sm font-semibold text-slate-900 mb-2">History</h4>
-            {!selected.history || selected.history.length === 0 ? (
+            {loadingDetail ? (
+              <div className="flex items-center gap-2 text-xs text-slate-400"><Loader2 className="w-3 h-3 animate-spin" /> Loading updates…</div>
+            ) : !selectedDetail?.history || selectedDetail.history.length === 0 ? (
               <p className="text-xs text-slate-400">No updates yet.</p>
             ) : (
               <div className="space-y-3">
-                {selected.history.map((h) => (
+                {selectedDetail.history.map((h) => (
                   <div key={h.id} className="flex items-start gap-3 text-sm">
                     <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 flex-shrink-0" />
                     <div>

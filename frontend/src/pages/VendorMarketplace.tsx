@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, Heart, CalendarClock, SlidersHorizontal, Star, BadgeCheck, RefreshCcw, X } from 'lucide-react';
+import { Store, Heart, CalendarClock, SlidersHorizontal, Star, BadgeCheck, RefreshCcw, X, PlusCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import SearchInput from '@/components/features/SearchInput';
@@ -12,6 +12,7 @@ import ReviewDialog from '@/components/features/ReviewDialog';
 import WhatsAppShareButton from '@/components/features/WhatsAppShareButton';
 import { vendorRecommendationPayload } from '@/lib/whatsapp';
 import { useVendorMarketplaceStore } from '@/stores/useVendorMarketplaceStore';
+import { api } from '@/lib/api';
 import type { MarketplaceVendor, VendorBooking } from '@/types';
 
 type Tab = 'browse' | 'bookings' | 'favorites';
@@ -30,6 +31,39 @@ export default function VendorMarketplace() {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const [reviewTarget, setReviewTarget] = useState<{ vendor: MarketplaceVendor; bookingId?: string } | null>(null);
+
+  // Recommend-a-vendor dialog state
+  const [showRecommend, setShowRecommend] = useState(false);
+  const [recName, setRecName] = useState('');
+  const [recServiceType, setRecServiceType] = useState('');
+  const [recContact, setRecContact] = useState('');
+  const [recDescription, setRecDescription] = useState('');
+  const [recCompany, setRecCompany] = useState('');
+  const [recSaving, setRecSaving] = useState(false);
+
+  const handleRecommendSubmit = async () => {
+    if (!recName.trim() || !recServiceType.trim() || !recContact.trim()) {
+      toast.error('Name, service type and contact are required');
+      return;
+    }
+    setRecSaving(true);
+    try {
+      await api.vendorMarketplace.tenantCreate({
+        name: recName.trim(),
+        serviceType: recServiceType.trim(),
+        contact: recContact.trim(),
+        description: recDescription.trim() || undefined,
+        company: recCompany.trim() || undefined,
+      });
+      toast.success('Vendor recommendation submitted for admin review');
+      setShowRecommend(false);
+      setRecName(''); setRecServiceType(''); setRecContact(''); setRecDescription(''); setRecCompany('');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not submit recommendation');
+    } finally {
+      setRecSaving(false);
+    }
+  };
 
   const refresh = () => {
     setLoading(true);
@@ -76,9 +110,15 @@ export default function VendorMarketplace() {
           <h1 className="font-[Outfit] text-xl font-bold text-slate-900 dark:text-slate-100">Vendor Marketplace</h1>
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Discover, book, and review verified service vendors</p>
         </div>
-        <button onClick={refresh} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-          <RefreshCcw className="h-4 w-4" /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowRecommend(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+            <PlusCircle className="h-4 w-4" /> Recommend a Vendor
+          </button>
+          <button onClick={refresh} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+            <RefreshCcw className="h-4 w-4" /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -247,6 +287,63 @@ export default function VendorMarketplace() {
           open={!!reviewTarget}
           onClose={() => setReviewTarget(null)}
         />
+      )}
+
+      {/* Recommend a Vendor dialog */}
+      {showRecommend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowRecommend(false)}>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PlusCircle className="h-5 w-5 text-indigo-600" />
+                <h3 className="font-[Outfit] text-lg font-semibold text-slate-900 dark:text-slate-100">Recommend a Vendor</h3>
+              </div>
+              <button onClick={() => setShowRecommend(false)} className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
+            </div>
+            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+              Know a great vendor? Recommend them here. The admin will review your suggestion before it appears in the marketplace.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Vendor name <span className="text-red-500">*</span></label>
+                <input value={recName} onChange={(e) => setRecName(e.target.value)} placeholder="e.g. Quick Plumbers"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Service type <span className="text-red-500">*</span></label>
+                <input value={recServiceType} onChange={(e) => setRecServiceType(e.target.value)} placeholder="e.g. Plumbing, Electrician, Cleaning"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Contact (phone / email) <span className="text-red-500">*</span></label>
+                <input value={recContact} onChange={(e) => setRecContact(e.target.value)} placeholder="e.g. 9876543210"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Company name (optional)</label>
+                <input value={recCompany} onChange={(e) => setRecCompany(e.target.value)} placeholder="e.g. Quick Services Pvt Ltd"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Description (optional)</label>
+                <textarea value={recDescription} onChange={(e) => setRecDescription(e.target.value)} rows={3}
+                  placeholder="Brief details about the vendor and why you recommend them…"
+                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800" />
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button onClick={() => setShowRecommend(false)}
+                className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                Cancel
+              </button>
+              <button onClick={handleRecommendSubmit} disabled={recSaving}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+                {recSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {recSaving ? 'Submitting…' : 'Submit Recommendation'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

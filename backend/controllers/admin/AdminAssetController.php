@@ -230,7 +230,7 @@ class AdminAssetController
             $params['asset_id'] = (int) $request->query['asset_id'];
         }
         if (($request->query['condition'] ?? '') !== '') {
-            $conditions[] = 'a.condition = :condition';
+            $conditions[] = 'a.`condition` = :condition';
             $params['condition'] = $request->query['condition'];
         }
         $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';

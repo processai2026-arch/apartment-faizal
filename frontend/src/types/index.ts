@@ -194,6 +194,7 @@ export interface Staff {
   department: string;
   contact: string;
   joinDate: string;
+  baseSalary?: number;
   attendance: Record<string, 'P' | 'A' | 'H'>; // date -> Present/Absent/Holiday
 }
 

@@ -19,7 +19,7 @@ const statusColors = {
 type StaffRole = Staff['role'];
 const ROLES: StaffRole[] = ['Security', 'Housekeeping', 'Electrician', 'Plumber', 'Gardener', 'Driver', 'Receptionist', 'Maintenance'];
 
-const emptyForm = { name: '', role: 'Security' as StaffRole, department: '', contact: '', joinDate: new Date().toISOString().split('T')[0] };
+const emptyForm = { name: '', role: 'Security' as StaffRole, department: '', contact: '', joinDate: new Date().toISOString().split('T')[0], baseSalary: 0 };
 
 export default function StaffAttendance() {
   const { staff, updateStaffAttendance, addStaff, updateStaff, removeStaff } = useAppStore();
@@ -44,7 +44,7 @@ export default function StaffAttendance() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const openAdd = () => { setEditingStaff(null); setForm(emptyForm); setShowModal(true); };
-  const openEdit = (s: Staff) => { setEditingStaff(s); setForm({ name: s.name, role: s.role, department: s.department, contact: s.contact, joinDate: s.joinDate }); setShowModal(true); };
+  const openEdit = (s: Staff) => { setEditingStaff(s); setForm({ name: s.name, role: s.role, department: s.department, contact: s.contact, joinDate: s.joinDate, baseSalary: s.baseSalary ?? 0 }); setShowModal(true); };
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.contact.trim()) { toast.error('Name and contact are required'); return; }
@@ -280,6 +280,9 @@ export default function StaffAttendance() {
                     <div className="flex items-center gap-3 mt-0.5">
                       <span className="text-xs text-slate-400 flex items-center gap-1"><Phone className="w-3 h-3" />{s.contact}</span>
                       <span className="text-xs text-slate-400 flex items-center gap-1"><Calendar className="w-3 h-3" />Since {s.joinDate}</span>
+                      {(s.baseSalary ?? 0) > 0 && (
+                        <span className="text-xs text-emerald-600 font-medium">₹{(s.baseSalary ?? 0).toLocaleString('en-IN')}/mo</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -492,6 +495,14 @@ export default function StaffAttendance() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Join Date</label>
                 <input type="date" value={form.joinDate} onChange={e => setForm(p => ({ ...p, joinDate: e.target.value }))}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Base Salary (₹)</label>
+                <input type="number" min="0" step="100" value={form.baseSalary} onChange={e => setForm(p => ({ ...p, baseSalary: Number(e.target.value) || 0 }))}
+                  placeholder="e.g. 15000"
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>

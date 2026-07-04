@@ -43,6 +43,17 @@ class AdminVendorMarketplaceController
         Response::success($vendor, 'Vendor featured status updated');
     }
 
+    public function setRating(Request $request): void
+    {
+        $rating = (float) $request->input('rating_avg', 0);
+        if ($rating < 0 || $rating > 5) {
+            throw new AppException('rating_avg must be between 0 and 5', 422);
+        }
+        $vendor = Vendor::update((int) $request->params['id'], ['rating_avg' => round($rating, 2)]);
+        AuditService::log((int) $request->user['id'], 'vendor.set_rating', 'vendor', (int) $vendor['id'], ['rating_avg' => $vendor['rating_avg']]);
+        Response::success($vendor, 'Vendor rating updated');
+    }
+
     // ---- Reviews (moderation) ----
 
     public function reviews(Request $request): void

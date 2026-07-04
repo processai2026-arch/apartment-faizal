@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Users, Package, CreditCard, User, Bell, CheckCircle, XCircle,
   Clock, Home, Phone, Mail, Calendar, FileText, AlertCircle,
-  ChevronRight, Plus, Eye, LayoutGrid
+  ChevronRight, Plus, Eye, LayoutGrid, X, Megaphone, CalendarDays
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -43,6 +43,10 @@ const mockVisitorHistory = [
 
 type Tab = 'overview' | 'approvals' | 'parcels' | 'payments' | 'profile';
 
+// Types inferred from API mappers
+type Announcement = Awaited<ReturnType<typeof api.announcements.tenantList>>[number];
+type CommunityEvent = Awaited<ReturnType<typeof api.events.tenantList>>['items'][number];
+
 export default function TenantDashboard() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -51,6 +55,13 @@ export default function TenantDashboard() {
 
   // Live data from the backend (visitors + invoices for this tenant's office).
   const [data, setData] = useState<TenantDashboardDto | null>(null);
+
+  // Banner state
+  const [showBanner, setShowBanner] = useState(true);
+  const [latestAnnouncement, setLatestAnnouncement] = useState<Announcement | null>(null);
+  const [upcomingEvent, setUpcomingEvent] = useState<CommunityEvent | null>(null);
+  const [bannerIndex, setBannerIndex] = useState(0);
+  const bannerRotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -65,6 +76,58 @@ export default function TenantDashboard() {
     const t = window.setInterval(loadData, POLL_MS);
     return () => window.clearInterval(t);
   }, [loadData]);
+
+  // Load announcement and event for banner
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const announcements = await api.announcements.tenantList({ perPage: '1' });
+        if (!cancelled && announcements.length > 0) setLatestAnnouncement(announcements[0]);
+      } catch { /* silent */ }
+      try {
+        const eventsResult = await api.events.tenantList({ upcoming: '1', perPage: '1' });
+        if (!cancelled && eventsResult.items.length > 0) setUpcomingEvent(eventsResult.items[0]);
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Auto-rotate banner every 5 seconds if both items exist
+  useEffect(() => {
+    const hasBoth = latestAnnouncement && upcomingEvent;
+    if (!hasBoth || !showBanner) {
+      if (bannerRotateRef.current) clearInterval(bannerRotateRef.current);
+      return;
+    }
+    bannerRotateRef.current = setInterval(() => {
+      setBannerIndex((i) => (i + 1) % 2);
+    }, 5000);
+    return () => {
+      if (bannerRotateRef.current) clearInterval(bannerRotateRef.current);
+    };
+  }, [latestAnnouncement, upcomingEvent, showBanner]);
+
+  const hasBannerContent = latestAnnouncement || upcomingEvent;
+  const bannerItems: Array<{ type: 'announcement' | 'event'; title: string; subtitle: string }> = [];
+  if (latestAnnouncement) {
+    bannerItems.push({
+      type: 'announcement',
+      title: latestAnnouncement.title,
+      subtitle: latestAnnouncement.description || 'Community announcement',
+    });
+  }
+  if (upcomingEvent) {
+    const eventDate = upcomingEvent.eventDate
+      ? new Date(upcomingEvent.eventDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '';
+    bannerItems.push({
+      type: 'event',
+      title: upcomingEvent.title,
+      subtitle: eventDate ? `Upcoming event on ${eventDate}` : 'Upcoming community event',
+    });
+  }
+  const currentBannerItem = bannerItems.length > 0 ? bannerItems[bannerIndex % bannerItems.length] : null;
 
   // Real values derived from backend; fall back to 0/empty before first load.
   const realVisitors = data?.visitors ?? [];
@@ -103,7 +166,80 @@ export default function TenantDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Service Hub Banner */}
+      {/* Glowing Announcement / Event Banner */}
+      <AnimatePresence>
+        {showBanner && hasBannerContent && currentBannerItem && (
+          <motion.div
+            key="glowing-banner"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.3 }}
+            className="relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-4 text-white"
+            style={{
+              boxShadow: '0 0 20px rgba(99, 102, 241, 0.5), 0 0 40px rgba(99, 102, 241, 0.2)',
+            }}
+          >
+            {/* Pulsing glow overlay */}
+            <div
+              className="pointer-events-none absolute inset-0 rounded-xl animate-pulse"
+              style={{
+                background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.15) 0%, transparent 70%)',
+              }}
+            />
+
+            <div className="relative flex items-center gap-3">
+              <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                {currentBannerItem.type === 'announcement'
+                  ? <Megaphone className="w-5 h-5 text-white" />
+                  : <CalendarDays className="w-5 h-5 text-white" />}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`${currentBannerItem.type}-${bannerIndex}`}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/70 mb-0.5">
+                      {currentBannerItem.type === 'announcement' ? 'Announcement' : 'Upcoming Event'}
+                    </p>
+                    <p className="font-bold text-sm leading-snug truncate">{currentBannerItem.title}</p>
+                    <p className="text-xs text-white/80 mt-0.5 truncate">{currentBannerItem.subtitle}</p>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Dot indicators when both items exist */}
+              {bannerItems.length > 1 && (
+                <div className="flex gap-1.5 flex-shrink-0">
+                  {bannerItems.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setBannerIndex(i)}
+                      className={cn(
+                        'w-2 h-2 rounded-full transition-all',
+                        i === bannerIndex % bannerItems.length ? 'bg-white' : 'bg-white/40'
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowBanner(false)}
+                className="ml-2 flex-shrink-0 w-7 h-7 bg-white/20 hover:bg-white/30 transition-colors rounded-lg flex items-center justify-center"
+                aria-label="Dismiss banner"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div
         className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 rounded-2xl p-5 text-white cursor-pointer hover:opacity-95 transition-opacity"
         onClick={() => navigate('/tenant/hub')}
@@ -235,6 +371,26 @@ export default function TenantDashboard() {
                 <h3 className="font-semibold text-slate-900">Pre-approve Visitor</h3>
                 <p className="text-xs text-slate-500 mt-1">Generate entry pass</p>
               </button>
+            </div>
+
+            {/* Emergency Contacts */}
+            <div
+              className="bg-white rounded-2xl border border-red-100 shadow-sm p-4 flex items-center justify-between cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/tenant/emergency-contacts')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/tenant/emergency-contacts'); }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900">Emergency Contacts</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Security, fire, medical &amp; helpline</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
             </div>
 
             {/* Recent Visitors */}

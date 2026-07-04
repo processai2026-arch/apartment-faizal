@@ -110,3 +110,25 @@
     border-radius: 2px;
   }
 }
+
+@media print {
+  /* Hide sidebar, header, and nav controls when printing */
+  aside,
+  nav,
+  header,
+  [class*="Sidebar"],
+  [data-sidebar],
+  .lg\:ml-\[240px\],
+  .lg\:ml-\[72px\] {
+    display: none !important;
+  }
+
+  main {
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  body {
+    background: white !important;
+  }
+}

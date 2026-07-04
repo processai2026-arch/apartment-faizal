@@ -358,6 +358,8 @@ export const api = {
     cancelBooking: (id: string) => request<VendorBookingDto>(`/tenant/vendor-bookings/${id}/cancel`, { method: 'POST', body: JSON.stringify({}) }).then(toVendorBooking),
     review: (payload: { vendorId: string; bookingId?: string; rating: number; title?: string; comment?: string; attachmentId?: string }) =>
       request<VendorReviewDto>('/tenant/vendor-reviews', { method: 'POST', body: JSON.stringify({ vendor_id: Number(payload.vendorId), booking_id: payload.bookingId ? Number(payload.bookingId) : null, rating: payload.rating, title: payload.title ?? null, comment: payload.comment ?? null, attachment_id: payload.attachmentId ? Number(payload.attachmentId) : null }) }).then(toVendorReview),
+    tenantCreate: (payload: { name: string; serviceType: string; contact: string; description?: string; company?: string }) =>
+      request<MarketplaceVendorDto>('/tenant/vendors', { method: 'POST', body: JSON.stringify({ name: payload.name, service_type: payload.serviceType, contact: payload.contact, description: payload.description ?? null, company: payload.company ?? null }) }).then(toMarketplaceVendor),
 
     // ---- Admin ----
     adminList: (params: { search?: string; categoryId?: string; featured?: string; verified?: string; minRating?: string } = {}) =>
@@ -365,6 +367,7 @@ export const api = {
     adminShow: (id: string) => request<MarketplaceVendorDto>(`/admin/vendor-marketplace/vendors/${id}`).then(toMarketplaceVendor),
     verify: (id: string, verified: boolean) => request<MarketplaceVendorDto>(`/admin/vendor-marketplace/vendors/${id}/verify`, { method: 'POST', body: JSON.stringify({ verified }) }).then(toMarketplaceVendor),
     feature: (id: string, featured: boolean) => request<MarketplaceVendorDto>(`/admin/vendor-marketplace/vendors/${id}/feature`, { method: 'POST', body: JSON.stringify({ featured }) }).then(toMarketplaceVendor),
+    setRating: (id: string, ratingAvg: number) => request<MarketplaceVendorDto>(`/admin/vendor-marketplace/vendors/${id}/rating`, { method: 'POST', body: JSON.stringify({ rating_avg: ratingAvg }) }).then(toMarketplaceVendor),
 
     dashboard: () => request<VendorDashboardDto>('/admin/vendor-marketplace/dashboard').then(toVendorDashboard),
     statistics: () => request<VendorStatsDto>('/admin/vendor-marketplace/statistics').then(toVendorStats),
@@ -1109,7 +1112,7 @@ type OfficeDto = Record<string, DtoValue>;
 type VisitorDto = Record<string, DtoValue>;
 type VehicleDto = Record<string, DtoValue>;
 type VendorDto = Record<string, DtoValue>;
-type StaffDto = Record<string, DtoValue>;
+type StaffDto = Record<string, DtoValue | Record<string, string>>;
 type InventoryDto = Record<string, DtoValue>;
 type UtilityDto = Record<string, DtoValue>;
 type UserDto = Record<string, DtoValue>;
@@ -1366,7 +1369,10 @@ function toStaff(row: StaffDto): Staff {
     department: asString(row.department),
     contact: asString(row.contact),
     joinDate: asString(row.join_date),
-    attendance: {},
+    baseSalary: asNumber(row.base_salary),
+    attendance: typeof row.attendance === 'object' && row.attendance !== null
+      ? Object.fromEntries(Object.entries(row.attendance as Record<string, unknown>).map(([k, v]) => [k, v as 'P' | 'A' | 'H']))
+      : {},
   };
 }
 
@@ -1377,6 +1383,7 @@ function fromStaff(staff: Partial<Staff>) {
     department: staff.department,
     contact: staff.contact,
     join_date: staff.joinDate,
+    base_salary: staff.baseSalary ?? 0,
     status: 'Active',
   };
 }

@@ -3,11 +3,86 @@ import { Link } from 'react-router-dom';
 import { Download, Printer, BarChart3, TrendingUp, ArrowRight } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import StatusBadge from '@/components/features/StatusBadge';
-import { toast } from 'sonner';
 
 type ReportType = 'Visitor Summary' | 'Vendor Log' | 'Staff Attendance' | 'Inventory' | 'Financial';
 
+const exportCSV = (data: Record<string, unknown>[], filename: string) => {
+  if (!data.length) return;
+  const headers = Object.keys(data[0]);
+  const rows = data.map(row => headers.map(h => JSON.stringify(row[h] ?? '')).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
 const reportTypes: ReportType[] = ['Visitor Summary', 'Vendor Log', 'Staff Attendance', 'Inventory', 'Financial'];
+
+/** Flatten a raw store record into a plain string-value object suitable for CSV export */
+const flattenRecord = (item: Record<string, unknown>, reportType: ReportType, dateTo: string): Record<string, unknown> => {
+  switch (reportType) {
+    case 'Visitor Summary': {
+      const v = item as { id?: string; name?: string; phone?: string; apartmentNo?: string; companyName?: string; officeNo?: string; purpose?: string; reason?: string; status?: string; category?: string };
+      return {
+        Name: v.name ?? '',
+        Phone: v.phone ?? '',
+        Unit: v.companyName || v.officeNo || v.apartmentNo || '',
+        Purpose: v.reason || v.purpose || '',
+        Status: v.status ?? '',
+        Category: v.category ?? '',
+      };
+    }
+    case 'Vendor Log': {
+      const v = item as { name?: string; company?: string; serviceType?: string; contact?: string; lastVisit?: string; status?: string };
+      return {
+        Vendor: v.name ?? '',
+        Company: v.company ?? '',
+        'Service Type': v.serviceType ?? '',
+        Contact: v.contact ?? '',
+        'Last Visit': v.lastVisit ?? '',
+        Status: v.status ?? '',
+      };
+    }
+    case 'Staff Attendance': {
+      const s = item as { name?: string; role?: string; department?: string; contact?: string; attendance?: Record<string, string> };
+      const attStatus = s.attendance?.[dateTo];
+      const attLabel = attStatus === 'P' ? 'Present' : attStatus === 'A' ? 'Absent' : attStatus === 'H' ? 'Half-Day' : 'Not Marked';
+      return {
+        Name: s.name ?? '',
+        Role: s.role ?? '',
+        Department: s.department ?? '',
+        Contact: s.contact ?? '',
+        [`Attendance (${dateTo})`]: attLabel,
+      };
+    }
+    case 'Inventory': {
+      const i = item as { itemName?: string; category?: string; quantity?: number; totalCost?: number; vendor?: string };
+      return {
+        Item: i.itemName ?? '',
+        Category: i.category ?? '',
+        Quantity: i.quantity ?? '',
+        'Total Cost': i.totalCost ?? '',
+        Vendor: i.vendor ?? '',
+      };
+    }
+    case 'Financial': {
+      const inv = item as { invoiceNo?: string; description?: string; amount?: number; paidAmount?: number; status?: string; dueDate?: string };
+      return {
+        Invoice: inv.invoiceNo ?? '',
+        Description: inv.description ?? '',
+        Amount: inv.amount ?? '',
+        Paid: inv.paidAmount ?? '',
+        Status: inv.status ?? '',
+        'Due Date': inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('en-IN') : '',
+      };
+    }
+    default:
+      return item;
+  }
+};
 
 export default function Reports() {
   const { visitors, vendors, staff, inventory, invoices } = useAppStore();
@@ -28,8 +103,14 @@ export default function Reports() {
 
   const data = getData();
 
-  const handleExport = () => {
-    toast.success(`${reportType} report exported successfully`);
+  const handleExportCSV = () => {
+    const flat = (data as unknown as Record<string, unknown>[]).map(item => flattenRecord(item, reportType, dateTo));
+    const filename = `${reportType.replace(/\s+/g, '_')}_${dateFrom}_to_${dateTo}`;
+    exportCSV(flat, filename);
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const renderRow = (item: Record<string, unknown>, idx: number) => {
@@ -157,10 +238,10 @@ export default function Reports() {
               className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div className="flex items-end gap-2">
-            <button onClick={handleExport} className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700">
+            <button onClick={handleExportCSV} className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700">
               <Download className="w-4 h-4" /> Export CSV
             </button>
-            <button onClick={() => window.print()} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50">
+            <button onClick={handlePrint} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50" title="Export PDF / Print">
               <Printer className="w-4 h-4" />
             </button>
           </div>

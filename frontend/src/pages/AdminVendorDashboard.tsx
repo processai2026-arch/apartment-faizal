@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Store, BadgeCheck, Star, CalendarCheck, MessageSquare, RefreshCcw, Eye, EyeOff, Check } from 'lucide-react';
+import { Store, BadgeCheck, Star, CalendarCheck, MessageSquare, RefreshCcw, Eye, EyeOff, Check, X } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,7 @@ import StarRating from '@/components/features/StarRating';
 import SearchInput from '@/components/features/SearchInput';
 import EmptyState from '@/components/features/EmptyState';
 import { useVendorMarketplaceStore } from '@/stores/useVendorMarketplaceStore';
-import type { VendorBooking, VendorReview } from '@/types';
+import type { VendorBooking, VendorReview, MarketplaceVendor } from '@/types';
 
 type Tab = 'overview' | 'vendors' | 'reviews' | 'bookings';
 
@@ -22,13 +22,18 @@ export default function AdminVendorDashboard() {
   const {
     dashboard, adminVendors, reviews, bookings,
     loadDashboard, loadAdminVendors, loadReviews, loadBookings,
-    verifyVendor, featureVendor, moderateReview, setBookingStatus,
+    verifyVendor, featureVendor, setVendorRating, moderateReview, setBookingStatus,
   } = useVendorMarketplaceStore();
 
   const [tab, setTab] = useState<Tab>('overview');
   const [search, setSearch] = useState('');
   const [reviewFilter, setReviewFilter] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Set Rating dialog state
+  const [ratingDialog, setRatingDialog] = useState<{ open: boolean; vendor: MarketplaceVendor | null; value: number }>({
+    open: false, vendor: null, value: 0,
+  });
 
   const refresh = () => {
     setLoading(true);
@@ -71,6 +76,26 @@ export default function AdminVendorDashboard() {
   const handleBookingStatus = async (b: VendorBooking, status: VendorBooking['status']) => {
     try { await setBookingStatus(b.id, status); toast.success(`Booking ${status.toLowerCase()}`); }
     catch (e) { toast.error(e instanceof Error ? e.message : 'Could not update booking'); }
+  };
+
+  const openRatingDialog = (v: MarketplaceVendor) => {
+    setRatingDialog({ open: true, vendor: v, value: Math.round(v.ratingAvg) || 0 });
+  };
+
+  const handleSetRating = async () => {
+    if (!ratingDialog.vendor) return;
+    if (ratingDialog.value < 1 || ratingDialog.value > 5) {
+      toast.error('Please select a star rating between 1 and 5');
+      return;
+    }
+    try {
+      await setVendorRating(ratingDialog.vendor.id, ratingDialog.value);
+      toast.success(`Rating updated to ${ratingDialog.value} stars`);
+      setRatingDialog({ open: false, vendor: null, value: 0 });
+      await loadDashboard();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not update rating');
+    }
   };
 
   const tabs: { key: Tab; label: string }[] = [
@@ -226,6 +251,10 @@ export default function AdminVendorDashboard() {
                           className={cn('rounded-lg border px-2.5 py-1.5 text-xs font-medium', v.isFeatured ? 'border-slate-200 text-slate-600 hover:bg-slate-50' : 'border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100')}>
                           {v.isFeatured ? 'Unfeature' : 'Feature'}
                         </button>
+                        <button onClick={() => openRatingDialog(v)}
+                          className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100">
+                          <Star className="h-3 w-3" /> Set Rating
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -304,6 +333,56 @@ export default function AdminVendorDashboard() {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* Set Rating Dialog */}
+      {ratingDialog.open && ratingDialog.vendor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setRatingDialog({ open: false, vendor: null, value: 0 })}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-[Outfit] text-base font-semibold text-slate-900">Set Vendor Rating</h3>
+              <button onClick={() => setRatingDialog({ open: false, vendor: null, value: 0 })} className="rounded-lg p-1.5 hover:bg-slate-100">
+                <X className="h-4 w-4 text-slate-500" />
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-slate-500">
+              Manually override the rating for <span className="font-medium text-slate-700">{ratingDialog.vendor.name}</span>.
+            </p>
+            <div className="mb-5 flex items-center justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setRatingDialog((d) => ({ ...d, value: star }))}
+                  className="rounded-lg p-1 transition-transform hover:scale-110 focus:outline-none"
+                  aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                >
+                  <Star
+                    className={cn('h-8 w-8 transition-colors', star <= ratingDialog.value ? 'fill-amber-400 text-amber-400' : 'fill-slate-100 text-slate-300')}
+                  />
+                </button>
+              ))}
+            </div>
+            <p className="mb-5 text-center text-sm font-medium text-slate-600">
+              {ratingDialog.value > 0 ? `${ratingDialog.value} out of 5 stars` : 'Select a rating'}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRatingDialog({ open: false, vendor: null, value: 0 })}
+                className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSetRating}
+                disabled={ratingDialog.value === 0}
+                className={cn('flex-1 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition-colors',
+                  ratingDialog.value > 0 ? 'bg-indigo-600 hover:bg-indigo-700' : 'cursor-not-allowed bg-slate-300')}
+              >
+                Save Rating
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

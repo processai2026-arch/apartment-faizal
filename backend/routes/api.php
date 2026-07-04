@@ -61,6 +61,7 @@ $router->get('/admin/vendor-marketplace/statistics', [AdminVendorMarketplaceCont
 $router->get('/admin/vendor-marketplace/vendors/{id}', [AdminVendorMarketplaceController::class, 'detail'], ['RoleMiddleware:admin', 'FeatureMiddleware:vendor_marketplace']);
 $router->post('/admin/vendor-marketplace/vendors/{id}/verify', [AdminVendorMarketplaceController::class, 'verify'], ['RoleMiddleware:admin', 'FeatureMiddleware:vendor_marketplace']);
 $router->post('/admin/vendor-marketplace/vendors/{id}/feature', [AdminVendorMarketplaceController::class, 'feature'], ['RoleMiddleware:admin', 'FeatureMiddleware:vendor_marketplace']);
+$router->post('/admin/vendor-marketplace/vendors/{id}/rating', [AdminVendorMarketplaceController::class, 'setRating'], ['RoleMiddleware:admin', 'FeatureMiddleware:vendor_marketplace']);
 
 $router->get('/admin/vendor-reviews', [AdminVendorMarketplaceController::class, 'reviews'], ['RoleMiddleware:admin', 'FeatureMiddleware:vendor_marketplace']);
 $router->post('/admin/vendor-reviews/{id}/moderate', [AdminVendorMarketplaceController::class, 'moderateReview'], ['RoleMiddleware:admin', 'FeatureMiddleware:vendor_marketplace']);
@@ -82,6 +83,7 @@ $router->delete('/admin/vendor-gallery/{id}', [AdminVendorMarketplaceController:
 
 // Vendor Marketplace (tenant)
 $router->get('/tenant/vendors', [TenantVendorController::class, 'index'], ['RoleMiddleware:tenant', 'FeatureMiddleware:vendor_marketplace']);
+$router->post('/tenant/vendors', [TenantVendorController::class, 'store'], ['RoleMiddleware:tenant', 'FeatureMiddleware:vendor_marketplace']);
 $router->get('/tenant/vendor-categories', [TenantVendorController::class, 'categories'], ['RoleMiddleware:tenant', 'FeatureMiddleware:vendor_marketplace']);
 $router->get('/tenant/vendors/{id}', [TenantVendorController::class, 'show'], ['RoleMiddleware:tenant', 'FeatureMiddleware:vendor_marketplace']);
 $router->get('/tenant/vendor-bookings', [TenantVendorController::class, 'bookings'], ['RoleMiddleware:tenant', 'FeatureMiddleware:vendor_marketplace']);

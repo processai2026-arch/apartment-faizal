@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, Users, CheckCircle2, Clock, Plus, RefreshCcw, ArrowLeft, Printer, Pencil, HandCoins, FileText } from 'lucide-react';
+import { Wallet, Users, CheckCircle2, Clock, Plus, RefreshCcw, ArrowLeft, Printer, Pencil, HandCoins, FileText, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import DataTable, { Column } from '@/components/features/DataTable';
@@ -7,9 +7,15 @@ import StatCard from '@/components/features/StatCard';
 import StatusBadge from '@/components/features/StatusBadge';
 import EmptyState from '@/components/features/EmptyState';
 import { usePayrollStore } from '@/stores/usePayrollStore';
+import { useAppStore } from '@/stores/useAppStore';
 import type { PayrollRun, Payslip } from '@/types';
 
 const PAYMENT_METHODS: Payslip['paymentMethod'][] = ['Bank Transfer', 'Cash', 'Cheque'];
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 const inr = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 const fmtMonth = (m?: string) => {
@@ -19,7 +25,15 @@ const fmtMonth = (m?: string) => {
   return d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 };
 const fmtDate = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
-const currentMonth = () => new Date().toISOString().slice(0, 7);
+
+function getCurrentYearMonth(): { year: number; month: number } {
+  const now = new Date();
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+}
+
+function toPeriodString(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
 
 function escapeHtml(v: string): string {
   return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -149,17 +163,30 @@ function PayslipEditDialog({ slip, onClose, onSave }: { slip: Payslip; onClose: 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function Payroll() {
   const { runs, summary, currentRun, loading, loadRuns, loadSummary, generateRun, openRun, clearRun, finalizeRun, markRunPaid, updatePayslip, payPayslip } = usePayrollStore();
-  const [period, setPeriod] = useState(currentMonth());
+  const { staff } = useAppStore();
+
+  const { year: initYear, month: initMonth } = getCurrentYearMonth();
+  const [selYear, setSelYear] = useState(initYear);
+  const [selMonth, setSelMonth] = useState(initMonth);
   const [genOpen, setGenOpen] = useState(false);
-  const [genMonth, setGenMonth] = useState(currentMonth());
+  const [genMonth, setGenMonth] = useState(toPeriodString(initYear, initMonth));
   const [generating, setGenerating] = useState(false);
   const [editing, setEditing] = useState<Payslip | null>(null);
+  const [activeTab, setActiveTab] = useState<'runs' | 'attendance'>('runs');
+
+  const period = toPeriodString(selYear, selMonth);
+
+  // Build year range: current year ±2
+  const yearOptions = Array.from({ length: 5 }, (_, i) => initYear - 2 + i);
 
   const refresh = useCallback(() => {
     Promise.all([loadRuns(), loadSummary(period)]).catch((e) => toast.error(e instanceof Error ? e.message : 'Failed to load payroll'));
   }, [loadRuns, loadSummary, period]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Filtered runs: show only ones matching selected month
+  const filteredRuns = runs.filter((r) => r.periodMonth === period);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,6 +222,15 @@ export default function Payroll() {
     try { await payPayslip(slip.id, slip.paymentMethod); toast.success(`${slip.staffName} marked paid`); loadSummary(period).catch(() => undefined); loadRuns().catch(() => undefined); }
     catch (err) { toast.error(err instanceof Error ? err.message : 'Failed to mark paid'); }
   };
+
+  // ── Attendance summary for selected month ──
+  const attSummary = staff.map((s) => {
+    const entries = Object.entries(s.attendance ?? {}).filter(([date]) => date.startsWith(period));
+    const p = entries.filter(([, v]) => v === 'P').length;
+    const a = entries.filter(([, v]) => v === 'A').length;
+    const h = entries.filter(([, v]) => v === 'H').length;
+    return { id: s.id, name: s.name, role: s.role, present: p, absent: a, halfDay: h, total: p + a + h };
+  });
 
   // ── Run detail view ──
   if (currentRun) {
@@ -263,20 +299,63 @@ export default function Payroll() {
     { key: 'totalNet', label: 'Total Net', render: (r) => <span className="font-semibold text-slate-900 dark:text-slate-100">{inr(r.totalNet ?? 0)}</span> },
   ];
 
+  type AttRow = typeof attSummary[number];
+  const attCols: Column<AttRow>[] = [
+    { key: 'name', label: 'Staff', render: (r) => (
+      <div>
+        <p className="font-medium text-slate-900 dark:text-slate-100">{r.name}</p>
+        <p className="text-xs text-slate-400">{r.role}</p>
+      </div>
+    ) },
+    { key: 'present', label: 'Present (P)', render: (r) => (
+      <span className="inline-flex items-center rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-700">{r.present}</span>
+    ) },
+    { key: 'absent', label: 'Absent (A)', render: (r) => (
+      <span className="inline-flex items-center rounded-lg bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">{r.absent}</span>
+    ) },
+    { key: 'halfDay', label: 'Half-Day (H)', render: (r) => (
+      <span className="inline-flex items-center rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-600">{r.halfDay}</span>
+    ) },
+    { key: 'total', label: 'Days Logged', render: (r) => (
+      <span className="text-slate-600 dark:text-slate-300">{r.total}</span>
+    ) },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Header row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-[Outfit] text-xl font-bold text-slate-900 dark:text-slate-100">Staff Payroll</h1>
           <p className="text-sm text-slate-500">Generate monthly payslips from attendance</p>
         </div>
         <div className="flex items-center gap-2">
-          <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} title="Summary month" className="rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
+          {/* Month selector */}
+          <select
+            value={selMonth}
+            onChange={(e) => setSelMonth(Number(e.target.value))}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            {MONTHS.map((name, i) => (
+              <option key={i + 1} value={i + 1}>{name}</option>
+            ))}
+          </select>
+          {/* Year selector */}
+          <select
+            value={selYear}
+            onChange={(e) => setSelYear(Number(e.target.value))}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
           <button onClick={refresh} title="Refresh" className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 dark:border-slate-700"><RefreshCcw className={cn('h-4 w-4', loading && 'animate-spin')} /></button>
           <button onClick={() => { setGenMonth(period); setGenOpen(true); }} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"><Plus className="h-4 w-4" /> Generate Payroll</button>
         </div>
       </div>
 
+      {/* Stat cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label={`Payout — ${fmtMonth(summary?.periodMonth ?? period)}`} value={inr(summary?.monthPayout ?? 0)} icon={Wallet} color="indigo" />
         <StatCard label="Active Staff" value={summary?.staffCount ?? 0} icon={Users} color="blue" />
@@ -284,25 +363,67 @@ export default function Payroll() {
         <StatCard label="Pending" value={`${summary?.pendingCount ?? 0} (${inr(summary?.pendingAmount ?? 0)})`} icon={Clock} color="amber" />
       </div>
 
-      <DataTable
-        data={runs}
-        columns={runCols}
-        searchKeys={['periodMonth', 'status']}
-        searchPlaceholder="Search runs…"
-        empty={<EmptyState icon={Wallet} title="No payroll runs" description="Generate a payroll run to create payslips for your staff." />}
-        actions={(r) => (
-          <>
-            <button title="Open" onClick={() => openRun(r.id).catch((e) => toast.error(e instanceof Error ? e.message : 'Failed to open'))} className="rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100">Open</button>
-            {r.status === 'Draft' && (
-              <button title="Finalize" onClick={() => handleFinalize(r)} className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-700"><CheckCircle2 className="h-3.5 w-3.5" /></button>
-            )}
-            {r.status !== 'Paid' && (
-              <button title="Mark paid" onClick={() => handleMarkRunPaid(r)} className="rounded-lg bg-emerald-50 p-1.5 text-emerald-700 hover:bg-emerald-100"><HandCoins className="h-3.5 w-3.5" /></button>
-            )}
-          </>
-        )}
-      />
+      {/* Tab selector */}
+      <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm w-fit dark:bg-slate-900 dark:border-slate-700">
+        <button
+          onClick={() => setActiveTab('runs')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+            activeTab === 'runs' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400',
+          )}
+        >
+          <FileText className="h-4 w-4" /> Payroll Runs
+        </button>
+        <button
+          onClick={() => setActiveTab('attendance')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+            activeTab === 'attendance' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400',
+          )}
+        >
+          <CalendarDays className="h-4 w-4" /> Attendance Summary
+        </button>
+      </div>
 
+      {/* Tab: Payroll Runs */}
+      {activeTab === 'runs' && (
+        <DataTable
+          data={filteredRuns}
+          columns={runCols}
+          searchKeys={['periodMonth', 'status']}
+          searchPlaceholder="Search runs…"
+          empty={<EmptyState icon={Wallet} title={`No payroll runs for ${fmtMonth(period)}`} description="Generate a payroll run to create payslips for your staff." />}
+          actions={(r) => (
+            <>
+              <button title="Open" onClick={() => openRun(r.id).catch((e) => toast.error(e instanceof Error ? e.message : 'Failed to open'))} className="rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100">Open</button>
+              {r.status === 'Draft' && (
+                <button title="Finalize" onClick={() => handleFinalize(r)} className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-700"><CheckCircle2 className="h-3.5 w-3.5" /></button>
+              )}
+              {r.status !== 'Paid' && (
+                <button title="Mark paid" onClick={() => handleMarkRunPaid(r)} className="rounded-lg bg-emerald-50 p-1.5 text-emerald-700 hover:bg-emerald-100"><HandCoins className="h-3.5 w-3.5" /></button>
+              )}
+            </>
+          )}
+        />
+      )}
+
+      {/* Tab: Attendance Summary */}
+      {activeTab === 'attendance' && (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500">
+            Attendance counts for <span className="font-medium text-slate-700 dark:text-slate-300">{fmtMonth(period)}</span> — sourced from submitted daily attendance records.
+          </p>
+          <DataTable
+            data={attSummary}
+            columns={attCols}
+            searchKeys={['name', 'role']}
+            searchPlaceholder="Search staff…"
+            empty={<EmptyState icon={CalendarDays} title="No staff found" description="Add staff members in the Staff Attendance page." />}
+          />
+        </div>
+      )}
+
+      {/* Generate Payroll Modal */}
       {genOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900">

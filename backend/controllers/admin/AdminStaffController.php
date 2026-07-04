@@ -8,6 +8,39 @@ class AdminStaffController extends ResourceController
     protected array $requiredCreate = ['name', 'role', 'department', 'contact', 'join_date'];
     protected string $entityType = 'staff';
 
+    public function index(Request $request): void
+    {
+        [$rows, $total, $page, $perPage] = $this->model::list($request);
+
+        // For each staff member, load attendance for current month
+        $month = date('Y-m');
+        if (Database::driver() === 'mysql') {
+            $attendanceRows = Database::fetchAll(
+                "SELECT staff_id, attendance_date, status FROM staff_attendance WHERE DATE_FORMAT(attendance_date, '%Y-%m') = :month",
+                ['month' => $month]
+            );
+        } else {
+            $attendanceRows = Database::fetchAll(
+                "SELECT staff_id, attendance_date, status FROM staff_attendance WHERE strftime('%Y-%m', attendance_date) = :month",
+                ['month' => $month]
+            );
+        }
+
+        // Build map: staff_id -> [date => status]
+        $attendanceMap = [];
+        foreach ($attendanceRows as $row) {
+            $attendanceMap[(int)$row['staff_id']][$row['attendance_date']] = $row['status'];
+        }
+
+        // Add to each staff row
+        $rows = array_map(function($staff) use ($attendanceMap) {
+            $staff['attendance'] = $attendanceMap[(int)$staff['id']] ?? [];
+            return $staff;
+        }, $rows);
+
+        Response::paginated($rows, $total, $page, $perPage);
+    }
+
     public function markAttendance(Request $request): void
     {
         Validator::require($request->all(), ['date', 'status']);

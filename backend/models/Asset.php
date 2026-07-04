@@ -25,7 +25,7 @@ class Asset extends CrudModel
             $params['category'] = $request->query['category'];
         }
         if (($request->query['condition'] ?? '') !== '') {
-            $conditions[] = 'condition = :condition';
+            $conditions[] = '`condition` = :condition';
             $params['condition'] = $request->query['condition'];
         }
 
