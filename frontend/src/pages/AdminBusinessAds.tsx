@@ -13,7 +13,7 @@ import type { BusinessAd, BusinessCategory } from '@/types';
 type Tab = 'ads' | 'categories' | 'dashboard';
 
 export default function AdminBusinessAds() {
-  const { ads: adminAds, categories, dashboard, loadAdminAds, loadAdminCategories, createAd, updateAd, deleteAd, setStatus, loadDashboard, createCategory, updateCategory, deleteCategory } = useBusinessAdStore();
+  const { adminAds, categories, dashboard, loadAdminAds, loadAdminCategories, createAd, updateAd, deleteAd, setStatus, loadDashboard, createCategory, updateCategory, deleteCategory } = useBusinessAdStore();
   const [tab, setTab] = useState<Tab>('ads');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
