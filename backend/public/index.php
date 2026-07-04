@@ -27,6 +27,33 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     exit;
 }
 
+// ── Serve uploaded files directly (no JSON envelope, correct MIME type) ───────
+$requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+if ($requestUri && str_starts_with($requestUri, '/storage/')) {
+    $relativePath = substr($requestUri, strlen('/storage/'));
+    // Prevent directory traversal
+    $relativePath = ltrim(str_replace(['..', '//'], ['', '/'], $relativePath), '/');
+    $filePath = STORAGE_PATH . '/' . $relativePath;
+    if (is_file($filePath) && is_readable($filePath)) {
+        $mime = mime_content_type($filePath) ?: 'application/octet-stream';
+        $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+        if (!in_array($mime, $allowed, true)) {
+            http_response_code(403);
+            exit;
+        }
+        header('Content-Type: ' . $mime);
+        header('Content-Length: ' . filesize($filePath));
+        header('Cache-Control: private, max-age=86400');
+        header('Content-Disposition: inline; filename="' . basename($filePath) . '"');
+        // Remove JSON-only headers that were set above
+        header_remove('Content-Security-Policy');
+        readfile($filePath);
+        exit;
+    }
+    http_response_code(404);
+    exit;
+}
+
 if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['POST', 'PUT', 'PATCH'], true)) {
     $contentType = strtolower($_SERVER['CONTENT_TYPE'] ?? '');
     if ($contentType && !str_contains($contentType, 'application/json') && !str_contains($contentType, 'multipart/form-data') && !str_contains($contentType, 'application/x-www-form-urlencoded')) {
