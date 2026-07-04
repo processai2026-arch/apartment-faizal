@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, X, Shield, KeyRound, Pencil, Trash2, Mail, Phone } from 'lucide-react';
+import { Plus, X, Shield, KeyRound, Pencil, Trash2, Mail, Phone, PauseCircle, PlayCircle } from 'lucide-react';
 import DataTable, { NameCell, type Column } from '@/components/features/DataTable';
 import TableToolbar from '@/components/features/TableToolbar';
 import SearchInput from '@/components/features/SearchInput';
@@ -20,6 +20,7 @@ export default function UserManagement() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<ManagedUser | null>(null);
+  const [suspending, setSuspending] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,10 +103,56 @@ export default function UserManagement() {
     }
   };
 
+  const handleSuspend = async (user: ManagedUser) => {
+    setSuspending(user.id);
+    try {
+      const updated = await api.users.update(user.id, { status: 'inactive' });
+      setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
+      toast.success('User suspended');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not suspend user');
+    } finally {
+      setSuspending(null);
+    }
+  };
+
+  const handleUnsuspend = async (user: ManagedUser) => {
+    setSuspending(user.id);
+    try {
+      const updated = await api.users.update(user.id, { status: 'active' });
+      setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
+      toast.success('User activated');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not activate user');
+    } finally {
+      setSuspending(null);
+    }
+  };
+
   const columns: Column<ManagedUser>[] = [
-    { key: 'name', label: 'User', render: (u) => <NameCell name={u.name} subtitle={u.email} color="amber" /> },
+    {
+      key: 'name',
+      label: 'User',
+      render: (u) => (
+        <div className="flex items-center gap-2">
+          <NameCell name={u.name} subtitle={u.email} color="amber" />
+          {u.status === 'inactive' && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+              Suspended
+            </span>
+          )}
+        </div>
+      ),
+    },
     { key: 'phone', label: 'Phone', render: (u) => u.phone || <span className="text-slate-400">—</span> },
-    { key: 'status', label: 'Status', render: (u) => <StatusBadge status={u.status === 'active' ? 'Active' : 'Inactive'} /> },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (u) =>
+        u.status === 'active'
+          ? <StatusBadge status="Active" />
+          : <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">Suspended</span>,
+    },
     { key: 'createdAt', label: 'Created', render: (u) => u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' },
   ];
 
@@ -144,11 +191,31 @@ export default function UserManagement() {
           }
           actions={(u: unknown) => {
             const user = u as ManagedUser;
+            const isSuspending = suspending === user.id;
             return (
               <>
                 <button onClick={() => openEdit(user)} title="Edit / reset password" className="p-1.5 rounded-lg text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
                   <Pencil className="w-4 h-4" />
                 </button>
+                {user.status === 'active' ? (
+                  <button
+                    onClick={() => handleSuspend(user)}
+                    disabled={isSuspending}
+                    title="Suspend user"
+                    className="p-1.5 rounded-lg text-slate-500 hover:bg-yellow-50 hover:text-yellow-600 transition-colors disabled:opacity-50"
+                  >
+                    <PauseCircle className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleUnsuspend(user)}
+                    disabled={isSuspending}
+                    title="Unsuspend user"
+                    className="p-1.5 rounded-lg text-slate-500 hover:bg-green-50 hover:text-green-600 transition-colors disabled:opacity-50"
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                  </button>
+                )}
                 <button onClick={() => setDeleting(user)} title="Delete" className="p-1.5 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
