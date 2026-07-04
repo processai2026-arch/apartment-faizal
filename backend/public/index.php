@@ -29,8 +29,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 // ── Serve uploaded files directly (no JSON envelope, correct MIME type) ───────
 $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
-if ($requestUri && str_starts_with($requestUri, '/storage/')) {
-    $relativePath = substr($requestUri, strlen('/storage/'));
+// Match both /storage/ (local dev) and /api/storage/ (Hostinger production)
+$storagePrefix = null;
+if ($requestUri && str_starts_with($requestUri, '/api/storage/')) {
+    $storagePrefix = '/api/storage/';
+} elseif ($requestUri && str_starts_with($requestUri, '/storage/')) {
+    $storagePrefix = '/storage/';
+}
+if ($storagePrefix !== null) {
+    $relativePath = substr($requestUri, strlen($storagePrefix));
     // Prevent directory traversal
     $relativePath = ltrim(str_replace(['..', '//'], ['', '/'], $relativePath), '/');
     $filePath = STORAGE_PATH . '/' . $relativePath;
@@ -45,7 +52,6 @@ if ($requestUri && str_starts_with($requestUri, '/storage/')) {
         header('Content-Length: ' . filesize($filePath));
         header('Cache-Control: private, max-age=86400');
         header('Content-Disposition: inline; filename="' . basename($filePath) . '"');
-        // Remove JSON-only headers that were set above
         header_remove('Content-Security-Policy');
         readfile($filePath);
         exit;
