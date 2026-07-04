@@ -40,6 +40,7 @@ function StatusBadge({ value, map }: { value: string; map: Record<string, string
 }
 
 function qrImageUrl(passCode: string) {
+  if (!passCode) return '';
   return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(passCode)}&format=png&margin=8`;
 }
 
@@ -230,6 +231,14 @@ interface PassDetailDialogProps {
 function PassDetailDialog({ pass, onClose, onCancelled, onScanned }: PassDetailDialogProps) {
   const { cancelPass, scanPass } = useVisitorPassStore();
   const [busy, setBusy] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(true);
+  const [qrError, setQrError] = useState(false);
+
+  // Reset QR loading state whenever the pass changes
+  useEffect(() => {
+    setQrLoading(true);
+    setQrError(false);
+  }, [pass.passCode]);
 
   const handleCancel = async () => {
     setBusy('cancel');
@@ -262,7 +271,7 @@ function PassDetailDialog({ pass, onClose, onCancelled, onScanned }: PassDetailD
   };
 
   const handleWhatsApp = () => {
-    const qrUrl = qrImageUrl(pass.passCode);
+    const qrUrl = pass.passCode ? qrImageUrl(pass.passCode) : '';
     const payload = visitorInvitePayload({
       visitorName: pass.visitorName,
       host: pass.hostName ?? 'Host',
@@ -284,7 +293,9 @@ function PassDetailDialog({ pass, onClose, onCancelled, onScanned }: PassDetailD
         <div className="text-center border-2 border-indigo-600 rounded-2xl p-6">
           <div className="font-bold text-lg text-indigo-700 mb-1">OfficeGate — Visitor Pass</div>
           <div className="text-xs text-slate-500 mb-4">{pass.passCode}</div>
-          <img src={qrImageUrl(pass.passCode)} alt="QR" className="mx-auto w-40 h-40 mb-4" />
+          {pass.passCode && (
+            <img src={qrImageUrl(pass.passCode)} alt="QR" className="mx-auto w-40 h-40 mb-4" />
+          )}
           <div className="text-sm font-semibold">{pass.visitorName}</div>
           {pass.visitorPhone && <div className="text-xs text-slate-500">{pass.visitorPhone}</div>}
           <div className="mt-2 text-xs text-slate-600">Type: {pass.passType}</div>
@@ -311,7 +322,7 @@ function PassDetailDialog({ pass, onClose, onCancelled, onScanned }: PassDetailD
               </div>
               <div>
                 <h2 className="font-semibold font-[Outfit] text-slate-900">{pass.visitorName}</h2>
-                <p className="text-xs text-slate-500 font-mono">{pass.passCode}</p>
+                <p className="text-xs text-slate-500 font-mono">{pass.passCode || '—'}</p>
               </div>
             </div>
             <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
@@ -322,14 +333,37 @@ function PassDetailDialog({ pass, onClose, onCancelled, onScanned }: PassDetailD
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* QR Code */}
             <div className="flex flex-col items-center gap-3">
-              <div className="rounded-2xl border-2 border-indigo-100 bg-white p-3 shadow-sm">
-                <img
-                  src={qrImageUrl(pass.passCode)}
-                  alt="Visitor Pass QR"
-                  width={200}
-                  height={200}
-                  className="rounded-lg"
-                />
+              <div className="rounded-2xl border-2 border-indigo-100 bg-white p-3 shadow-sm flex items-center justify-center" style={{ minWidth: 206, minHeight: 206 }}>
+                {!pass.passCode ? (
+                  <div className="flex flex-col items-center gap-2 text-slate-400 w-[200px] h-[200px] justify-center">
+                    <QrCode className="w-10 h-10" />
+                    <p className="text-xs text-center">Pass code not available</p>
+                  </div>
+                ) : qrError ? (
+                  <div className="flex flex-col items-center gap-2 text-red-400 w-[200px] h-[200px] justify-center px-2">
+                    <XCircle className="w-10 h-10" />
+                    <p className="text-xs text-center text-red-500">
+                      QR generation failed - pass code: {pass.passCode}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {qrLoading && (
+                      <div className="absolute flex items-center justify-center w-[200px] h-[200px]">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                      </div>
+                    )}
+                    <img
+                      src={qrImageUrl(pass.passCode)}
+                      alt="Visitor Pass QR"
+                      width={200}
+                      height={200}
+                      className={`rounded-lg transition-opacity duration-200 ${qrLoading ? 'opacity-0' : 'opacity-100'}`}
+                      onLoad={() => setQrLoading(false)}
+                      onError={() => { setQrLoading(false); setQrError(true); }}
+                    />
+                  </>
+                )}
               </div>
               <p className="text-xs text-slate-500 text-center">Show or scan this QR at the gate</p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -698,9 +732,19 @@ export default function VisitorPassManagement() {
     }
   };
 
-  const handlePassCreated = (pass: VisitorPass) => {
+  const handlePassCreated = async (pass: VisitorPass) => {
+    // Immediately show the newly created pass (with pass_code from API response)
     setSelectedPass(pass);
     setActiveTab('passes');
+    // If pass_code is missing, attempt to reload the full pass from the server
+    if (!pass.passCode) {
+      try {
+        const full = await loadPass(pass.id);
+        setSelectedPass(full);
+      } catch {
+        // keep the original pass object; dialog will show fallback state
+      }
+    }
   };
 
   const handleDialogClose = () => setSelectedPass(null);
@@ -770,7 +814,7 @@ export default function VisitorPassManagement() {
         </div>
       )}
 
-      {/* Pass Detail Dialog */}
+      {/* Pass Detail Dialog — rendered outside tab content so it is always visible */}
       {selectedPass && (
         <PassDetailDialog
           pass={selectedPass}

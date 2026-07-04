@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, ToggleLeft, Trash2, X, Building2, Users, Car, Eye, EyeOff, Edit3, Save, RotateCcw } from 'lucide-react';
+import { Plus, Edit2, ToggleLeft, Trash2, X, Building2, Users, Car, Eye, EyeOff, Edit3, Save, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import StatusBadge from '@/components/features/StatusBadge';
 import { useAppStore } from '@/stores/useAppStore';
@@ -9,14 +9,16 @@ import type { Office } from '@/types';
 import type { ColumnConfig } from '@/types/uiSettings';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 
-const emptyOffice: Partial<Office> = { 
-  block: 'A', 
-  floorNumber: '1', 
-  companyName: '', 
-  status: 'Vacant', 
-  contactPerson: '', 
-  contactPhone: '', 
+const emptyOffice: Partial<Office> = {
+  block: 'A',
+  floorNumber: '1',
+  flatNumber: '',
+  companyName: '',
+  status: 'Vacant',
+  contactPerson: '',
+  contactPhone: '',
   contactEmail: '',
   allocatedVehicleCount: 2
 };
@@ -33,6 +35,10 @@ export default function ManageApartment() {
   const [deletingOffice, setDeletingOffice] = useState<Office | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Tenant credentials state
+  const [createTenantLogin, setCreateTenantLogin] = useState(false);
+  const [tenantForm, setTenantForm] = useState({ name: '', email: '', phone: '', password: '' });
+
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [localColumns, setLocalColumns] = useState<ColumnConfig[]>([]);
@@ -48,8 +54,8 @@ export default function ManageApartment() {
     }
   }, [isEditMode, pageSettings.columns]);
 
-  const visibleColumns = isEditMode 
-    ? localColumns 
+  const visibleColumns = isEditMode
+    ? localColumns
     : getVisibleColumns('manageApartment');
 
   // Column visibility helper
@@ -62,7 +68,7 @@ export default function ManageApartment() {
 
   // Handle column visibility toggle
   const handleColumnVisibilityToggle = (columnId: string) => {
-    setLocalColumns(prev => prev.map(col => 
+    setLocalColumns(prev => prev.map(col =>
       col.id === columnId ? { ...col, visible: !col.visible } : col
     ));
     setHasChanges(true);
@@ -118,8 +124,20 @@ export default function ManageApartment() {
     return true;
   });
 
-  const openAdd = () => { setEditing(null); setForm(emptyOffice); setShowModal(true); };
-  const openEdit = (office: Office) => { setEditing(office); setForm(office); setShowModal(true); };
+  const openAdd = () => {
+    setEditing(null);
+    setForm(emptyOffice);
+    setCreateTenantLogin(false);
+    setTenantForm({ name: '', email: '', phone: '', password: '' });
+    setShowModal(true);
+  };
+  const openEdit = (office: Office) => {
+    setEditing(office);
+    setForm(office);
+    setCreateTenantLogin(false);
+    setTenantForm({ name: '', email: '', phone: '', password: '' });
+    setShowModal(true);
+  };
 
   const handleDelete = async () => {
     if (!deletingOffice) return;
@@ -145,6 +163,23 @@ export default function ManageApartment() {
         await addOffice({ ...form, id: `OFF${Date.now()}` } as Office);
         toast.success('Office added successfully');
       }
+
+      // Create tenant credentials if requested
+      if (createTenantLogin && tenantForm.name && tenantForm.email && tenantForm.password) {
+        try {
+          await api.users.create({
+            name: tenantForm.name,
+            email: tenantForm.email,
+            phone: tenantForm.phone,
+            password: tenantForm.password,
+            role: 'tenant',
+          });
+          toast.success('Tenant account created');
+        } catch (tenantError) {
+          toast.error(tenantError instanceof Error ? tenantError.message : 'Could not create tenant account');
+        }
+      }
+
       setShowModal(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save office');
@@ -152,8 +187,8 @@ export default function ManageApartment() {
   };
 
   // Get display columns (sorted)
-  const displayColumns = isEditMode 
-    ? localColumns 
+  const displayColumns = isEditMode
+    ? localColumns
     : [...pageSettings.columns].sort((a, b) => a.order - b.order).filter(c => c.visible);
 
   return (
@@ -227,8 +262,8 @@ export default function ManageApartment() {
                   value={col}
                   className={cn(
                     'flex items-center gap-2 px-3 py-2 rounded-lg cursor-grab active:cursor-grabbing select-none transition-all',
-                    col.visible 
-                      ? 'bg-white border border-indigo-300 shadow-sm' 
+                    col.visible
+                      ? 'bg-white border border-indigo-300 shadow-sm'
                       : 'bg-slate-100 border border-slate-200 opacity-60'
                   )}
                   whileDrag={{ scale: 1.05, zIndex: 50 }}
@@ -247,8 +282,8 @@ export default function ManageApartment() {
                     onPointerDown={(e) => e.stopPropagation()}
                     className={cn(
                       'p-1 rounded transition-colors',
-                      col.visible 
-                        ? 'text-green-600 hover:bg-green-100' 
+                      col.visible
+                        ? 'text-green-600 hover:bg-green-100'
                         : 'text-slate-400 hover:bg-slate-200'
                     )}
                   >
@@ -330,7 +365,7 @@ export default function ManageApartment() {
       </div>
 
       {/* Data Table */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className={cn(
@@ -343,8 +378,8 @@ export default function ManageApartment() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 {displayColumns.map((col) => (
-                  <th 
-                    key={col.id} 
+                  <th
+                    key={col.id}
                     className={cn(
                       "text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3",
                       isEditMode && !col.visible && "opacity-40"
@@ -364,8 +399,8 @@ export default function ManageApartment() {
                 </tr>
               ) : (
                 filtered.map((office, idx) => (
-                  <motion.tr 
-                    key={office.id} 
+                  <motion.tr
+                    key={office.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: idx * 0.02 }}
@@ -373,19 +408,26 @@ export default function ManageApartment() {
                   >
                     {displayColumns.map((col) => {
                       if (!col.visible && !isEditMode) return null;
-                      
+
                       const cellClass = cn(
                         "px-4 py-3",
                         isEditMode && !col.visible && "opacity-40"
                       );
-                      
+
                       switch (col.id) {
                         case 'unitNo':
                           return <td key={col.id} className={cn(cellClass, "font-semibold text-slate-900")}>{office.id}</td>;
                         case 'block':
                           return <td key={col.id} className={cellClass}>{office.block}</td>;
                         case 'floor':
-                          return <td key={col.id} className={cellClass}>Floor {office.floorNumber}</td>;
+                          return (
+                            <td key={col.id} className={cellClass}>
+                              Floor {office.floorNumber}
+                              {office.flatNumber && (
+                                <span className="ml-1 text-slate-500">· {office.flatNumber}</span>
+                              )}
+                            </td>
+                          );
                         case 'type':
                           return (
                             <td key={col.id} className={cellClass}>
@@ -438,17 +480,17 @@ export default function ManageApartment() {
       {/* Add/Edit Modal */}
       <AnimatePresence>
         {showModal && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl"
+              className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold font-[Outfit]">{editing ? 'Edit Office' : 'Add Office'}</h3>
@@ -468,6 +510,13 @@ export default function ManageApartment() {
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     {['G', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].map(f => <option key={f} value={f}>Floor {f}</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Flat / Unit Number</label>
+                  <input type="text" value={form.flatNumber ?? ''}
+                    onChange={e => setForm(f => ({ ...f, flatNumber: e.target.value }))}
+                    placeholder="e.g., 101, A-12"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-slate-600 mb-1 block">Status</label>
@@ -514,6 +563,95 @@ export default function ManageApartment() {
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
               </div>
+
+              {/* Create Tenant Login Section */}
+              <div className="mt-5 border border-slate-200 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setCreateTenantLogin(prev => !prev)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-500" />
+                    <span className="text-sm font-medium text-slate-700">Create Tenant Login (optional)</span>
+                  </div>
+                  {createTenantLogin ? (
+                    <ChevronUp className="w-4 h-4 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {createTenantLogin && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 py-4 border-t border-slate-200">
+                        <div className="flex items-center gap-2 mb-4">
+                          <input
+                            id="createTenantCheck"
+                            type="checkbox"
+                            checked={createTenantLogin}
+                            onChange={e => setCreateTenantLogin(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <label htmlFor="createTenantCheck" className="text-sm text-slate-600">
+                            Create tenant login credentials for this office
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">Name</label>
+                            <input
+                              type="text"
+                              value={tenantForm.name}
+                              onChange={e => setTenantForm(f => ({ ...f, name: e.target.value }))}
+                              placeholder="Tenant full name"
+                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">Phone</label>
+                            <input
+                              type="text"
+                              value={tenantForm.phone}
+                              onChange={e => setTenantForm(f => ({ ...f, phone: e.target.value }))}
+                              placeholder="+91 98765 43210"
+                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">Email</label>
+                            <input
+                              type="email"
+                              value={tenantForm.email}
+                              onChange={e => setTenantForm(f => ({ ...f, email: e.target.value }))}
+                              placeholder="tenant@example.com"
+                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">Password</label>
+                            <input
+                              type="password"
+                              value={tenantForm.password}
+                              onChange={e => setTenantForm(f => ({ ...f, password: e.target.value }))}
+                              placeholder="Set a secure password"
+                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">Cancel</button>
                 <button onClick={handleSubmit} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">{editing ? 'Update' : 'Add'}</button>

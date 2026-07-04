@@ -224,7 +224,6 @@ const App = () => (
               <Route path="/visitor-passes" element={<VisitorPassManagement />} />
               <Route path="/daily-workers" element={<DailyWorkers />} />
               <Route path="/emergency-contacts" element={<EmergencyContacts />} />
-              <Route path="/cameras" element={<CameraManagement />} />
               <Route path="/notifications" element={<SecurityNotifications />} />
               <Route path="/business-ads" element={<BusinessMarketplace />} />
             </Routes></Layout></ProtectedRoute>} />

@@ -132,7 +132,6 @@ const securityNavItems: NavGroup[] = [
   ]},
   { group: 'Information', items: [
     { to: '/security/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
-    { to: '/security/cameras', label: 'CCTV View', icon: Camera },
     { to: '/security/notifications', label: 'Notifications', icon: Bell },
   ]},
 ];

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, X, Shield, Users, KeyRound, Pencil, Trash2, Mail, Phone } from 'lucide-react';
+import { Plus, X, Shield, KeyRound, Pencil, Trash2, Mail, Phone } from 'lucide-react';
 import DataTable, { NameCell, type Column } from '@/components/features/DataTable';
 import TableToolbar from '@/components/features/TableToolbar';
 import SearchInput from '@/components/features/SearchInput';
@@ -8,17 +8,12 @@ import EmptyState from '@/components/features/EmptyState';
 import { api } from '@/lib/api';
 import type { ManagedUser } from '@/types/auth';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
-type Role = 'security' | 'tenant';
-type TabKey = 'security' | 'tenant';
-
-const emptyForm = { name: '', email: '', phone: '', password: '', role: 'security' as Role, status: 'active' as 'active' | 'inactive' };
+const emptyForm = { name: '', email: '', phone: '', password: '', status: 'active' as 'active' | 'inactive' };
 
 export default function UserManagement() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabKey>('security');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
@@ -40,21 +35,21 @@ export default function UserManagement() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = useMemo(() => {
-    const byTab = users.filter(u => u.role === activeTab);
-    if (!search) return byTab;
+    const securityUsers = users.filter(u => u.role === 'security');
+    if (!search) return securityUsers;
     const q = search.toLowerCase();
-    return byTab.filter(u => [u.name, u.email, u.phone].some(f => String(f ?? '').toLowerCase().includes(q)));
-  }, [users, activeTab, search]);
+    return securityUsers.filter(u => [u.name, u.email, u.phone].some(f => String(f ?? '').toLowerCase().includes(q)));
+  }, [users, search]);
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...emptyForm, role: activeTab });
+    setForm(emptyForm);
     setShowModal(true);
   };
 
   const openEdit = (u: ManagedUser) => {
     setEditing(u);
-    setForm({ name: u.name, email: u.email, phone: u.phone ?? '', password: '', role: u.role, status: u.status });
+    setForm({ name: u.name, email: u.email, phone: u.phone ?? '', password: '', status: u.status });
     setShowModal(true);
   };
 
@@ -81,10 +76,10 @@ export default function UserManagement() {
           email: form.email.trim(),
           phone: form.phone.trim() || undefined,
           password: form.password,
-          role: form.role,
+          role: 'security',
         });
         setUsers(prev => [...prev, created]);
-        toast.success(`${form.role === 'security' ? 'Security' : 'Tenant'} account created`);
+        toast.success('Security account created');
       }
       setShowModal(false);
       setForm(emptyForm);
@@ -108,46 +103,27 @@ export default function UserManagement() {
   };
 
   const columns: Column<ManagedUser>[] = [
-    { key: 'name', label: 'User', render: (u) => <NameCell name={u.name} subtitle={u.email} color={u.role === 'security' ? 'amber' : 'blue'} /> },
+    { key: 'name', label: 'User', render: (u) => <NameCell name={u.name} subtitle={u.email} color="amber" /> },
     { key: 'phone', label: 'Phone', render: (u) => u.phone || <span className="text-slate-400">—</span> },
     { key: 'status', label: 'Status', render: (u) => <StatusBadge status={u.status === 'active' ? 'Active' : 'Inactive'} /> },
     { key: 'createdAt', label: 'Created', render: (u) => u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' },
   ];
 
-  const tabMeta: Record<TabKey, { label: string; icon: typeof Shield; count: number }> = {
-    security: { label: 'Security', icon: Shield, count: users.filter(u => u.role === 'security').length },
-    tenant: { label: 'Tenant', icon: Users, count: users.filter(u => u.role === 'tenant').length },
-  };
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900 font-[Outfit]">Security Management</h1>
-        <p className="text-sm text-slate-500">Manage tenant and security accounts for this apartment</p>
+        <p className="text-sm text-slate-500">Manage security guard accounts for this apartment</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-100">
           <TableToolbar
-            title={
-              <div className="flex bg-slate-100 rounded-xl p-1">
-                {(Object.keys(tabMeta) as TabKey[]).map(key => {
-                  const TabIcon = tabMeta[key].icon;
-                  return (
-                    <button key={key} onClick={() => setActiveTab(key)}
-                      className={cn('flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
-                        activeTab === key ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900')}>
-                      <TabIcon className="w-4 h-4" /> {tabMeta[key].label}
-                      <span className={cn('px-1.5 rounded text-xs', activeTab === key ? 'bg-white/20' : 'bg-slate-200')}>{tabMeta[key].count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            }
+            title={<span className="text-sm font-medium text-slate-700">Security Accounts</span>}
             filters={<SearchInput value={search} onChange={setSearch} placeholder="Search users..." />}
             actions={
               <button onClick={openAdd} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
-                <Plus className="w-4 h-4" /> Add {activeTab === 'security' ? 'Security' : 'Tenant'}
+                <Plus className="w-4 h-4" /> Add Security
               </button>
             }
           />
@@ -160,10 +136,10 @@ export default function UserManagement() {
           rowId={(u) => (u as unknown as ManagedUser).id}
           empty={
             <EmptyState
-              icon={activeTab === 'security' ? Shield : Users}
-              title={loading ? 'Loading users…' : `No ${activeTab} accounts yet`}
-              description={loading ? undefined : (search ? 'No users match your search.' : `Create a ${activeTab} login so they can sign in.`)}
-              action={loading || search ? undefined : { label: `Add ${activeTab === 'security' ? 'Security' : 'Tenant'}`, icon: Plus, onClick: openAdd }}
+              icon={Shield}
+              title={loading ? 'Loading users…' : 'No security accounts yet'}
+              description={loading ? undefined : (search ? 'No users match your search.' : 'Create a security login so they can sign in.')}
+              action={loading || search ? undefined : { label: 'Add Security', icon: Plus, onClick: openAdd }}
             />
           }
           actions={(u: unknown) => {
@@ -187,22 +163,11 @@ export default function UserManagement() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => !saving && setShowModal(false)}>
           <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl fade-in" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold font-[Outfit]">{editing ? 'Edit User' : `Add ${form.role === 'security' ? 'Security' : 'Tenant'} Account`}</h3>
+              <h3 className="text-lg font-semibold font-[Outfit]">{editing ? 'Edit User' : 'Add Security Account'}</h3>
               <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
             </div>
 
             <div className="space-y-4">
-              {!editing && (
-                <div>
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">Role</label>
-                  <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as Role }))}
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                    <option value="tenant">Tenant</option>
-                    <option value="security">Security</option>
-                  </select>
-                </div>
-              )}
-
               <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Full Name</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Ramu Kumar"

@@ -30,7 +30,7 @@ export default function EntryVisitors() {
   const [cameraActive, setCameraActive] = useState(false);
   const [faceCheck, setFaceCheck] = useState<VisitorFaceCheck>(INITIAL_FACE_CHECK);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
-  
+
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [localFields, setLocalFields] = useState<ColumnConfig[]>([]);
@@ -62,8 +62,8 @@ export default function EntryVisitors() {
     }
   }, [isEditMode, pageSettings.columns]);
 
-  const visibleFields = isEditMode 
-    ? localFields 
+  const visibleFields = isEditMode
+    ? localFields
     : getVisibleColumns('entryVisitors');
 
   // Field visibility helper - default to true if no settings exist
@@ -85,7 +85,7 @@ export default function EntryVisitors() {
 
   // Handle field visibility toggle
   const handleFieldVisibilityToggle = (fieldId: string) => {
-    setLocalFields(prev => prev.map(field => 
+    setLocalFields(prev => prev.map(field =>
       field.id === fieldId ? { ...field, visible: !field.visible } : field
     ));
     setHasChanges(true);
@@ -125,7 +125,7 @@ export default function EntryVisitors() {
 
   // Get unique blocks from offices
   const blocks = [...new Set(offices.map(o => o.block))].sort();
-  
+
   // Get floors for selected block
   const floors = offices
     .filter(o => o.block === form.block)
@@ -198,8 +198,8 @@ export default function EntryVisitors() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
         audio: false,
       });
@@ -349,6 +349,89 @@ export default function EntryVisitors() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Fullscreen Camera Overlay */}
+      <AnimatePresence>
+        {cameraActive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[60] bg-black flex flex-col"
+          >
+            {/* Cancel button — top right */}
+            <button
+              onClick={stopCamera}
+              className="absolute top-4 right-4 z-10 w-11 h-11 flex items-center justify-center bg-white/20 hover:bg-white/35 active:bg-white/50 rounded-full text-white transition-colors"
+              aria-label="Close camera"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Label — top left */}
+            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/40 rounded-full px-4 py-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-white text-sm font-medium">Camera Active</span>
+            </div>
+
+            {/* Video — fills the screen */}
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            />
+
+            {/* Bottom controls overlay */}
+            <div className="absolute bottom-0 left-0 right-0 pb-10 pt-16 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col items-center gap-4">
+              {/* Face check status message */}
+              <p
+                className={cn(
+                  "text-sm font-medium px-4 py-1.5 rounded-full bg-black/40",
+                  faceCheck.status === 'ready'
+                    ? 'text-emerald-400'
+                    : faceCheck.status === 'error'
+                    ? 'text-red-400'
+                    : 'text-amber-400'
+                )}
+              >
+                {faceCheck.message}
+              </p>
+
+              {/* Large circular capture button */}
+              <button
+                onClick={takeSnapshot}
+                disabled={!faceCheck.canCapture}
+                className={cn(
+                  "w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl border-4",
+                  faceCheck.canCapture
+                    ? "bg-white border-white hover:bg-slate-100 active:scale-95"
+                    : "bg-slate-700 border-slate-600 cursor-not-allowed"
+                )}
+                aria-label="Capture photo"
+              >
+                <Camera
+                  className={cn(
+                    "w-9 h-9",
+                    faceCheck.canCapture ? "text-slate-800" : "text-slate-500"
+                  )}
+                />
+              </button>
+
+              <span
+                className={cn(
+                  "text-xs",
+                  faceCheck.canCapture ? "text-white/70" : "text-white/40"
+                )}
+              >
+                {faceCheck.canCapture ? "Tap to capture" : "Position face in frame"}
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Edit Mode Toolbar */}
       <AnimatePresence>
         {isEditMode && (
@@ -418,8 +501,8 @@ export default function EntryVisitors() {
                   value={field}
                   className={cn(
                     'flex items-center gap-2 px-3 py-2 rounded-lg cursor-grab active:cursor-grabbing select-none transition-all',
-                    field.visible 
-                      ? 'bg-white border border-indigo-300 shadow-sm' 
+                    field.visible
+                      ? 'bg-white border border-indigo-300 shadow-sm'
                       : 'bg-slate-100 border border-slate-200 opacity-60'
                   )}
                   whileDrag={{ scale: 1.05, zIndex: 50 }}
@@ -438,8 +521,8 @@ export default function EntryVisitors() {
                     onPointerDown={(e) => e.stopPropagation()}
                     className={cn(
                       'p-1 rounded transition-colors',
-                      field.visible 
-                        ? 'text-green-600 hover:bg-green-100' 
+                      field.visible
+                        ? 'text-green-600 hover:bg-green-100'
                         : 'text-slate-400 hover:bg-slate-200'
                     )}
                   >
@@ -452,7 +535,7 @@ export default function EntryVisitors() {
         )}
       </AnimatePresence>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className={cn(
@@ -1019,40 +1102,18 @@ export default function EntryVisitors() {
                           </button>
                         </div>
                       ) : cameraActive ? (
-                        <div className="space-y-3">
-                          <video
-                            ref={videoRef}
-                            autoPlay
-                            muted
-                            playsInline
-                            className={cn(
-                              "w-48 h-48 object-cover rounded-xl mx-auto border-4 transition-colors",
-                              faceCheck.status === 'ready' ? 'border-emerald-500' :
-                                faceCheck.status === 'error' ? 'border-red-400' :
-                                'border-amber-300'
-                            )}
-                          />
-                          <p
-                            className={cn(
-                              "text-xs font-medium",
-                              faceCheck.status === 'ready' ? 'text-emerald-700' :
-                                faceCheck.status === 'error' ? 'text-red-600' :
-                                'text-amber-700'
-                            )}
-                          >
-                            {faceCheck.message}
-                          </p>
+                        /* Camera is open fullscreen — show a subtle in-card indicator */
+                        <div className="space-y-3 py-8">
+                          <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center mx-auto">
+                            <Camera className="w-7 h-7 text-indigo-600 animate-pulse" />
+                          </div>
+                          <p className="text-sm text-slate-600 font-medium">Camera is open</p>
+                          <p className="text-xs text-slate-400">Use the fullscreen view to capture</p>
                           <button
-                            onClick={takeSnapshot}
-                            disabled={!faceCheck.canCapture}
-                            className={cn(
-                              "px-4 py-2 text-white text-sm rounded-lg transition-colors flex items-center gap-2 mx-auto",
-                              faceCheck.canCapture
-                                ? "bg-indigo-600 hover:bg-indigo-700"
-                                : "bg-slate-400 cursor-not-allowed"
-                            )}
+                            onClick={stopCamera}
+                            className="text-xs text-red-500 hover:underline"
                           >
-                            <Camera className="w-4 h-4" /> Capture
+                            Cancel
                           </button>
                         </div>
                       ) : (
