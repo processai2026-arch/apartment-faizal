@@ -324,8 +324,6 @@ class AdminBusinessAdController
             'due_date'       => $request->input('due_date') ?: null,
             'payment_ref'    => $request->input('payment_ref') ?: null,
             'notes'          => $request->input('notes') ?: null,
-            // Billing inherits the ad's organization so rollups stay coherent.
-            'org_id'         => isset($ad['org_id']) && $ad['org_id'] !== null ? (int) $ad['org_id'] : OrgScope::stampFor($request),
         ]);
         AuditService::log((int) $request->user['id'], 'ad_billing.create', 'ad_billing', (int) $record['id']);
         Response::success($record, 'Billing record created', 201);
