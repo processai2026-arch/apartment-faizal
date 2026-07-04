@@ -58,8 +58,45 @@ class SuperAdminController
         // the super admin narrows the set afterwards via PUT .../features.
         OrganizationFeature::seedDefaults((int) $org['id']);
 
+        // Create the secretary (admin) user if credentials were provided.
+        $secretary = $request->input('secretary');
+        $secretaryUser = null;
+        if (is_array($secretary) && !empty($secretary['email']) && !empty($secretary['password'])) {
+            $secEmail = strtolower(trim((string) $secretary['email']));
+            $secName  = trim((string) ($secretary['name'] ?? $name . ' Secretary'));
+            $secPhone = trim((string) ($secretary['phone'] ?? ''));
+            $secPass  = (string) $secretary['password'];
+
+            if (User::findByEmail($secEmail)) {
+                throw new AppException('A user with this email already exists', 409);
+            }
+
+            $now = db_time();
+            Database::insert(
+                'INSERT INTO users (name, email, phone, password_hash, role, is_secretary, org_id, status, created_at, updated_at)
+                 VALUES (:name, :email, :phone, :password_hash, :role, 1, :org_id, :status, :created_at, :updated_at)',
+                [
+                    'name'          => $secName,
+                    'email'         => $secEmail,
+                    'phone'         => $secPhone ?: null,
+                    'password_hash' => password_hash($secPass, PASSWORD_BCRYPT, ['cost' => 12]),
+                    'role'          => 'admin',
+                    'org_id'        => (int) $org['id'],
+                    'status'        => 'active',
+                    'created_at'    => $now,
+                    'updated_at'    => $now,
+                ]
+            );
+
+            $secretaryUser = User::findByEmail($secEmail);
+            AuditService::log((int) $request->user['id'], 'organization.secretary.create', 'user', (int) ($secretaryUser['id'] ?? 0));
+        }
+
         AuditService::log((int) $request->user['id'], 'organization.create', 'organization', (int) $org['id']);
-        Response::success($org, 'Organization created', 201);
+        Response::success(array_merge($org, [
+            'secretary_created' => $secretaryUser !== null,
+            'secretary_email'   => $secretaryUser ? $secretaryUser['email'] : null,
+        ]), 'Organization created', 201);
     }
 
     public function updateOrganization(Request $request): void
