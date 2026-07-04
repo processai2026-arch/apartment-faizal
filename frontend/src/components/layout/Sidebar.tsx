@@ -53,15 +53,14 @@ const adminNavItems: NavGroup[] = [
     { to: '/financials', label: 'Financial Tracking', icon: Wallet },
     { to: '/expenses', label: 'Office Expenses', icon: Receipt },
     { to: '/documents', label: 'Documents', icon: FileText },
+    { to: '/name-transfers', label: 'Name Transfer', icon: ArrowLeftRight },
     { to: '/complaints', label: 'Complaint Management', icon: MessageSquareWarning },
     { to: '/maintenance', label: 'Maintenance Requests', icon: Wrench },
     { to: '/daily-ops', label: 'Daily Operations', icon: ClipboardList },
   ]},
   { group: 'Community', items: [
-    { to: '/rental', label: 'Rental Marketplace', icon: Home },
     { to: '/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
-    { to: '/daily-workers', label: 'Daily Workers', icon: Users },
     { to: '/events', label: 'Community Events', icon: CalendarDays },
   ]},
   { group: 'Reports', items: [

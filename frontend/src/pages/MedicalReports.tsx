@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Stethoscope, Plus, RefreshCcw, Pencil, Trash2, Upload, X, FileText, HeartPulse, CalendarClock, ShieldCheck, Paperclip } from 'lucide-react';
+import { Stethoscope, Plus, RefreshCcw, Pencil, Trash2, Upload, X, FileText, HeartPulse, CalendarClock, ShieldCheck, Paperclip, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import DataTable, { Column } from '@/components/features/DataTable';
 import StatCard from '@/components/features/StatCard';
 import EmptyState from '@/components/features/EmptyState';
-import { api } from '@/lib/api';
+import { api, tokenStorage } from '@/lib/api';
 import { useMedicalStore } from '@/stores/useMedicalStore';
 import type { MedicalReport, Staff } from '@/types';
 
@@ -116,6 +116,23 @@ export default function MedicalReports() {
     setForm((f) => f && { ...f, staffId: staffId || undefined, personName: s ? s.name : f.personName });
   };
 
+  const handleDownload = async (r: MedicalReport) => {
+    if (!r.attachment?.storedPath) return;
+    const url = `${API_BASE}/storage/${r.attachment.storedPath}`;
+    try {
+      const token = tokenStorage.getAccessToken();
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = r.personName + '_' + r.reportNo + (r.attachment.mimeType?.includes('pdf') ? '.pdf' : '');
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      toast.error('Download failed');
+    }
+  };
+
   const columns: Column<MedicalReport>[] = [
     { key: 'personName', label: 'Person', render: (r) => (
       <div>
@@ -128,7 +145,12 @@ export default function MedicalReports() {
     { key: 'result', label: 'Result', render: (r) => <ResultBadge result={r.result} /> },
     { key: 'nextCheckupDate', label: 'Next Checkup', render: (r) => <CheckupBadge date={r.nextCheckupDate} /> },
     { key: 'attachment', label: 'Report', render: (r) => r.attachment?.storedPath
-      ? <a href={`${API_BASE}/${r.attachment.storedPath}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"><Paperclip className="h-3 w-3" /> View</a>
+      ? (
+        <div className="flex items-center gap-1.5">
+          <a href={`${API_BASE}/storage/${r.attachment.storedPath}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"><Paperclip className="h-3 w-3" /> View</a>
+          <button type="button" onClick={() => handleDownload(r)} title="Download" className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600"><Download className="h-3 w-3" /></button>
+        </div>
+      )
       : <span className="text-xs text-slate-300">—</span> },
   ];
 

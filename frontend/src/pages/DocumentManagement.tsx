@@ -6,7 +6,7 @@ import DataTable, { Column } from '@/components/features/DataTable';
 import StatCard from '@/components/features/StatCard';
 import StatusBadge from '@/components/features/StatusBadge';
 import EmptyState from '@/components/features/EmptyState';
-import { api } from '@/lib/api';
+import { api, tokenStorage } from '@/lib/api';
 import { useDocumentStore } from '@/stores/useDocumentStore';
 import type { OfficeDocument, DocumentCategory, Office } from '@/types';
 
@@ -134,6 +134,23 @@ export default function DocumentManagement() {
     } catch (err) { toast.error(err instanceof Error ? err.message : 'Failed to update'); }
   };
 
+  const handleDownload = async (doc: OfficeDocument) => {
+    const url = attachmentUrl(doc);
+    if (!url) return;
+    try {
+      const token = tokenStorage.getAccessToken();
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = doc.title + (doc.attachment?.mimeType?.includes('pdf') ? '.pdf' : '');
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      toast.error('Download failed');
+    }
+  };
+
   const handleDelete = async (doc: OfficeDocument) => {
     if (!confirm(`Delete document ${doc.docNo}?`)) return;
     try {
@@ -165,7 +182,7 @@ export default function DocumentManagement() {
         return (
           <div className="flex items-center gap-1.5">
             <a href={url} target="_blank" rel="noreferrer" title="View" className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"><ExternalLink className="h-3.5 w-3.5" /></a>
-            <a href={url} download title="Download" className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600"><Download className="h-3.5 w-3.5" /></a>
+            <button type="button" onClick={() => handleDownload(d)} title="Download" className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600"><Download className="h-3.5 w-3.5" /></button>
           </div>
         );
       },

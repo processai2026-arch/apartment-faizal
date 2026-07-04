@@ -16,13 +16,25 @@ import type { CardConfig, ColumnConfig } from '@/types/uiSettings';
 
 export default function FinancialTracking() {
   const navigate = useNavigate();
-  const { invoices, offices, financialSummary, loadAdminInvoices, loadFinancialSummary, createInvoice, recordInvoicePayment } = useAppStore();
+  const { invoices, offices, financialSummary, loadAdminInvoices, loadFinancialSummary, createInvoice, updateInvoice, recordInvoicePayment } = useAppStore();
   const { settings, getVisibleCards, getVisibleColumns, getVisibleButtons, updateCardOrder, updateColumnOrder, resetPageSettings } = useUISettingsStore();
   const [filterStatus, setFilterStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Edit invoice state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editInvoiceId, setEditInvoiceId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    invoiceNo: '',
+    officeId: '',
+    description: '',
+    amount: 0,
+    dueDate: '',
+  });
+  const [editSaving, setEditSaving] = useState(false);
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -250,6 +262,39 @@ export default function FinancialTracking() {
       toast.success(`Payment recorded for ${inv.invoiceNo}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not record payment');
+    }
+  };
+
+  const handleOpenEdit = (inv: Invoice) => {
+    setEditInvoiceId(inv.id);
+    setEditForm({
+      invoiceNo: inv.invoiceNo,
+      officeId: inv.officeId ?? '',
+      description: inv.description ?? '',
+      amount: inv.amount,
+      dueDate: inv.dueDate ? inv.dueDate.split('T')[0] : '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editInvoiceId) return;
+    if (!editForm.invoiceNo.trim()) { toast.error('Invoice number is required'); return; }
+    if (!editForm.amount || editForm.amount <= 0) { toast.error('Please enter a valid amount'); return; }
+    setEditSaving(true);
+    try {
+      await updateInvoice(editInvoiceId, {
+        description: editForm.description || undefined,
+        amount: editForm.amount,
+        dueDate: editForm.dueDate || undefined,
+      });
+      toast.success('Invoice updated');
+      setShowEditModal(false);
+      setEditInvoiceId(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update invoice');
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -647,6 +692,13 @@ export default function FinancialTracking() {
                             return (
                               <td key={col.id} className={cellClass}>
                                 <div className="flex items-center gap-2 flex-wrap">
+                                  <button
+                                    onClick={() => handleOpenEdit(inv)}
+                                    className="flex items-center gap-1.5 bg-slate-50 text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-slate-100 transition-colors"
+                                    title="Edit invoice"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" /> Edit
+                                  </button>
                                   {status !== 'Paid' && status !== 'Cancelled' && (
                                     <button onClick={() => handleMarkPaid(inv)}
                                       className="flex items-center gap-1.5 bg-green-50 text-green-600 border border-green-200 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">
@@ -658,7 +710,7 @@ export default function FinancialTracking() {
                                       onClick={() => navigate(`/payments?invoice=${inv.id}`)}
                                       className="flex items-center gap-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
                                     >
-                                      <CreditCard className="w-3.5 h-3.5" /> Pay
+                                      <CreditCard className="w-3.5 h-3.5" /> Pay Online
                                     </button>
                                   )}
                                   {status !== 'Paid' && status !== 'Cancelled' && (
@@ -826,6 +878,91 @@ export default function FinancialTracking() {
                 </button>
                 <button onClick={handleAdd} disabled={saving} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
                   {saving ? 'Saving…' : 'Add Invoice'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Invoice Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold font-[Outfit]">Edit Invoice</h3>
+                <button onClick={() => setShowEditModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Invoice Number *</label>
+                  <input
+                    value={editForm.invoiceNo}
+                    onChange={e => setEditForm(f => ({ ...f, invoiceNo: e.target.value }))}
+                    placeholder="e.g., INV-2026-001"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Office</label>
+                  <select
+                    value={editForm.officeId}
+                    onChange={e => setEditForm(f => ({ ...f, officeId: e.target.value }))}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="">Unassigned</option>
+                    {offices.map((o) => <option key={o.id} value={o.id}>{o.floorNumber}-{o.companyName}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Description</label>
+                  <input
+                    value={editForm.description}
+                    onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="e.g., Monthly maintenance — June 2026"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Amount (₹) *</label>
+                    <input
+                      type="number"
+                      value={editForm.amount}
+                      onChange={e => setEditForm(f => ({ ...f, amount: Number(e.target.value) }))}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">Due Date</label>
+                    <input
+                      type="date"
+                      value={editForm.dueDate}
+                      onChange={e => setEditForm(f => ({ ...f, dueDate: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">
+                  Cancel
+                </button>
+                <button onClick={handleEditSave} disabled={editSaving} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                  {editSaving ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </motion.div>
