@@ -65,7 +65,7 @@ export default function AdminAnnouncements() {
           <button onClick={refresh} className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 dark:border-slate-700">
             <RefreshCcw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </button>
-          <button onClick={() => setForm({ priority: 'Medium', audience: 'All', status: 'Draft' })} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+          <button onClick={() => setForm({ priority: 'Medium', audience: 'All', status: 'Draft', visibility: 'All Residents' })} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
             <Plus className="h-4 w-4" /> New Announcement
           </button>
         </div>
@@ -159,6 +159,15 @@ export default function AdminAnnouncements() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Expires At</label>
                 <input type="datetime-local" value={form.expiresAt ?? ''} onChange={(e) => setForm((f) => f && { ...f, expiresAt: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Visibility / Share To</label>
+                <select value={form.visibility ?? 'All Residents'} onChange={(e) => setForm((f) => f && { ...f, visibility: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  <option value="All Residents">All Residents</option>
+                  <option value="Secretary Only">Secretary Only</option>
+                  <option value="Associate Members">Associate Members</option>
+                  <option value="Public">Public</option>
+                </select>
               </div>
               <div className="flex items-center gap-2">
                 <input id="publishNow" type="checkbox" checked={form.publishNow ?? false} onChange={(e) => setForm((f) => f && { ...f, publishNow: e.target.checked })} className="h-4 w-4 rounded border-slate-300" />

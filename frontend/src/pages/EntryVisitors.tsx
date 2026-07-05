@@ -50,6 +50,7 @@ export default function EntryVisitors() {
     company: '',
     whomToMeet: '',
     reason: '',
+    category: '',
   });
 
   const pageSettings = settings.entryVisitors;
@@ -306,7 +307,7 @@ export default function EntryVisitors() {
       reason: form.reason,
       vehicleNo: form.vehicleNo || undefined,
       vehicleType: (form.vehicleType as 'Car' | 'Bike' | '2-Wheeler' | '4-Wheeler' | 'NA') || undefined,
-      category: 'Guest',
+      category: (form.category as Visitor['category']) || 'Guest',
       status: 'Inside',
       entryTime: new Date().toISOString(),
       guardName: 'Guard on Duty',
@@ -320,7 +321,7 @@ export default function EntryVisitors() {
       setForm({
         phone: '', name: '', gender: '', address: '', city: '', pincode: '',
         vehicleType: '', vehicleNo: '', block: '', floor: '', company: '',
-        whomToMeet: '', reason: '',
+        whomToMeet: '', reason: '', category: '',
       });
       setOtpVerified(false);
       setSnapshot(null);
@@ -675,6 +676,27 @@ export default function EntryVisitors() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Category */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Visitor Category</label>
+                <select
+                  value={form.category}
+                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                >
+                  <option value="">Choose...</option>
+                  <option value="Guest">Guest</option>
+                  <option value="Delivery">Delivery</option>
+                  <option value="Delivery - Food">Delivery - Food</option>
+                  <option value="Delivery - Courier">Delivery - Courier</option>
+                  <option value="Worker">Worker</option>
+                  <option value="Vendor">Vendor</option>
+                  <option value="Emergency">Emergency</option>
+                  <option value="Student">Student</option>
+                  <option value="Tuition">Tuition</option>
+                </select>
+              </div>
 
               {/* Address */}
               <AnimatePresence>

@@ -5,6 +5,7 @@ export interface Office {
   id: string;
   block: string;
   floorNumber: string;
+  flatNumber?: string;
   companyName: string;
   contactPerson?: string;
   contactPhone?: string;
@@ -12,6 +13,11 @@ export interface Office {
   allocatedVehicleCount: number;
   usedVehicleCount?: number;
   status: 'Active' | 'Inactive' | 'Vacant';
+  // Flat member & emergency info
+  memberCount?: number;
+  memberNames?: string;
+  emergencyContact?: string;
+  visibility?: 'Secretary Only' | 'All Residents' | 'Public';
 }
 
 // Visitor
@@ -53,7 +59,7 @@ export interface Visitor {
   apartmentNo?: string;
   officeNo?: string;
   purpose?: string;
-  category?: 'Guest' | 'Delivery' | 'Worker' | 'Vendor' | 'Emergency';
+  category?: 'Guest' | 'Delivery' | 'Delivery - Food' | 'Delivery - Courier' | 'Worker' | 'Vendor' | 'Emergency' | 'Student' | 'Tuition';
 }
 
 // Vehicle
@@ -223,6 +229,8 @@ export interface UtilityTask {
   status: 'Upcoming' | 'Overdue' | 'Done';
   assignedStaff?: string;
   notes?: string;
+  recurrence?: 'One Time' | 'Monthly' | 'Quarterly (90 days)' | 'Half-Yearly (180 days)' | 'Yearly' | 'Every 2 Years' | 'Every 3 Years';
+  nextDue?: string;
 }
 
 // Complaint (for office tenants)
@@ -290,6 +298,9 @@ export interface MaintenanceRequestTicket {
   createdAt: string;
   updatedAt?: string;
   history?: MaintenanceUpdate[];
+  // Electrical compliance fields (present when category === 'Electrical')
+  electricalPhaseType?: string;
+  electricalWorkType?: string;
 }
 
 export interface MaintenanceUpdate {
@@ -613,7 +624,7 @@ export interface ExpenseReport {
 
 // ── Asset & Utility Tracking ──────────────────────────────────────────────────
 
-export type AssetCategory = 'Safety Gear' | 'Cleaning Equipment' | 'Tools' | 'Utility Gear' | 'Other';
+export type AssetCategory = 'Electrical' | 'Safety Gear' | 'Cleaning Equipment' | 'Tools' | 'Utility Gear' | 'Other';
 export type AssetCondition = 'New' | 'Good' | 'Fair' | 'Damaged' | 'Retired';
 export type AssetStatus = 'Available' | 'Checked Out' | 'Under Maintenance' | 'Retired';
 
@@ -826,6 +837,7 @@ export interface CommunityEvent {
   registrationRequired: boolean;
   registrationCount?: number;
   status: 'Draft' | 'Published' | 'Cancelled' | 'Completed';
+  category?: 'General' | 'Sports' | 'Evening Stall' | 'Cultural' | 'Educational' | 'Community Sale' | 'Fitness';
   createdBy?: string;
   createdAt: string;
   updatedAt?: string;

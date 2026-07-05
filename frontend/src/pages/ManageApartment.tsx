@@ -20,7 +20,11 @@ const emptyOffice: Partial<Office> = {
   contactPerson: '',
   contactPhone: '',
   contactEmail: '',
-  allocatedVehicleCount: 2
+  allocatedVehicleCount: 2,
+  memberCount: 1,
+  memberNames: '',
+  emergencyContact: '',
+  visibility: 'Secretary Only',
 };
 
 export default function ManageApartment() {
@@ -422,10 +426,18 @@ export default function ManageApartment() {
                         case 'floor':
                           return (
                             <td key={col.id} className={cellClass}>
-                              Floor {office.floorNumber}
-                              {office.flatNumber && (
-                                <span className="ml-1 text-slate-500">· {office.flatNumber}</span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <span>Floor {office.floorNumber}</span>
+                                {office.flatNumber && (
+                                  <span className="text-slate-500">· {office.flatNumber}</span>
+                                )}
+                                {office.memberCount != null && office.memberCount > 0 && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                                    <Users className="w-3 h-3" />
+                                    {office.memberCount}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                           );
                         case 'type':
@@ -561,6 +573,41 @@ export default function ManageApartment() {
                     onChange={e => setForm(f => ({ ...f, contactEmail: e.target.value }))}
                     placeholder="e.g., contact@company.com"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+
+                {/* Flat member & emergency info */}
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Occupants (1–6)</label>
+                  <input type="number" value={form.memberCount ?? 1}
+                    onChange={e => setForm(f => ({ ...f, memberCount: Math.min(6, Math.max(1, Number(e.target.value))) }))}
+                    min={1} max={6}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Emergency Contact</label>
+                  <input type="text" value={form.emergencyContact ?? ''}
+                    onChange={e => setForm(f => ({ ...f, emergencyContact: e.target.value }))}
+                    placeholder="e.g., +91 98765 43210"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Member Names <span className="text-slate-400 font-normal">(optional)</span></label>
+                  <textarea value={form.memberNames ?? ''}
+                    onChange={e => setForm(f => ({ ...f, memberNames: e.target.value }))}
+                    placeholder="e.g., Ravi Kumar, Priya Kumar"
+                    rows={2}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-slate-600 mb-1 block">Visibility</label>
+                  <select value={form.visibility ?? 'Secretary Only'}
+                    onChange={e => setForm(f => ({ ...f, visibility: e.target.value as Office['visibility'] }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="Secretary Only">Secretary Only</option>
+                    <option value="All Residents">All Residents</option>
+                    <option value="Public">Public</option>
+                  </select>
+                  <p className="text-xs text-slate-400 mt-1">Controls who can see this flat's info (useful for emergency response).</p>
                 </div>
               </div>
 

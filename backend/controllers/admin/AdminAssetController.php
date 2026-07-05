@@ -36,7 +36,7 @@ class AdminAssetController
         }
 
         $asset = Asset::create([
-            'asset_tag'           => Asset::nextAssetTag(),
+            'asset_tag'           => Asset::nextAssetTag((string)($request->input('category') ?: 'Other')),
             'name'                => $request->input('name'),
             'category'            => $request->input('category'),
             'asset_type'          => $request->input('asset_type') ?: null,

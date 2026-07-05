@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, X, Wrench, Eye, EyeOff, Edit3, Save, RotateCcw, Phone, MessageCircle, Building2 } from 'lucide-react';
+import { Plus, X, Wrench, Eye, EyeOff, Edit3, Save, RotateCcw, Phone, MessageCircle, Building2, Pin } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import StatusBadge from '@/components/features/StatusBadge';
 import DataTable, { NameCell, type Column } from '@/components/features/DataTable';
@@ -22,7 +22,22 @@ const tabBadgeColor: Record<Tab, string> = {
 
 const activeTab: Tab = 'Regular Maintenance';
 
-const emptyForm = { name: '', company: '', serviceType: '', contact: '', category: 'Regular Maintenance' as Tab, nextVisit: '' };
+const SERVICE_TYPES = [
+  'Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Cleaning',
+  'Pest Control', 'AC Service', 'Security', 'Gardening', 'Housekeeping',
+  'Lift Maintenance', 'Generator Service', 'IT/Network', 'CCTV', 'Waterproofing', 'Other',
+];
+
+const emptyForm = {
+  name: '',
+  company: '',
+  serviceType: '',
+  serviceTypeCustom: '',
+  contact: '',
+  category: 'Regular Maintenance' as Tab,
+  nextVisit: '',
+  referral_source: '',
+};
 
 const defaultColumns: ColumnConfig[] = [
   { id: 'name', label: 'Vendor', visible: true, order: 0 },
@@ -100,11 +115,16 @@ export default function VendorManagement() {
 
   const filtered = useMemo(() => {
     const byTab = vendors.filter(v => v.category === activeTab);
-    if (!search) return byTab;
     const q = search.toLowerCase();
-    return byTab.filter(v =>
+    const searched = !search ? byTab : byTab.filter(v =>
       [v.name, v.company, v.serviceType, v.contact].some(f => String(f ?? '').toLowerCase().includes(q))
     );
+    // Pin Regular Maintenance vendors at top
+    return [...searched].sort((a, b) => {
+      const aPin = a.category === 'Regular Maintenance' ? 0 : 1;
+      const bPin = b.category === 'Regular Maintenance' ? 0 : 1;
+      return aPin - bPin;
+    });
   }, [vendors, search]);
 
   const visibleColumnIds = isEditMode
@@ -117,6 +137,7 @@ export default function VendorManagement() {
     { key: 'name', label: 'Vendor', render: (v) => <NameCell name={v.name} subtitle={v.company} /> },
     { key: 'category', label: 'Category', render: (v) => (
       <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium', tabBadgeColor[v.category as Tab] ?? 'bg-slate-100 text-slate-600')}>
+        {v.category === 'Regular Maintenance' && <Pin className="w-3 h-3 text-indigo-500" />}
         <Building2 className="w-3 h-3" /> {v.category}
       </span>
     ) },
@@ -147,9 +168,21 @@ export default function VendorManagement() {
   };
 
   const handleAdd = async () => {
-    if (!form.name || !form.company || !form.serviceType || !form.contact) { toast.error('Please fill all required fields'); return; }
+    const finalServiceType = form.serviceType === 'Other' ? form.serviceTypeCustom : form.serviceType;
+    if (!form.name || !form.company || !finalServiceType || !form.contact) {
+      toast.error('Please fill all required fields');
+      return;
+    }
     try {
-      await addVendor({ ...form, id: `VN${Date.now()}`, category: form.category, lastVisit: new Date().toISOString().split('T')[0], status: 'Active' } as Vendor);
+      await addVendor({
+        ...form,
+        serviceType: finalServiceType,
+        id: `VN${Date.now()}`,
+        category: form.category,
+        lastVisit: new Date().toISOString().split('T')[0],
+        status: 'Active',
+        referral_source: form.referral_source,
+      } as Vendor);
       toast.success('Vendor added successfully');
       setShowModal(false);
       setForm(emptyForm);
@@ -168,6 +201,8 @@ export default function VendorManagement() {
   const bulkWhatsApp = () => {
     selectedVendors.forEach(v => window.open(waLink(v.contact), '_blank'));
   };
+
+  const inputClass = 'w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white';
 
   return (
     <div className="space-y-6">
@@ -296,21 +331,81 @@ export default function VendorManagement() {
               <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-4">
+              {/* Category */}
               <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Category</label>
                 <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as Tab }))}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                  className={inputClass}>
                   {tabs.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              {[['Vendor Name', 'name'], ['Company', 'company'], ['Service Type', 'serviceType'], ['Contact', 'contact'], ['Next Visit Date', 'nextVisit']].map(([label, key]) => (
-                <div key={key}>
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">{label}</label>
-                  <input type={key === 'nextVisit' ? 'date' : 'text'} value={(form as Record<string, string>)[key]}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                </div>
-              ))}
+
+              {/* Vendor Name */}
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Vendor Name</label>
+                <input type="text" value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className={inputClass} />
+              </div>
+
+              {/* Company */}
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Company</label>
+                <input type="text" value={form.company}
+                  onChange={e => setForm(f => ({ ...f, company: e.target.value }))}
+                  className={inputClass} />
+              </div>
+
+              {/* Service Type — combobox */}
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Service Type</label>
+                <select
+                  value={form.serviceType}
+                  onChange={e => setForm(f => ({ ...f, serviceType: e.target.value, serviceTypeCustom: '' }))}
+                  className={inputClass}
+                >
+                  <option value="">Select service type...</option>
+                  {SERVICE_TYPES.map(t => (
+                    <option key={t} value={t}>{t === 'Other' ? 'Other (type below)' : t}</option>
+                  ))}
+                </select>
+                {form.serviceType === 'Other' && (
+                  <input
+                    type="text"
+                    placeholder="Enter service type"
+                    value={form.serviceTypeCustom}
+                    onChange={e => setForm(f => ({ ...f, serviceTypeCustom: e.target.value }))}
+                    className={cn(inputClass, 'mt-2')}
+                  />
+                )}
+              </div>
+
+              {/* Contact */}
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Contact</label>
+                <input type="text" value={form.contact}
+                  onChange={e => setForm(f => ({ ...f, contact: e.target.value }))}
+                  className={inputClass} />
+              </div>
+
+              {/* Next Visit */}
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Next Visit Date</label>
+                <input type="date" value={form.nextVisit}
+                  onChange={e => setForm(f => ({ ...f, nextVisit: e.target.value }))}
+                  className={inputClass} />
+              </div>
+
+              {/* Referred By */}
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">
+                  Referred By <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <input type="text" value={form.referral_source}
+                  placeholder="e.g. Resident name, neighbour, online"
+                  onChange={e => setForm(f => ({ ...f, referral_source: e.target.value }))}
+                  className={inputClass} />
+              </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50">Cancel</button>

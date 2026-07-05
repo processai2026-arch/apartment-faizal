@@ -224,6 +224,23 @@ export default function AdminMaintenance() {
                 />
               </div>
             </div>
+
+            {selected.category === 'Electrical' && (selected.electricalPhaseType || selected.electricalWorkType) && (
+              <div className="flex flex-wrap items-center gap-2 mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                <span className="text-xs font-medium text-amber-800">Electrical:</span>
+                {selected.electricalPhaseType && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300">
+                    {selected.electricalPhaseType}
+                  </span>
+                )}
+                {selected.electricalWorkType && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300">
+                    {selected.electricalWorkType}
+                  </span>
+                )}
+                <span className="text-xs text-amber-700 ml-auto">C/E licence required</span>
+              </div>
+            )}
             <p className="text-sm text-slate-700 mb-6">{selected.description}</p>
 
             <div className="space-y-4">

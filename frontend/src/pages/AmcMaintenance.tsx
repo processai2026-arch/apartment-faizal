@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileCog, Fuel, Plus, RefreshCcw, Pencil, Trash2, CalendarClock, Upload, X, Timer, Wrench } from 'lucide-react';
+import { FileCog, Fuel, Plus, RefreshCcw, Pencil, Trash2, CalendarClock, Upload, X, Timer, Wrench, MessageSquare, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import DataTable, { Column } from '@/components/features/DataTable';
@@ -13,9 +13,19 @@ import type { AmcContract, AmcContractType, AmcPaymentFrequency, AmcStatus, DgMa
 const CONTRACT_TYPES: AmcContractType[] = ['AMC', 'DG Maintenance', 'Lift AMC', 'Fire Safety', 'Other'];
 const FREQUENCIES: AmcPaymentFrequency[] = ['Monthly', 'Quarterly', 'Half-Yearly', 'Yearly', 'One-Time'];
 const AMC_STATUSES: AmcStatus[] = ['Active', 'Expired', 'Cancelled'];
+const EB_APPROVAL_STATUSES = ['Not Required', 'Pending', 'Approved', 'Expired'] as const;
+type EbApprovalStatus = typeof EB_APPROVAL_STATUSES[number];
 
 type Tab = 'AMC Contracts' | 'DG Logs';
 const TABS: Tab[] = ['AMC Contracts', 'DG Logs'];
+
+/** Extended form state — adds EB approval & genset fields not yet in the core type. */
+type ContractFormState = Partial<AmcContract> & {
+  ebApprovalRequired?: boolean;
+  ebApprovalStatus?: EbApprovalStatus;
+  ebApprovalDate?: string;
+  regulationReference?: string;
+};
 
 const inr = (n: number) => '₹' + (n ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const fmtDate = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
@@ -25,6 +35,13 @@ const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${Stri
 const daysUntil = (d?: string) => {
   if (!d) return Infinity;
   return Math.ceil((new Date(d).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+};
+
+/** Open WhatsApp with a pre-filled expiry reminder message. */
+const sendWhatsAppReminder = (c: AmcContract) => {
+  const name = c.title ?? c.contractNo;
+  const msg = `Reminder: AMC contract for ${name} expires on ${fmtDate(c.endDate)}. Please renew.`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 };
 
 function ExpiryBadge({ contract }: { contract: AmcContract }) {
@@ -90,7 +107,7 @@ export default function AmcMaintenance() {
   const [statusFilter, setStatusFilter] = useState('');
   const [vendors, setVendors] = useState<Vendor[]>([]);
 
-  const [contractForm, setContractForm] = useState<Partial<AmcContract> | null>(null);
+  const [contractForm, setContractForm] = useState<ContractFormState | null>(null);
   const [logForm, setLogForm] = useState<Partial<DgMaintenanceLog> | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -115,10 +132,10 @@ export default function AmcMaintenance() {
     setSaving(true);
     try {
       if (contractForm.id) {
-        await updateContract(contractForm.id, contractForm);
+        await updateContract(contractForm.id, contractForm as Partial<AmcContract>);
         toast.success('Contract updated');
       } else {
-        const created = await createContract(contractForm);
+        const created = await createContract(contractForm as Partial<AmcContract>);
         toast.success(`Contract created — ${created.contractNo}`);
       }
       setContractForm(null);
@@ -198,6 +215,10 @@ export default function AmcMaintenance() {
     { key: 'performedBy', label: 'By', render: (l) => <span className="text-slate-500">{l.performedBy ?? '—'}</span> },
   ];
 
+  /** True when a contract is expiring within its reminder window or already expired. */
+  const isExpiringSoon = (c: AmcContract) =>
+    c.status === 'Active' && !!c.endDate && daysUntil(c.endDate) <= c.reminderDays;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -210,8 +231,11 @@ export default function AmcMaintenance() {
             <RefreshCcw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </button>
           {tab === 'AMC Contracts' ? (
-            <button onClick={() => setContractForm({ contractType: 'AMC', paymentFrequency: 'Yearly', reminderDays: 30, status: 'Active', startDate: todayStr() })} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-              <Plus className="h-4 w-4" /> Add Contract
+            <button
+              onClick={() => setContractForm({ contractType: 'AMC', paymentFrequency: 'Yearly', reminderDays: 30, status: 'Active', startDate: todayStr(), ebApprovalRequired: false, ebApprovalStatus: 'Not Required' })}
+              className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            >
+              <Plus className="h-4 w-4" /> Add AMC Contract
             </button>
           ) : (
             <button onClick={() => setLogForm({ dgName: 'DG-1', logDate: todayStr() })} className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
@@ -277,10 +301,19 @@ export default function AmcMaintenance() {
           empty={<EmptyState icon={FileCog} title="No AMC contracts" description="Add your first maintenance contract to start tracking renewals." />}
           actions={(c) => (
             <>
+              {isExpiringSoon(c) && (
+                <button
+                  title="Send WhatsApp expiry reminder"
+                  onClick={() => sendWhatsAppReminder(c)}
+                  className="rounded-lg bg-green-50 p-1.5 text-green-700 hover:bg-green-100"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                </button>
+              )}
               {c.status === 'Active' && c.endDate && daysUntil(c.endDate) <= c.reminderDays && (
                 <button title="Renew (edit dates)" onClick={() => openRenew(c)} className="rounded-lg bg-amber-50 p-1.5 text-amber-700 hover:bg-amber-100"><CalendarClock className="h-3.5 w-3.5" /></button>
               )}
-              <button title="Edit" onClick={() => setContractForm(c)} className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"><Pencil className="h-3.5 w-3.5" /></button>
+              <button title="Edit" onClick={() => setContractForm(c as ContractFormState)} className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"><Pencil className="h-3.5 w-3.5" /></button>
               <button title="Delete" onClick={() => handleDeleteContract(c)} className="rounded-lg bg-slate-100 p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>
             </>
           )}
@@ -337,6 +370,31 @@ export default function AmcMaintenance() {
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">Vendor name (as on contract)</label>
                 <input value={contractForm.vendorName ?? ''} onChange={(e) => setContractForm((f) => f && { ...f, vendorName: e.target.value })} placeholder="e.g. Kone Elevators India" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
               </div>
+
+              {/* Genset-specific note */}
+              {contractForm.contractType === 'DG Maintenance' && (
+                <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                  <Fuel className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-500" />
+                  <div>
+                    <p className="font-medium">Genset AMC typically required every 3 years per regulation</p>
+                    <p className="text-xs text-blue-600 mt-0.5">Ensure contract end date aligns with the 3-year renewal cycle.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Regulation Reference — only for DG Maintenance */}
+              {contractForm.contractType === 'DG Maintenance' && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">Regulation Reference <span className="text-slate-400 font-normal">(optional)</span></label>
+                  <input
+                    value={contractForm.regulationReference ?? ''}
+                    onChange={(e) => setContractForm((f) => f && { ...f, regulationReference: e.target.value })}
+                    placeholder="e.g. CPCB/TNPCB rule no. or IS 10000 reference"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">Start Date *</label>
@@ -363,6 +421,51 @@ export default function AmcMaintenance() {
                   <input type="number" min={0} value={contractForm.reminderDays ?? 30} onChange={(e) => setContractForm((f) => f && { ...f, reminderDays: Number(e.target.value) })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
                 </div>
               </div>
+
+              {/* EB Approval section */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-slate-500" />
+                  <span className="text-sm font-semibold text-slate-700">Electrical Board (EB) Approval</span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!!contractForm.ebApprovalRequired}
+                    onChange={(e) => setContractForm((f) => f && {
+                      ...f,
+                      ebApprovalRequired: e.target.checked,
+                      ebApprovalStatus: e.target.checked ? (f.ebApprovalStatus ?? 'Pending') : 'Not Required',
+                    })}
+                    className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+                  />
+                  <span className="text-sm text-slate-700">EB Approval Required</span>
+                </label>
+                {contractForm.ebApprovalRequired && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">EB Approval Status</label>
+                      <select
+                        value={contractForm.ebApprovalStatus ?? 'Pending'}
+                        onChange={(e) => setContractForm((f) => f && { ...f, ebApprovalStatus: e.target.value as EbApprovalStatus })}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+                      >
+                        {EB_APPROVAL_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-slate-700">EB Approval Date</label>
+                      <input
+                        type="date"
+                        value={contractForm.ebApprovalDate ?? ''}
+                        onChange={(e) => setContractForm((f) => f && { ...f, ebApprovalDate: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {contractForm.id && (
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">Status</label>

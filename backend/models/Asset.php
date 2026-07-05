@@ -11,7 +11,7 @@ class Asset extends CrudModel
     ];
     protected static array $searchColumns = ['asset_tag', 'name', 'asset_type', 'serial_no'];
 
-    public const CATEGORIES  = ['Safety Gear', 'Cleaning Equipment', 'Tools', 'Utility Gear', 'Other'];
+    public const CATEGORIES  = ['Electrical', 'Safety Gear', 'Cleaning Equipment', 'Tools', 'Utility Gear', 'Other'];
     public const CONDITIONS  = ['New', 'Good', 'Fair', 'Damaged', 'Retired'];
     public const STATUSES     = ['Available', 'Checked Out', 'Under Maintenance', 'Retired'];
 
@@ -37,19 +37,26 @@ class Asset extends CrudModel
         return 'ORDER BY id DESC';
     }
 
-    /** Generate the next sequential asset tag, e.g. AST-2026-0001. */
-    public static function nextAssetTag(): string
+    /** Generate the next sequential asset tag based on category, e.g. ELEC-001. */
+    public static function nextAssetTag(string $category = 'Other'): string
     {
-        $year = date('Y');
-        $prefix = 'AST-' . $year . '-';
+        $prefixMap = [
+            'Electrical'        => 'ELEC',
+            'Cleaning Equipment' => 'CLEAN',
+            'Safety Gear'       => 'SAFE',
+            'Tools'             => 'TOOL',
+            'Utility Gear'      => 'UTIL',
+            'Other'             => 'MISC',
+        ];
+        $prefix = $prefixMap[$category] ?? 'MISC';
         $row = Database::fetch(
             'SELECT asset_tag FROM assets WHERE asset_tag LIKE :prefix ORDER BY asset_tag DESC LIMIT 1',
-            ['prefix' => $prefix . '%']
+            ['prefix' => $prefix . '-%']
         );
         $next = 1;
         if ($row && preg_match('/(\d+)$/', (string) $row['asset_tag'], $m)) {
             $next = ((int) $m[1]) + 1;
         }
-        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        return $prefix . '-' . str_pad((string) $next, 3, '0', STR_PAD_LEFT);
     }
 }

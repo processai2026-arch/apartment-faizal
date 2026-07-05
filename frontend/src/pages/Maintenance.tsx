@@ -14,7 +14,10 @@ const CATEGORIES = ['Plumbing', 'Electrical', 'Cleaning', 'Lift', 'Carpentry', '
 const PRIORITIES: MaintenanceRequestTicket['priority'][] = ['Low', 'Medium', 'High', 'Emergency'];
 const STATUS_FILTERS = ['All', 'Open', 'Assigned', 'In Progress', 'Completed', 'Cancelled'] as const;
 
-const emptyForm = { category: CATEGORIES[0], title: '', description: '', priority: 'Low' as MaintenanceRequestTicket['priority'], expectedCompletion: '' };
+const ELECTRICAL_PHASE_TYPES = ['Single Phase (1-Phase)', 'Two Phase (2-Phase)', 'Three Phase (3-Phase)'];
+const ELECTRICAL_WORK_TYPES = ['General Repair', 'New Connection', 'Load Enhancement', 'Short Circuit Fix', 'Meter Work', 'Other'];
+
+const emptyForm = { category: CATEGORIES[0], title: '', description: '', priority: 'Low' as MaintenanceRequestTicket['priority'], expectedCompletion: '', electricalPhaseType: '', electricalWorkType: '' };
 
 export default function Maintenance() {
   const { maintenanceRequests, loadTenantMaintenanceRequests, createTenantMaintenanceRequest, cancelTenantMaintenanceRequest } = useAppStore();
@@ -73,7 +76,13 @@ export default function Maintenance() {
         const uploaded = await api.uploads.create(file, 'maintenance');
         attachmentId = uploaded.id;
       }
-      await createTenantMaintenanceRequest({ ...form, attachmentId, expectedCompletion: form.expectedCompletion || undefined });
+      await createTenantMaintenanceRequest({
+        ...form,
+        attachmentId,
+        expectedCompletion: form.expectedCompletion || undefined,
+        electricalPhaseType: form.category === 'Electrical' && form.electricalPhaseType ? form.electricalPhaseType : undefined,
+        electricalWorkType: form.category === 'Electrical' && form.electricalWorkType ? form.electricalWorkType : undefined,
+      });
       toast.success('Maintenance request submitted');
       setShowModal(false);
       setForm(emptyForm);
@@ -186,6 +195,30 @@ export default function Maintenance() {
                   </select>
                 </div>
               </div>
+
+              {form.category === 'Electrical' && (
+                <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1 block">Phase Type</label>
+                      <select value={form.electricalPhaseType} onChange={(e) => setForm((f) => ({ ...f, electricalPhaseType: e.target.value }))}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                        <option value="">Select phase…</option>
+                        {ELECTRICAL_PHASE_TYPES.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-600 mb-1 block">Electrical Work Type</label>
+                      <select value={form.electricalWorkType} onChange={(e) => setForm((f) => ({ ...f, electricalWorkType: e.target.value }))}
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                        <option value="">Select work type…</option>
+                        {ELECTRICAL_WORK_TYPES.map((w) => <option key={w} value={w}>{w}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-xs text-amber-700 font-medium">Note: Electrical work requires licensed electrician (C/E licence as per regulations)</p>
+                </div>
+              )}
               <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Title</label>
                 <input type="text" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}

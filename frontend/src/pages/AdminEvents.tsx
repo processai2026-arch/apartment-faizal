@@ -46,7 +46,7 @@ function EventFormDialog({
   onSave: (data: Partial<CommunityEvent>) => Promise<void>;
 }) {
   const [form, setForm] = useState<Partial<CommunityEvent>>(
-    initial ?? { status: 'Draft', capacity: 0, registrationRequired: false }
+    initial ?? { status: 'Draft', capacity: 0, registrationRequired: false, visibility: 'All Residents', category: 'General' }
   );
   const [saving, setSaving] = useState(false);
 
@@ -168,6 +168,35 @@ function EventFormDialog({
               onChange={(e) => set('registrationRequired', e.target.checked)}
             />
             <label htmlFor="reg_required" className="text-sm text-slate-700 dark:text-slate-300">Registration Required</label>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Visibility / Share To</label>
+            <select
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={(form as { visibility?: string }).visibility ?? 'All Residents'}
+              onChange={(e) => set('visibility' as keyof CommunityEvent, e.target.value)}
+            >
+              <option value="All Residents">All Residents</option>
+              <option value="Secretary Only">Secretary Only</option>
+              <option value="Associate Members">Associate Members</option>
+              <option value="Public">Public</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Category</label>
+            <select
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={form.category ?? 'General'}
+              onChange={(e) => set('category', e.target.value as CommunityEvent['category'])}
+            >
+              <option value="General">General</option>
+              <option value="Sports">Sports (chess tournaments, indoor games)</option>
+              <option value="Evening Stall">Evening Stall (stalls set up by residents)</option>
+              <option value="Cultural">Cultural</option>
+              <option value="Educational">Educational (workshops, classes)</option>
+              <option value="Community Sale">Community Sale (buy/sell among residents)</option>
+              <option value="Fitness">Fitness (yoga, exercise groups)</option>
+            </select>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">

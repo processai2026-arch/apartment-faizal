@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { useAssetStore } from '@/stores/useAssetStore';
 import type { Asset, AssetCategory, AssetCondition, Staff } from '@/types';
 
-const CATEGORIES: AssetCategory[] = ['Safety Gear', 'Cleaning Equipment', 'Tools', 'Utility Gear', 'Other'];
+const CATEGORIES: AssetCategory[] = ['Electrical', 'Safety Gear', 'Cleaning Equipment', 'Tools', 'Utility Gear', 'Other'];
 const CONDITIONS: AssetCondition[] = ['New', 'Good', 'Fair', 'Damaged', 'Retired'];
 const STATUSES = ['Available', 'Checked Out', 'Under Maintenance', 'Retired'];
 
@@ -421,6 +421,19 @@ export default function AssetTracking() {
                 <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
                 <textarea rows={2} value={form.notes ?? ''} onChange={(e) => setForm((f) => f && { ...f, notes: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" />
               </div>
+              {form.id && form.assignmentHistory && form.assignmentHistory.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Usage History</p>
+                  <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
+                    {form.assignmentHistory.map((h) => (
+                      <li key={h.id} className="flex items-center justify-between px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
+                        <span>{staffName(h.staffId)}</span>
+                        <span className="text-slate-400">{fmtDateTime(h.issuedAt)}{h.returnedAt ? ` → ${fmtDateTime(h.returnedAt)}` : ' (open)'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setForm(null)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300">Cancel</button>
                 <button type="submit" disabled={saving} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Saving…' : form.id ? 'Update Asset' : 'Save Asset'}</button>

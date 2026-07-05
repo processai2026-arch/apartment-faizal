@@ -8,12 +8,16 @@ import { api } from '@/lib/api';
 import { requireGateToken } from '@/lib/gateToken';
 import type { Visitor } from '@/types';
 
-type Step = 'form' | 'otp' | 'success';
+type Step = 'phone' | 'otp' | 'form' | 'success';
 
 export default function ScanVisitorEntry() {
   const { addVisitor } = useAppStore();
-  const [step, setStep] = useState<Step>('form');
+  const [step, setStep] = useState<Step>('phone');
   const [entry, setEntry] = useState<Visitor | null>(null);
+
+  // Phone captured in step 1, carried into the form
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   const [form, setForm] = useState({
     name: '',
@@ -126,36 +130,40 @@ export default function ScanVisitorEntry() {
     }
   };
 
-  // ── Validation ──────────────────────────────────────────────────────────────
+  // ── Validation for full form ─────────────────────────────────────────────────
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'Name is required';
-    if (!form.phone.trim() || !/^\d{10}$/.test(form.phone.replace(/\s/g, '')))
-      e.phone = 'Enter a valid 10-digit phone number';
     if (!form.whomToMeet.trim()) e.whomToMeet = 'Whom to meet is required';
     if (!form.purpose.trim()) e.purpose = 'Purpose is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  // ── OTP flow ────────────────────────────────────────────────────────────────
+  // ── Step 1: Send OTP from phone step ────────────────────────────────────────
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    const cleaned = phone.replace(/\s/g, '');
+    if (!cleaned || !/^\d{10}$/.test(cleaned)) {
+      setPhoneError('Enter a valid 10-digit phone number');
+      return;
+    }
+    setPhoneError('');
     setLoading(true);
-    setOtpError('');
     try {
       requireGateToken('visitor-entry');
-      await api.sendOtp(form.phone.trim(), 'visitor-entry');
+      await api.sendOtp(cleaned, 'visitor-entry');
       setStep('otp');
     } catch (error) {
-      setErrors({ submit: error instanceof Error ? error.message : 'Could not send OTP' });
+      setPhoneError(error instanceof Error ? error.message : 'Could not send OTP');
     } finally {
       setLoading(false);
     }
   };
+
+  // ── Step 2: Verify OTP → go to form ─────────────────────────────────────────
 
   const handleVerifyOTP = async () => {
     if (enteredOtp.length !== 6) {
@@ -165,7 +173,37 @@ export default function ScanVisitorEntry() {
     setLoading(true);
     setOtpError('');
     try {
-      await api.verifyOtp(form.phone.trim(), 'visitor-entry', enteredOtp);
+      await api.verifyOtp(phone.trim(), 'visitor-entry', enteredOtp);
+      // Pre-fill phone in the full form, then advance to form step
+      setForm(f => ({ ...f, phone: phone.trim() }));
+      setStep('form');
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'OTP verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setLoading(true);
+    setOtpError('');
+    try {
+      await api.sendOtp(phone.trim(), 'visitor-entry');
+      setEnteredOtp('');
+    } catch (error) {
+      setOtpError(error instanceof Error ? error.message : 'Could not resend OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Step 3: Submit the full form ─────────────────────────────────────────────
+
+  const handleSubmitForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    try {
       const aptNo = [form.block, form.floor].filter(Boolean).join('-') || 'N/A';
       const visitor: Visitor = {
         id: `V${Date.now()}`,
@@ -203,20 +241,7 @@ export default function ScanVisitorEntry() {
       setEntry(saved || visitor);
       setStep('success');
     } catch (error) {
-      setOtpError(error instanceof Error ? error.message : 'Could not submit entry');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOTP = async () => {
-    setLoading(true);
-    setOtpError('');
-    try {
-      await api.sendOtp(form.phone.trim(), 'visitor-entry');
-      setEnteredOtp('');
-    } catch (error) {
-      setOtpError(error instanceof Error ? error.message : 'Could not resend OTP');
+      setErrors({ submit: error instanceof Error ? error.message : 'Could not submit entry' });
     } finally {
       setLoading(false);
     }
@@ -367,7 +392,7 @@ export default function ScanVisitorEntry() {
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
               <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
               <p className="text-sm text-green-700 font-medium">OTP sent to</p>
-              <p className="text-lg font-bold text-green-900">+91 {form.phone}</p>
+              <p className="text-lg font-bold text-green-900">+91 {phone}</p>
             </div>
 
             <div>
@@ -398,17 +423,17 @@ export default function ScanVisitorEntry() {
               {loading ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Verifying...</>
               ) : (
-                <><CheckCircle className="w-4 h-4" /> Verify &amp; Check In</>
+                <><CheckCircle className="w-4 h-4" /> Verify &amp; Continue</>
               )}
             </button>
 
             <div className="flex items-center justify-between">
               <button
-                onClick={() => { setStep('form'); setEnteredOtp(''); setOtpError(''); }}
+                onClick={() => { setStep('phone'); setEnteredOtp(''); setOtpError(''); }}
                 className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Edit Details
+                Change Number
               </button>
               <button
                 onClick={handleResendOTP}
@@ -428,7 +453,69 @@ export default function ScanVisitorEntry() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
-  // FORM SCREEN
+  // PHONE STEP (Step 1 — default)
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  if (step === 'phone') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-indigo-500/30">
+              <ShieldCheck className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-white font-[Outfit]">Visitor Check-In</h1>
+            <p className="text-slate-400 text-sm mt-1">Enter your mobile number to get started</p>
+          </div>
+
+          <div className="bg-white rounded-3xl shadow-2xl p-6 space-y-5">
+            <form onSubmit={handleSendOTP} className="space-y-5">
+              <div>
+                <label className={labelClass}>Mobile Number *</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={e => {
+                      setPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
+                      setPhoneError('');
+                    }}
+                    placeholder="10-digit mobile number"
+                    maxLength={10}
+                    autoFocus
+                    className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${
+                      phoneError ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'
+                    }`}
+                  />
+                </div>
+                {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || phone.length !== 10}
+                className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30"
+              >
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Sending OTP...</>
+                ) : (
+                  <><Send className="w-4 h-4" /> Send OTP</>
+                )}
+              </button>
+            </form>
+
+            <p className="text-center text-xs text-slate-400">
+              Powered by <span className="font-semibold text-indigo-500">ApartmentOS</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // FULL FORM SCREEN (Step 3 — after OTP verified)
   // ══════════════════════════════════════════════════════════════════════════════
 
   return (
@@ -498,12 +585,12 @@ export default function ScanVisitorEntry() {
           <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-indigo-500/30">
             <ShieldCheck className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white font-[Outfit]">Visitor Check-In</h1>
-          <p className="text-slate-400 text-sm mt-1">Fill in your details to register your visit</p>
+          <h1 className="text-2xl font-bold text-white font-[Outfit]">Visitor Details</h1>
+          <p className="text-slate-400 text-sm mt-1">Phone verified — complete your entry details</p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl p-6 space-y-5">
-          <form onSubmit={handleSendOTP} className="space-y-5">
+          <form onSubmit={handleSubmitForm} className="space-y-5">
 
             {/* ── Section: Personal Info ────────────────────────────────── */}
             <div className="space-y-1 pb-1 border-b border-slate-100">
@@ -526,21 +613,18 @@ export default function ScanVisitorEntry() {
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
             </div>
 
-            {/* Phone */}
+            {/* Phone — pre-filled, read-only */}
             <div>
-              <label className={labelClass}>Phone Number *</label>
+              <label className={labelClass}>Phone Number</label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="tel"
                   value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                  placeholder="10-digit mobile number"
-                  maxLength={10}
-                  className={`${inputClass('phone')} pl-10`}
+                  readOnly
+                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
                 />
               </div>
-              {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
             </div>
 
             {/* Gender */}
@@ -744,9 +828,9 @@ export default function ScanVisitorEntry() {
               className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 mt-2"
             >
               {loading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Sending OTP...</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
               ) : (
-                <><Send className="w-4 h-4" /> Send OTP &amp; Continue</>
+                <><CheckCircle className="w-4 h-4" /> Complete Check-In</>
               )}
             </button>
 
