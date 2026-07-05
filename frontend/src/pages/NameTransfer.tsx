@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeftRight, Plus, RefreshCcw, Clock, BadgeCheck, CheckCircle2, XCircle, Trash2, Eye, Upload, X } from 'lucide-react';
+import { ArrowLeftRight, Plus, RefreshCcw, Clock, BadgeCheck, CheckCircle2, XCircle, Trash2, Eye, Upload, X, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import DataTable, { Column } from '@/components/features/DataTable';
@@ -12,6 +12,15 @@ import type { NameTransfer, NameTransferStatus, Office } from '@/types';
 
 const STATUSES: NameTransferStatus[] = ['Pending', 'Approved', 'Rejected', 'Completed'];
 const fmtDate = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+
+function sendWhatsAppNameTransfer(t: NameTransfer, status: 'Approved' | 'Completed') {
+  if (!t.toPhone) return;
+  const phone = t.toPhone.replace(/\D/g, '');
+  const msg = status === 'Approved'
+    ? `Dear ${t.toName}, your Name Transfer request (${t.transferNo}) for flat has been *Approved*. Effective date: ${fmtDate(t.effectiveDate)}. Please complete any remaining formalities. — OfficeGate`
+    : `Dear ${t.toName}, your Name Transfer (${t.transferNo}) is now *Completed*. The flat is now registered in your name. Welcome! — OfficeGate`;
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
 
 interface TransferForm {
   officeId?: string;
@@ -85,7 +94,16 @@ export default function NameTransferPage() {
   };
 
   const handleApprove = async (t: NameTransfer) => {
-    try { await approveTransfer(t.id); toast.success(`${t.transferNo} approved`); loadSummary().catch(() => undefined); }
+    try {
+      await approveTransfer(t.id);
+      toast.success(`${t.transferNo} approved`);
+      loadSummary().catch(() => undefined);
+      // Auto-send WhatsApp notification to new owner
+      if (t.toPhone) {
+        setTimeout(() => sendWhatsAppNameTransfer(t, 'Approved'), 500);
+        toast.info('WhatsApp notification sent to new owner');
+      }
+    }
     catch (err) { toast.error(err instanceof Error ? err.message : 'Failed to approve'); }
   };
 
@@ -97,7 +115,16 @@ export default function NameTransferPage() {
 
   const handleComplete = async (t: NameTransfer) => {
     if (!confirm(`Complete ${t.transferNo}?\n\nThis will UPDATE office "${officeName(t)}" — the occupant name will change from "${t.fromName ?? '—'}" to "${t.toName}". This cannot be undone.`)) return;
-    try { await completeTransfer(t.id); toast.success(`${t.transferNo} completed — office updated`); loadSummary().catch(() => undefined); refresh(); }
+    try {
+      await completeTransfer(t.id);
+      toast.success(`${t.transferNo} completed — office updated`);
+      loadSummary().catch(() => undefined);
+      refresh();
+      // Auto-send WhatsApp completion notification
+      if (t.toPhone) {
+        setTimeout(() => sendWhatsAppNameTransfer(t, 'Completed'), 500);
+      }
+    }
     catch (err) { toast.error(err instanceof Error ? err.message : 'Failed to complete'); }
   };
 

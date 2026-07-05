@@ -62,6 +62,7 @@ const adminNavItems: NavGroup[] = [
     { to: '/announcements', label: 'Announcements', icon: Megaphone },
     { to: '/emergency-contacts', label: 'Emergency Contacts', icon: ShieldAlert },
     { to: '/events', label: 'Community Events', icon: CalendarDays },
+    { to: '/enquiry', label: 'Apartment Enquiry', icon: MessageSquareWarning },
   ]},
   { group: 'Reports', items: [
     { to: '/reports', label: 'Reports', icon: BarChart3 },

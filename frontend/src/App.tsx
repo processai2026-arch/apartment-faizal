@@ -107,6 +107,8 @@ const MedicalReports = lazy(() => import('@/pages/MedicalReports'));
 // Accounts & Compliance + AMC/DG Maintenance
 const AccountsCompliance = lazy(() => import('@/pages/AccountsCompliance'));
 const AmcMaintenance = lazy(() => import('@/pages/AmcMaintenance'));
+// Apartment Enquiry
+const ApartmentEnquiry = lazy(() => import('@/pages/ApartmentEnquiry'));
 // Super Admin portal (organizations & multi-tenant management)
 const SuperAdminPortal = lazy(() => import('@/pages/SuperAdminPortal'));
 
@@ -277,6 +279,7 @@ const App = () => (
               <Route path="/medical" element={<MedicalReports />} />
               <Route path="/compliance" element={<AccountsCompliance />} />
               <Route path="/amc" element={<AmcMaintenance />} />
+              <Route path="/enquiry" element={<ApartmentEnquiry />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/qr-codes" element={<QRCodesPage />} />
               <Route path="/notifications" element={<AdminNotifications />} />
