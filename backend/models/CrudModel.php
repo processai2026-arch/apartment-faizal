@@ -68,7 +68,7 @@ abstract class CrudModel
         if (!$row) {
             throw new AppException('Record not found', 404);
         }
-        Database::query('UPDATE ' . static::$table . ' SET deleted_at = :deleted_at, updated_at = :updated_at WHERE id = :id AND deleted_at IS NULL', [
+        Database::query('UPDATE `' . static::$table . '` SET deleted_at = :deleted_at, updated_at = :updated_at WHERE id = :id AND deleted_at IS NULL', [
             'deleted_at' => db_time(),
             'updated_at' => db_time(),
             'id' => $id,

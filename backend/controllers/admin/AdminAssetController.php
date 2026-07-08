@@ -59,6 +59,13 @@ class AdminAssetController
         }
         if ($request->input('category') !== null) {
             Validator::enum((string) $request->input('category'), Asset::CATEGORIES, 'category');
+            // BUG-08 fix: prevent category change after creation — asset tag would become invalid
+            if ($request->input('category') !== $asset['category']) {
+                throw new AppException(
+                    'Category cannot be changed after asset creation — the asset tag would become invalid. Delete and re-register under the new category.',
+                    422
+                );
+            }
         }
         if ($request->input('condition') !== null) {
             Validator::enum((string) $request->input('condition'), Asset::CONDITIONS, 'condition');

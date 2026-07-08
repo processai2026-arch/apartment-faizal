@@ -124,6 +124,20 @@ class AdminFinanceController extends ResourceController
             throw new AppException('Payment signature verification failed', 422);
         }
 
+        // BUG-10 fix: idempotency — return success if already verified with same payment
+        if ($invoice['status'] === 'Paid' && $invoice['razorpay_payment_id'] === $paymentId) {
+            Response::success(Invoice::find($invoiceId), 'Payment already verified');
+            return;
+        }
+        if ($invoice['status'] === 'Paid') {
+            throw new AppException('Invoice is already paid with a different payment', 409);
+        }
+
+        // BUG-01 fix: ensure the order_id in the request matches the invoice's order_id
+        if (!empty($invoice['razorpay_order_id']) && $invoice['razorpay_order_id'] !== $orderId) {
+            throw new AppException('Payment order does not match this invoice', 422);
+        }
+
         $now = db_time();
 
         // Update invoice

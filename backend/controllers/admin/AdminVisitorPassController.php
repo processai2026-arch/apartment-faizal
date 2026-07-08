@@ -21,6 +21,13 @@ class AdminVisitorPassController
             throw new AppException('max_uses must be 0 (unlimited) or a positive integer', 422);
         }
 
+        // BUG-05 fix: validate date range
+        $validFrom  = (string) $request->input('valid_from');
+        $validUntil = (string) $request->input('valid_until');
+        if ($validFrom && $validUntil && $validFrom >= $validUntil) {
+            throw new AppException('valid_from must be before valid_until', 422);
+        }
+
         $pass = VisitorPass::create([
             'pass_type'      => $request->input('pass_type'),
             'visitor_name'   => $request->input('visitor_name'),
@@ -126,7 +133,12 @@ class AdminVisitorPassController
             throw new AppException('This pass has expired', 422);
         }
 
-        // Check max_uses (0 = unlimited)
+        // BUG-04 fix: check valid_from — pass cannot be used before its start date
+        if ($pass['valid_from'] > db_time()) {
+            throw new AppException('This pass is not yet valid', 422);
+        }
+
+        // Check max_uses (0 = unlimited) — BUG-03: use atomic UPDATE to prevent race condition
         $maxUses   = (int) $pass['max_uses'];
         $usedCount = (int) $pass['used_count'];
         if ($maxUses > 0 && $usedCount >= $maxUses) {

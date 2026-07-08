@@ -372,12 +372,12 @@ $router->post('/tenant/subscription/cancel', [TenantSubscriptionController::clas
 // ── Razorpay Payments (P24) ───────────────────────────────────────────────
 // NOTE: /admin/payments/dashboard must be registered BEFORE any /admin/payments/{id} pattern
 $router->get('/admin/payments/dashboard', [AdminFinanceController::class, 'paymentDashboard'], ['RoleMiddleware:admin', 'FeatureMiddleware:finance']);
-$router->post('/admin/invoices/{id}/payment-order', [AdminFinanceController::class, 'createPaymentOrder'], ['RoleMiddleware:admin', 'FeatureMiddleware:finance']);
-$router->post('/admin/invoices/{id}/verify-payment', [AdminFinanceController::class, 'verifyPayment'], ['RoleMiddleware:admin', 'FeatureMiddleware:finance']);
+$router->post('/admin/invoices/{id}/payment-order', [AdminFinanceController::class, 'createPaymentOrder'], ['RoleMiddleware:admin', 'FeatureMiddleware:finance', 'RateLimitMiddleware:5,60']);
+$router->post('/admin/invoices/{id}/verify-payment', [AdminFinanceController::class, 'verifyPayment'], ['RoleMiddleware:admin', 'FeatureMiddleware:finance', 'RateLimitMiddleware:10,60']);
 $router->get('/admin/invoices/{id}/payment-history', [AdminFinanceController::class, 'paymentHistory'], ['RoleMiddleware:admin', 'FeatureMiddleware:finance']);
-$router->post('/admin/invoices/{id}/retry-payment', [AdminFinanceController::class, 'retryPayment'], ['RoleMiddleware:admin', 'FeatureMiddleware:finance']);
+$router->post('/admin/invoices/{id}/retry-payment', [AdminFinanceController::class, 'retryPayment'], ['RoleMiddleware:admin', 'FeatureMiddleware:finance', 'RateLimitMiddleware:5,60']);
 $router->post('/admin/invoices/{id}/refund', [AdminFinanceController::class, 'refundPayment'], ['RoleMiddleware:admin', 'FeatureMiddleware:finance']);
-$router->post('/payments/webhook', [AdminFinanceController::class, 'handleWebhook']); // no auth - Razorpay webhook
+$router->post('/payments/webhook', [AdminFinanceController::class, 'handleWebhook'], ['RateLimitMiddleware:60,60']); // signature-verified Razorpay webhook
 
 // ── Facility & Daily Operations (P25) ────────────────────────────────────
 $router->get('/admin/daily-ops/report', [AdminDailyOpsController::class, 'report'], ['RoleMiddleware:admin,security', 'FeatureMiddleware:daily_ops']);

@@ -85,25 +85,25 @@ class TenantEventController
             throw new AppException('You are already registered for this event', 409);
         }
 
-        // Check capacity
-        if ((int) $event['capacity'] > 0) {
-            $count = CommunityEvent::getRegistrationCount((int) $event['id']);
-            if ($count >= (int) $event['capacity']) {
-                throw new AppException('Event is full', 409);
-            }
-        }
-
-        // If registration_required is false, event is open but we still record it
+        // BUG-09 fix: wrap capacity check + insert in a transaction to prevent race condition
         $user = Database::fetch('SELECT * FROM users WHERE id = :id LIMIT 1', ['id' => $userId]);
         $name  = $user ? ($user['name'] ?? '') : ($request->input('name') ?: '');
         $phone = $user ? ($user['phone'] ?? null) : null;
         $email = $user ? ($user['email'] ?? null) : null;
 
-        if ($existing && $existing['status'] === 'Cancelled') {
-            // Re-register: update existing record
-            $registration = EventRegistration::update((int) $existing['id'], ['status' => 'Registered']);
-        } else {
-            $registration = EventRegistration::create([
+        $registration = Database::transaction(function () use ($event, $userId, $existing, $name, $phone, $email, $request): array {
+            // Re-check capacity inside transaction
+            if ((int) $event['capacity'] > 0) {
+                $count = CommunityEvent::getRegistrationCount((int) $event['id']);
+                if ($count >= (int) $event['capacity']) {
+                    throw new AppException('Event is full', 409);
+                }
+            }
+
+            if ($existing && $existing['status'] === 'Cancelled') {
+                return EventRegistration::update((int) $existing['id'], ['status' => 'Registered']);
+            }
+            return EventRegistration::create([
                 'event_id'      => (int) $event['id'],
                 'user_id'       => $userId,
                 'name'          => $name,
@@ -113,7 +113,7 @@ class TenantEventController
                 'registered_at' => db_time(),
                 'notes'         => $request->input('notes') ?: null,
             ]);
-        }
+        });
 
         Response::success($registration, 'Registered successfully', 201);
     }
