@@ -68,7 +68,7 @@ const adminNavItems: NavGroup[] = [
     { to: '/reports', label: 'Reports', icon: BarChart3 },
     { to: '/compliance', label: 'Accounts & Compliance', icon: FileCheck },
     { to: '/analytics', label: 'Community Analytics', icon: TrendingUp },
-    { to: '/financials', label: 'Payments', icon: CreditCard },
+    { to: '/payments', label: 'Payment Dashboard', icon: CreditCard },
   ]},
   { group: 'QR & Access', items: [
     { to: '/qr-codes', label: 'QR Codes & Gates', icon: QrCode },

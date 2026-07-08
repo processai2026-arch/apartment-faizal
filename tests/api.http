@@ -1,0 +1,873 @@
+### OfficeGate Production API Tests
+### Base URL: https://apartments-demo.kynetropo.com/api
+### Run with: REST Client VS Code extension or httpie
+
+@baseUrl = https://apartments-demo.kynetropo.com/api
+
+# ====================================================================
+# AUTH — Happy Path
+# ====================================================================
+
+### 1. Login as admin (happy path)
+# @name adminLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@officegate.com",
+  "password": "password"
+}
+
+###
+@adminToken = {{adminLogin.response.body.data.accessToken}}
+
+### 2. Login as super admin
+# @name superLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "superadmin@officegate.local",
+  "password": "password"
+}
+
+###
+@superToken = {{superLogin.response.body.data.accessToken}}
+
+### 3. Login as tenant
+# @name tenantLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "tenant@officegate.com",
+  "password": "password"
+}
+
+###
+@tenantToken = {{tenantLogin.response.body.data.accessToken}}
+
+### 4. Login as security
+# @name securityLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "security@officegate.com",
+  "password": "password"
+}
+
+###
+@securityToken = {{securityLogin.response.body.data.accessToken}}
+
+# ====================================================================
+# AUTH — Sad Paths
+# ====================================================================
+
+### 5. Login with wrong password (expect 401)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@officegate.com",
+  "password": "wrongpassword"
+}
+
+### 6. Login with non-existent email (expect 401)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nobody@example.com",
+  "password": "test"
+}
+
+### 7. Access protected route without token (expect 401)
+GET {{baseUrl}}/admin/dashboard/summary
+
+### 8. Access admin route with tenant token (expect 403)
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{tenantToken}}
+
+### 9. Access tenant route with security token (expect 403)
+GET {{baseUrl}}/tenant/dashboard
+Authorization: Bearer {{securityToken}}
+
+# ====================================================================
+# ADMIN DASHBOARD
+# ====================================================================
+
+### 10. Get admin dashboard summary
+GET {{baseUrl}}/admin/dashboard/summary
+Authorization: Bearer {{adminToken}}
+
+### 11. Get analytics summary
+GET {{baseUrl}}/admin/analytics/summary
+Authorization: Bearer {{adminToken}}
+
+# ====================================================================
+# OFFICES / MANAGE USER-TENANT
+# ====================================================================
+
+### 12. List all offices
+GET {{baseUrl}}/admin/offices
+Authorization: Bearer {{adminToken}}
+
+### 13. Create office (happy path)
+# @name createOffice
+POST {{baseUrl}}/admin/offices
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "block": "A",
+  "floor_number": "1",
+  "flat_number": "101",
+  "company_name": "Test Resident",
+  "contact_person": "John Doe",
+  "contact_phone": "+919876543210",
+  "contact_email": "john@test.com",
+  "allocated_vehicle_count": 2,
+  "member_count": 3,
+  "status": "Active"
+}
+
+###
+@officeId = {{createOffice.response.body.data.id}}
+
+### 14. Create office missing required field (expect 422)
+POST {{baseUrl}}/admin/offices
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "block": "A"
+}
+
+### 15. Get single office
+GET {{baseUrl}}/admin/offices/{{officeId}}
+Authorization: Bearer {{adminToken}}
+
+### 16. Update office
+PUT {{baseUrl}}/admin/offices/{{officeId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "company_name": "Updated Resident",
+  "status": "Active"
+}
+
+# ====================================================================
+# USERS / SECURITY MANAGEMENT
+# ====================================================================
+
+### 17. List security users
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{adminToken}}
+
+### 18. Create security user
+# @name createSecurityUser
+POST {{baseUrl}}/admin/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Test Security Guard",
+  "email": "testguard@officegate.com",
+  "phone": "+919876500001",
+  "password": "Guard@123",
+  "role": "security"
+}
+
+###
+@secUserId = {{createSecurityUser.response.body.data.id}}
+
+### 19. Create user with duplicate email (expect 409 or 422)
+POST {{baseUrl}}/admin/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Duplicate",
+  "email": "admin@officegate.com",
+  "password": "Test@123",
+  "role": "security"
+}
+
+### 20. Suspend user
+PUT {{baseUrl}}/admin/users/{{secUserId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "inactive"
+}
+
+# ====================================================================
+# VISITORS
+# ====================================================================
+
+### 21. List all visitors
+GET {{baseUrl}}/admin/visitors
+Authorization: Bearer {{adminToken}}
+
+### 22. Create visitor entry (happy path)
+# @name createVisitor
+POST {{baseUrl}}/admin/visitors/entry
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Ramesh Kumar",
+  "phone": "9876543210",
+  "gender": "Male",
+  "block": "A",
+  "floor_number": "1",
+  "company_name": "Test Co",
+  "whom_to_meet": "John Doe",
+  "reason": "Personal Visit",
+  "category": "Guest",
+  "vehicle_type": "NA"
+}
+
+###
+@visitorId = {{createVisitor.response.body.data.id}}
+
+### 23. Create visitor missing phone (expect 422)
+POST {{baseUrl}}/admin/visitors/entry
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "No Phone Visitor",
+  "block": "A",
+  "company_name": "Test Co",
+  "reason": "Visit"
+}
+
+### 24. Get active visitors
+GET {{baseUrl}}/admin/visitors/active
+Authorization: Bearer {{adminToken}}
+
+### 25. Checkout visitor
+POST {{baseUrl}}/admin/visitors/{{visitorId}}/checkout
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{}
+
+### 26. Checkout visitor twice (expect 422 - already checked out)
+POST {{baseUrl}}/admin/visitors/{{visitorId}}/checkout
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{}
+
+# ====================================================================
+# VEHICLES
+# ====================================================================
+
+### 27. Create vehicle entry
+# @name createVehicle
+POST {{baseUrl}}/admin/vehicles/entry
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "vehicle_no": "TN01AB1234",
+  "vehicle_type": "Car",
+  "owner_name": "Test Owner",
+  "block": "A",
+  "floor_number": "1"
+}
+
+###
+@vehicleId = {{createVehicle.response.body.data.id}}
+
+### 28. Get active vehicles
+GET {{baseUrl}}/admin/vehicles/active
+Authorization: Bearer {{adminToken}}
+
+### 29. Checkout vehicle
+POST {{baseUrl}}/admin/vehicles/{{vehicleId}}/checkout
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{}
+
+# ====================================================================
+# VISITOR PASSES
+# ====================================================================
+
+### 30. List visitor passes
+GET {{baseUrl}}/admin/visitor-passes
+Authorization: Bearer {{adminToken}}
+
+### 31. Create visitor pass — happy path
+# @name createPass
+POST {{baseUrl}}/admin/visitor-passes
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "pass_type": "One Day",
+  "visitor_name": "Delivery Person",
+  "visitor_phone": "9876543210",
+  "valid_from": "2026-07-09T00:00:00",
+  "valid_until": "2026-07-09T23:59:59",
+  "max_uses": 1
+}
+
+###
+@passId = {{createPass.response.body.data.id}}
+
+### 32. Create pass with inverted dates (expect 422 — BUG-05 fix)
+POST {{baseUrl}}/admin/visitor-passes
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "pass_type": "Temporary",
+  "visitor_name": "Bad Date Test",
+  "valid_from": "2026-12-01T00:00:00",
+  "valid_until": "2026-01-01T00:00:00",
+  "max_uses": 1
+}
+
+### 33. Scan pass — entry
+POST {{baseUrl}}/admin/visitor-passes/{{passId}}/scan
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "action": "entry"
+}
+
+### 34. Scan pass after max_uses reached (expect 422 — BUG-03 fix)
+POST {{baseUrl}}/admin/visitor-passes/{{passId}}/scan
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "action": "entry"
+}
+
+### 35. Create future pass and try to scan immediately (expect 422 — BUG-04 fix)
+# @name futurePas
+POST {{baseUrl}}/admin/visitor-passes
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "pass_type": "Temporary",
+  "visitor_name": "Future Visitor",
+  "valid_from": "2030-01-01T00:00:00",
+  "valid_until": "2030-12-31T23:59:59",
+  "max_uses": 5
+}
+
+###
+@futurePassId = {{futurePas.response.body.data.id}}
+
+POST {{baseUrl}}/admin/visitor-passes/{{futurePassId}}/scan
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "action": "entry"
+}
+
+### 36. Get visitor pass dashboard
+GET {{baseUrl}}/admin/visitor-passes/dashboard
+Authorization: Bearer {{adminToken}}
+
+# ====================================================================
+# COMPLAINTS — Tenant
+# ====================================================================
+
+### 37. Tenant creates complaint (happy path)
+# @name createComplaint
+POST {{baseUrl}}/tenant/complaints
+Authorization: Bearer {{tenantToken}}
+Content-Type: application/json
+
+{
+  "category": "Plumbing",
+  "subject": "Water leak in bathroom",
+  "description": "There is a water leak under the sink",
+  "priority": "High"
+}
+
+###
+@complaintId = {{createComplaint.response.body.data.id}}
+
+### 38. Tenant views own complaint
+GET {{baseUrl}}/tenant/complaints/{{complaintId}}
+Authorization: Bearer {{tenantToken}}
+
+### 39. Tenant creates complaint missing required fields (expect 422)
+POST {{baseUrl}}/tenant/complaints
+Authorization: Bearer {{tenantToken}}
+Content-Type: application/json
+
+{
+  "category": "Electrical"
+}
+
+### 40. Admin views all complaints
+GET {{baseUrl}}/admin/complaints
+Authorization: Bearer {{adminToken}}
+
+### 41. Admin updates complaint status
+POST {{baseUrl}}/admin/complaints/{{complaintId}}/status
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "status": "In Progress",
+  "remarks": "Plumber assigned"
+}
+
+# ====================================================================
+# MAINTENANCE
+# ====================================================================
+
+### 42. Tenant creates maintenance request
+# @name createMaintenance
+POST {{baseUrl}}/tenant/maintenance-requests
+Authorization: Bearer {{tenantToken}}
+Content-Type: application/json
+
+{
+  "title": "Bathroom tap leaking",
+  "description": "The hot water tap is dripping constantly",
+  "category": "Plumbing",
+  "priority": "Medium"
+}
+
+###
+@maintenanceId = {{createMaintenance.response.body.data.id}}
+
+### 43. Tenant creates electrical maintenance (verify electrical fields)
+POST {{baseUrl}}/tenant/maintenance-requests
+Authorization: Bearer {{tenantToken}}
+Content-Type: application/json
+
+{
+  "title": "MCB tripping",
+  "description": "Main MCB keeps tripping",
+  "category": "Electrical",
+  "priority": "High",
+  "electrical_phase_type": "Three Phase (3-Phase)",
+  "electrical_work_type": "Short Circuit Fix"
+}
+
+### 44. Admin assigns maintenance to vendor
+POST {{baseUrl}}/admin/maintenance-requests/{{maintenanceId}}/assign
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "vendor_id": 1,
+  "notes": "Urgent fix required"
+}
+
+# ====================================================================
+# ASSETS
+# ====================================================================
+
+### 45. List assets
+GET {{baseUrl}}/admin/assets
+Authorization: Bearer {{adminToken}}
+
+### 46. Create electrical asset (verify ELEC- prefix)
+# @name createAsset
+POST {{baseUrl}}/admin/assets
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Emergency Light",
+  "category": "Electrical",
+  "condition": "New",
+  "serial_no": "EL-2026-001",
+  "purchase_date": "2026-07-09"
+}
+
+###
+@assetId = {{createAsset.response.body.data.id}}
+
+### 47. Try to change asset category (expect 422 — BUG-08 fix)
+PUT {{baseUrl}}/admin/assets/{{assetId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "category": "Tools"
+}
+
+### 48. Create cleaning asset (verify CLEAN- prefix)
+POST {{baseUrl}}/admin/assets
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Vacuum Cleaner",
+  "category": "Cleaning Equipment",
+  "condition": "Good"
+}
+
+# ====================================================================
+# EVENTS
+# ====================================================================
+
+### 49. List events
+GET {{baseUrl}}/admin/events
+Authorization: Bearer {{adminToken}}
+
+### 50. Create event with limited capacity
+# @name createEvent
+POST {{baseUrl}}/admin/events
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Chess Tournament",
+  "description": "Monthly apartment chess event",
+  "location": "Community Hall",
+  "organizer": "Admin",
+  "event_date": "2026-08-15",
+  "event_time": "10:00",
+  "capacity": 2,
+  "registration_required": 1,
+  "category": "Sports",
+  "visibility": "All Residents"
+}
+
+###
+@eventId = {{createEvent.response.body.data.id}}
+
+### 51. Publish event
+POST {{baseUrl}}/admin/events/{{eventId}}/publish
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{}
+
+### 52. Tenant registers for event
+POST {{baseUrl}}/tenant/events/{{eventId}}/register
+Authorization: Bearer {{tenantToken}}
+Content-Type: application/json
+
+{}
+
+### 53. Tenant registers again (expect 409 — already registered)
+POST {{baseUrl}}/tenant/events/{{eventId}}/register
+Authorization: Bearer {{tenantToken}}
+Content-Type: application/json
+
+{}
+
+# ====================================================================
+# ANNOUNCEMENTS
+# ====================================================================
+
+### 54. Create announcement
+# @name createAnnouncement
+POST {{baseUrl}}/admin/announcements
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "Water supply interruption",
+  "description": "Water supply will be interrupted on 10 July from 9am-12pm for maintenance",
+  "visibility": "All Residents"
+}
+
+###
+@announcementId = {{createAnnouncement.response.body.data.id}}
+
+### 55. Publish announcement
+POST {{baseUrl}}/admin/announcements/{{announcementId}}/publish
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{}
+
+### 56. Tenant reads announcements
+GET {{baseUrl}}/tenant/announcements
+Authorization: Bearer {{tenantToken}}
+
+### 57. Tenant marks announcement as read
+POST {{baseUrl}}/tenant/announcements/{{announcementId}}/read
+Authorization: Bearer {{tenantToken}}
+Content-Type: application/json
+
+{}
+
+# ====================================================================
+# DOCUMENTS
+# ====================================================================
+
+### 58. List documents
+GET {{baseUrl}}/admin/documents
+Authorization: Bearer {{adminToken}}
+
+# ====================================================================
+# STAFF & PAYROLL
+# ====================================================================
+
+### 59. List staff
+GET {{baseUrl}}/admin/staff
+Authorization: Bearer {{adminToken}}
+
+### 60. Create staff member with base salary
+# @name createStaff
+POST {{baseUrl}}/admin/staff
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Raju Cleaning",
+  "role": "Housekeeping",
+  "department": "Housekeeping",
+  "contact": "+919876500099",
+  "join_date": "2026-07-09",
+  "status": "Active",
+  "base_salary": 15000
+}
+
+###
+@staffId = {{createStaff.response.body.data.id}}
+
+### 61. Mark staff attendance
+POST {{baseUrl}}/admin/staff/{{staffId}}/attendance
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "date": "2026-07-09",
+  "status": "P"
+}
+
+### 62. Mark attendance again for same date (should update, not create duplicate)
+POST {{baseUrl}}/admin/staff/{{staffId}}/attendance
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "date": "2026-07-09",
+  "status": "H"
+}
+
+### 63. Get payroll runs
+GET {{baseUrl}}/admin/payroll/runs
+Authorization: Bearer {{adminToken}}
+
+# ====================================================================
+# AMC CONTRACTS
+# ====================================================================
+
+### 64. List AMC contracts
+GET {{baseUrl}}/admin/amc
+Authorization: Bearer {{adminToken}}
+
+### 65. Create AMC contract
+POST {{baseUrl}}/admin/amc
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "vendor_name": "Otis Elevator",
+  "contract_type": "Lift AMC",
+  "start_date": "2026-01-01",
+  "end_date": "2026-12-31",
+  "amount": 50000,
+  "frequency": "Yearly",
+  "status": "Active",
+  "description": "Annual lift maintenance contract"
+}
+
+# ====================================================================
+# FINANCIAL / INVOICES
+# ====================================================================
+
+### 66. List invoices
+GET {{baseUrl}}/admin/invoices
+Authorization: Bearer {{adminToken}}
+
+### 67. Create invoice
+# @name createInvoice
+POST {{baseUrl}}/admin/invoices
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "office_id": 1,
+  "description": "Monthly maintenance charge",
+  "amount": 2500,
+  "due_date": "2026-07-31",
+  "invoice_type": "Maintenance"
+}
+
+###
+@invoiceId = {{createInvoice.response.body.data.id}}
+
+### 68. Get financial summary
+GET {{baseUrl}}/admin/financials/summary
+Authorization: Bearer {{adminToken}}
+
+# ====================================================================
+# SUPER ADMIN
+# ====================================================================
+
+### 69. List organizations
+GET {{baseUrl}}/super/organizations
+Authorization: Bearer {{superToken}}
+
+### 70. Create organization with secretary
+# @name createOrg
+POST {{baseUrl}}/super/organizations
+Authorization: Bearer {{superToken}}
+Content-Type: application/json
+
+{
+  "name": "Sunrise Apartments",
+  "plan": "Premium",
+  "status": "Active",
+  "secretary": {
+    "name": "Sunrise Secretary",
+    "email": "secretary@sunrise.com",
+    "phone": "9876543211",
+    "password": "Sunrise@2026"
+  }
+}
+
+###
+@orgId = {{createOrg.response.body.data.id}}
+
+### 71. Create organization with duplicate secretary email (expect 409)
+POST {{baseUrl}}/super/organizations
+Authorization: Bearer {{superToken}}
+Content-Type: application/json
+
+{
+  "name": "Duplicate Email Test",
+  "plan": "Free",
+  "status": "Trial",
+  "secretary": {
+    "name": "Dup",
+    "email": "secretary@sunrise.com",
+    "password": "Test@123"
+  }
+}
+
+### 72. Create org duplicate slug (expect 409)
+POST {{baseUrl}}/super/organizations
+Authorization: Bearer {{superToken}}
+Content-Type: application/json
+
+{
+  "name": "Sunrise Apartments",
+  "plan": "Free",
+  "status": "Trial"
+}
+
+### 73. Get super admin overview
+GET {{baseUrl}}/super/overview
+Authorization: Bearer {{superToken}}
+
+### 74. Admin cannot access super admin endpoints (expect 403)
+GET {{baseUrl}}/super/organizations
+Authorization: Bearer {{adminToken}}
+
+# ====================================================================
+# SECURITY LOGIN — Module Access
+# ====================================================================
+
+### 75. Security accesses visitors (should work)
+GET {{baseUrl}}/admin/visitors
+Authorization: Bearer {{securityToken}}
+
+### 76. Security cannot access financials (expect 403)
+GET {{baseUrl}}/admin/invoices
+Authorization: Bearer {{securityToken}}
+
+### 77. Security cannot access users (expect 403)
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{securityToken}}
+
+### 78. Security can see visitor passes
+GET {{baseUrl}}/admin/visitor-passes
+Authorization: Bearer {{securityToken}}
+
+### 79. Security can access emergency contacts
+GET {{baseUrl}}/security/emergency-contacts
+Authorization: Bearer {{securityToken}}
+
+### 80. Security can see business ads
+GET {{baseUrl}}/tenant/business-ads
+Authorization: Bearer {{securityToken}}
+
+# ====================================================================
+# EDGE CASES
+# ====================================================================
+
+### 81. GET non-existent resource (expect 404)
+GET {{baseUrl}}/admin/visitors/99999999
+Authorization: Bearer {{adminToken}}
+
+### 82. POST with empty body (expect 422)
+POST {{baseUrl}}/admin/visitors/entry
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{}
+
+### 83. Malformed JSON (expect 400 or 422)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ bad json here
+
+### 84. Extremely long string input (edge case)
+POST {{baseUrl}}/admin/announcements
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "title": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "description": "Test"
+}
+
+### 85. SQL injection attempt in search (should be safe)
+GET {{baseUrl}}/admin/visitors?search='; DROP TABLE visitors; --
+Authorization: Bearer {{adminToken}}
+
+### 86. Access with expired/invalid token (expect 401)
+GET {{baseUrl}}/admin/dashboard/summary
+Authorization: Bearer eyJinvalidtoken123
+
+### 87. Health check (public, no auth)
+GET {{baseUrl}}/health
+
+# ====================================================================
+# CLEANUP — Delete test data
+# ====================================================================
+
+### 88. Delete test office
+DELETE {{baseUrl}}/admin/offices/{{officeId}}
+Authorization: Bearer {{adminToken}}
+
+### 89. Delete test security user
+DELETE {{baseUrl}}/admin/users/{{secUserId}}
+Authorization: Bearer {{adminToken}}
+
+### 90. Delete test event
+DELETE {{baseUrl}}/admin/events/{{eventId}}
+Authorization: Bearer {{adminToken}}
+
+### 91. Delete test organization
+DELETE {{baseUrl}}/super/organizations/{{orgId}}
+Authorization: Bearer {{superToken}}

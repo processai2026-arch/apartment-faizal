@@ -140,10 +140,21 @@ export default function DocumentManagement() {
     try {
       const token = tokenStorage.getAccessToken();
       const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      // ISSUE-5 fix: check response status before consuming blob
+      if (!res.ok) {
+        toast.error(`File not available (${res.status})`);
+        return;
+      }
       const blob = await res.blob();
+      const mime = doc.attachment?.mimeType ?? '';
+      const ext = mime.includes('pdf') ? '.pdf'
+        : mime.includes('jpeg') || mime.includes('jpg') ? '.jpg'
+        : mime.includes('png') ? '.png'
+        : mime.includes('webp') ? '.webp'
+        : '';
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = doc.title + (doc.attachment?.mimeType?.includes('pdf') ? '.pdf' : '');
+      a.download = doc.title + ext;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {

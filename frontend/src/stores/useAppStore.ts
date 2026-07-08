@@ -141,7 +141,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         const now = Date.now();
         const lastFetched = get().lastFetchedAdminSummary;
         if (lastFetched && now - lastFetched < CACHE_TTL) {
-          set({ isLoading: false });
+          // ISSUE-4 fix: always update notifications even on cache hit
+          set({ isLoading: false, notifications: notificationResult.items, unreadCount: notificationResult.summary.unreadCount });
           return;
         }
 
@@ -240,6 +241,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   resetBackendState: () => set({
     isLoaded: false,
+    isLoading: false,
+    loadError: null,
     notificationRole: null,
     lastFetchedAdminSummary: null,
     lastFetchedVendors: null,
@@ -259,6 +262,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     apartments: [],
     invoices: [],
     financialSummary: null,
+    dailyWorkers: [],
+    emergencyContacts: [],
   }),
 
   addVisitor: async (visitor) => {

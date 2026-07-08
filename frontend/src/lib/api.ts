@@ -103,6 +103,11 @@ async function refreshSession(): Promise<boolean> {
     return true;
   } catch {
     tokenStorage.clear();
+    // ISSUE-1 fix: force logout in auth store so ProtectedRoute redirects to /login
+    // Dynamic import avoids circular dep (api.ts ← useAuthStore ← api.ts)
+    import('@/stores/useAuthStore').then(({ useAuthStore }) => {
+      useAuthStore.getState().logout();
+    }).catch(() => null);
     return false;
   }
 }

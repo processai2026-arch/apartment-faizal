@@ -122,10 +122,17 @@ export default function MedicalReports() {
     try {
       const token = tokenStorage.getAccessToken();
       const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      // ISSUE-5 fix: check response before consuming blob
+      if (!res.ok) {
+        toast.error(`Report not available (${res.status})`);
+        return;
+      }
       const blob = await res.blob();
+      const mime = r.attachment.mimeType ?? '';
+      const ext = mime.includes('pdf') ? '.pdf' : mime.includes('png') ? '.png' : '.jpg';
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = r.personName + '_' + r.reportNo + (r.attachment.mimeType?.includes('pdf') ? '.pdf' : '');
+      a.download = r.personName + '_' + r.reportNo + ext;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {

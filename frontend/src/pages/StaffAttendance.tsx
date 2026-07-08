@@ -34,6 +34,16 @@ export default function StaffAttendance() {
     return init;
   });
 
+  // ISSUE-2 fix: re-sync attendance when staff loads or selected date changes
+  useEffect(() => {
+    const init: Record<string, AttStatus> = {};
+    staff.forEach(s => {
+      const a = s.attendance?.[selectedDate];
+      init[s.id] = (a as AttStatus) || 'P';
+    });
+    setAttendance(init);
+  }, [staff, selectedDate]);
+
   // Page tab: attendance vs manage
   const [pageTab, setPageTab] = useState<'attendance' | 'manage'>('attendance');
 

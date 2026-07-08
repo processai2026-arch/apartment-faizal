@@ -16,33 +16,6 @@ import { cn } from '@/lib/utils';
 
 const POLL_MS = 20000;
 
-// Mock data for tenant
-const mockPendingApprovals = [
-  { id: 'PA001', visitorName: 'Rahul Kumar', phone: '9876543210', purpose: 'Delivery', requestedTime: '2026-05-13 10:30 AM', status: 'pending' },
-  { id: 'PA002', visitorName: 'Priya Sharma', phone: '9876543211', purpose: 'Guest Visit', requestedTime: '2026-05-13 02:00 PM', status: 'pending' },
-];
-
-const mockParcels = [
-  { id: 'P001', courier: 'Amazon', trackingNo: 'AMZ123456789', status: 'Delivered', deliveredAt: '2026-05-12 11:30 AM', receivedBy: 'Security' },
-  { id: 'P002', courier: 'Flipkart', trackingNo: 'FLK987654321', status: 'In Transit', expectedDelivery: '2026-05-13' },
-  { id: 'P003', courier: 'Swiggy Instamart', trackingNo: 'SWG456789123', status: 'Out for Delivery', expectedDelivery: '2026-05-13' },
-];
-
-const mockPayments = [
-  { id: 'PAY001', type: 'Maintenance', amount: 5000, dueDate: '2026-05-15', status: 'Pending' },
-  { id: 'PAY002', type: 'Electricity', amount: 2500, dueDate: '2026-05-20', status: 'Pending' },
-  { id: 'PAY003', type: 'Water', amount: 500, dueDate: '2026-05-20', status: 'Paid', paidOn: '2026-05-10' },
-  { id: 'PAY004', type: 'Parking', amount: 1000, dueDate: '2026-05-25', status: 'Pending' },
-];
-
-const mockVisitorHistory = [
-  { id: 'V001', name: 'Delivery - Amazon', phone: '9000111222', purpose: 'Parcel Delivery', entryTime: '2026-05-12 11:30 AM', exitTime: '2026-05-12 11:35 AM', status: 'Exited' },
-  { id: 'V002', name: 'Rahul (Friend)', phone: '9876543210', purpose: 'Guest Visit', entryTime: '2026-05-11 06:00 PM', exitTime: '2026-05-11 09:00 PM', status: 'Exited' },
-  { id: 'V003', name: 'Plumber - Rajesh', phone: '9876543212', purpose: 'Maintenance', entryTime: '2026-05-10 10:00 AM', exitTime: '2026-05-10 12:00 PM', status: 'Exited' },
-];
-
-type Tab = 'overview' | 'approvals' | 'parcels' | 'payments' | 'profile';
-
 // Types inferred from API mappers
 type Announcement = Awaited<ReturnType<typeof api.announcements.tenantList>>[number];
 type CommunityEvent = Awaited<ReturnType<typeof api.events.tenantList>>['items'][number];
@@ -51,7 +24,7 @@ export default function TenantDashboard() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const [pendingApprovals, setPendingApprovals] = useState(mockPendingApprovals);
+  const [pendingApprovals] = useState<unknown[]>([]);
 
   // Live data from the backend (visitors + invoices for this tenant's office).
   const [data, setData] = useState<TenantDashboardDto | null>(null);
@@ -153,13 +126,11 @@ export default function TenantDashboard() {
     toast.success(`Payment of ₹${amount.toLocaleString()} for ${type} initiated!`);
   };
 
-  const pendingPaymentsTotal = mockPayments.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount, 0);
-  const parcelsToCollect = mockParcels.filter(p => p.status === 'Delivered').length;
+  const parcelsToCollect = 0;
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'approvals', label: 'Visitor Approvals', icon: Users, badge: pendingApprovals.length },
-    { id: 'parcels', label: 'Parcels', icon: Package, badge: parcelsToCollect },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
