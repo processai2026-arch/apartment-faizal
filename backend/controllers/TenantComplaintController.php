@@ -7,7 +7,11 @@ class TenantComplaintController extends ComplaintController
     public function index(Request $request): void
     {
         $officeId = $request->user['officeId'] ?? null;
-        $request->query['office_id'] = $officeId ? (string) $officeId : '0';
+        // Always filter by tenant_id so tenants only see their own complaints.
+        // Only add office_id filter when the tenant has a linked office.
+        if ($officeId) {
+            $request->query['office_id'] = (string) $officeId;
+        }
         $request->query['tenant_id'] = (string) $request->user['id'];
         [$rows, $total, $page, $perPage] = Complaint::list($request);
         Response::paginated($rows, $total, $page, $perPage);
