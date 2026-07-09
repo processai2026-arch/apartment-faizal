@@ -7,7 +7,9 @@ class TenantMaintenanceRequestController extends MaintenanceRequestController
     public function index(Request $request): void
     {
         $officeId = $request->user['officeId'] ?? null;
-        $request->query['office_id'] = $officeId ? (string) $officeId : '0';
+        if ($officeId) {
+            $request->query['office_id'] = (string) $officeId;
+        }
         $request->query['tenant_id'] = (string) $request->user['id'];
         [$rows, $total, $page, $perPage] = MaintenanceRequest::list($request);
         Response::paginated($rows, $total, $page, $perPage);
@@ -17,13 +19,10 @@ class TenantMaintenanceRequestController extends MaintenanceRequestController
     {
         Validator::require($request->all(), ['category', 'title', 'description']);
         $officeId = $request->user['officeId'] ?? null;
-        if (!$officeId) {
-            throw new AppException('No office linked to this account', 422);
-        }
 
         $row = MaintenanceRequest::create([
             'tenant_id' => (int) $request->user['id'],
-            'office_id' => (int) $officeId,
+            'office_id' => $officeId ? (int) $officeId : null,
             'category' => $request->input('category'),
             'title' => $request->input('title'),
             'description' => $request->input('description'),
