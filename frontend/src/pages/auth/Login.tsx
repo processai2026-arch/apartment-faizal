@@ -13,6 +13,7 @@ export default function Login() {
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   
   const { login, loginWithOTP, isLoading } = useAuthStore();
   const navigate = useNavigate();
@@ -57,12 +58,15 @@ export default function Login() {
     }
 
     try {
-      await api.sendOtp(phone, 'login');
+      const result = await api.sendOtp(phone, 'login');
       setOtpSent(true);
-      toast({
-        title: 'OTP Sent',
-        description: 'A 6-digit OTP has been sent to your phone',
-      });
+      if (result.whatsapp_url) {
+        setWhatsappUrl(result.whatsapp_url);
+        window.open(result.whatsapp_url, '_blank');
+        toast({ title: 'Send OTP via WhatsApp', description: 'WhatsApp Web opened — send the message to deliver the OTP.' });
+      } else {
+        toast({ title: 'OTP Sent', description: 'A 6-digit OTP has been sent to your phone' });
+      }
     } catch {
       toast({
         title: 'OTP failed',
@@ -276,6 +280,12 @@ export default function Login() {
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-center text-lg tracking-widest"
                       required
                     />
+                    {whatsappUrl && (
+                      <button type="button" onClick={() => window.open(whatsappUrl, '_blank')}
+                        className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm font-medium hover:bg-green-100">
+                        <span>📲</span> Resend OTP via WhatsApp
+                      </button>
+                    )}
                   </div>
                 )}
 

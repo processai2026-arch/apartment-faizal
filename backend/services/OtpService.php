@@ -34,19 +34,33 @@ class OtpService
             file_put_contents(STORAGE_PATH . '/logs/otp.log', db_time() . " {$purpose} {$phone} {$code}" . PHP_EOL, FILE_APPEND);
         } elseif ($driver === 'webhook') {
             $this->sendWebhook($phone, $purpose, $code, $expiresAt);
+        } elseif ($driver === 'wa' || $driver === 'whatsapp') {
+            // WhatsApp driver: return the OTP in the response so the frontend
+            // can open a wa.me link for the admin/security to send it manually.
+            // The code is included in the return array below.
         } else {
             throw new AppException('OTP delivery driver is not configured', 500);
         }
 
         AuditService::log($userId, 'otp.send', 'otp', null, ['phone' => $phone, 'purpose' => $purpose]);
 
-        return [
+        $response = [
             'phone' => $phone,
             'purpose' => $purpose,
             'expiresAt' => $expiresAt,
             'expiresInSeconds' => (int) config('app.otp_ttl'),
             'resendAvailableInSeconds' => (int) config('app.otp_resend_cooldown'),
         ];
+
+        // WhatsApp driver: include OTP + wa.me URL so admin can send via WhatsApp Web
+        if ($driver === 'wa' || $driver === 'whatsapp') {
+            $msg = "Your OfficeGate OTP is: *{$code}*\nValid for 5 minutes. Do not share this code.";
+            $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+            $response['otp_code'] = $code;
+            $response['whatsapp_url'] = 'https://wa.me/' . $cleanPhone . '?text=' . rawurlencode($msg);
+        }
+
+        return $response;
     }
 
     public function verify(string $phone, string $purpose, string $code, ?int $userId = null): void

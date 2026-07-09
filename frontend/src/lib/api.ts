@@ -168,7 +168,7 @@ export const api = {
     });
   },
   sendOtp(phone: string, purpose: string) {
-    return request<{ phone: string; purpose: string; expiresAt: string }>('/auth/otp/send', {
+    return request<{ phone: string; purpose: string; expiresAt: string; otp_code?: string; whatsapp_url?: string }>('/auth/otp/send', {
       method: 'POST',
       body: JSON.stringify({ phone, purpose }),
     });
