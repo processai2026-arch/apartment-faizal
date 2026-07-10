@@ -282,7 +282,7 @@ export default function SuperTaskManager() {
 
   const loadDashboard = useCallback(async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/super/tasks/dashboard`, {
+      const res = await fetch(`/api/super/tasks/dashboard`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('officegate.accessToken')}` },
       });
       const data = await res.json();
@@ -303,7 +303,7 @@ export default function SuperTaskManager() {
       if (view === 'today') params.set('today', '1');
       if (view === 'overdue') params.set('overdue', '1');
 
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/super/tasks?${params}`, {
+      const res = await fetch(`/api/super/tasks?${params}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('officegate.accessToken')}` },
       });
       const data = await res.json();
@@ -354,7 +354,7 @@ export default function SuperTaskManager() {
     const BASE = import.meta.env.VITE_API_BASE_URL || '';
 
     if (data.id) {
-      const res = await fetch(`${BASE}/api/super/tasks/${data.id}`, {
+      const res = await fetch(`/api/super/tasks/${data.id}`, {
         method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -363,7 +363,7 @@ export default function SuperTaskManager() {
       setTasks(ts => ts.map(t => t.id === data.id ? mapTask(json.data) : t));
       toast.success('Task updated');
     } else {
-      const res = await fetch(`${BASE}/api/super/tasks`, {
+      const res = await fetch(`/api/super/tasks`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -382,7 +382,7 @@ export default function SuperTaskManager() {
     if (task.status === 'Completed') return;
     const token = localStorage.getItem('officegate.accessToken');
     const BASE = import.meta.env.VITE_API_BASE_URL || '';
-    const res = await fetch(`${BASE}/api/super/tasks/${task.id}/complete`, {
+    const res = await fetch(`/api/super/tasks/${task.id}/complete`, {
       method: 'POST', headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
@@ -397,7 +397,7 @@ export default function SuperTaskManager() {
     if (!confirm(`Delete "${task.title}"?`)) return;
     const token = localStorage.getItem('officegate.accessToken');
     const BASE = import.meta.env.VITE_API_BASE_URL || '';
-    await fetch(`${BASE}/api/super/tasks/${task.id}`, {
+    await fetch(`/api/super/tasks/${task.id}`, {
       method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
     });
     setTasks(ts => ts.filter(t => t.id !== task.id));
