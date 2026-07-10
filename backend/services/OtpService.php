@@ -36,6 +36,8 @@ class OtpService
             $this->sendWebhook($phone, $purpose, $code, $expiresAt);
         } elseif ($driver === 'contactwise') {
             $this->sendContactWise($phone, $code);
+        } elseif ($driver === 'fast2sms') {
+            $this->sendFast2SMS($phone, $code);
         } elseif ($driver === 'wa' || $driver === 'whatsapp') {
             // WhatsApp driver: return the OTP in the response so the frontend
             // can open a wa.me link for the admin/security to send it manually.
@@ -200,6 +202,45 @@ class OtpService
         }
     }
 
+    private function sendFast2SMS(string $phone, string $code): void
+    {
+        $apiKey = (string) config('app.fast2sms_api_key');
+        if (!$apiKey) {
+            throw new AppException('Fast2SMS API key not configured', 500);
+        }
+
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+        // Fast2SMS uses 10-digit numbers without country code
+        if (strlen($cleanPhone) === 12 && str_starts_with($cleanPhone, '91')) {
+            $cleanPhone = substr($cleanPhone, 2);
+        }
+
+        $payload = json_encode([
+            'route'   => 'q',
+            'message' => "Your OfficeGate OTP is {$code}. Valid for 5 minutes. Do not share.",
+            'flash'   => 0,
+            'numbers' => $cleanPhone,
+        ]);
+
+        $context = stream_context_create([
+            'http' => [
+                'method'        => 'POST',
+                'header'        => "Authorization: {$apiKey}\r\nContent-Type: application/json\r\n",
+                'content'       => $payload,
+                'ignore_errors' => true,
+                'timeout'       => 10,
+            ],
+        ]);
+
+        $result = @file_get_contents('https://www.fast2sms.com/dev/bulkV2', false, $context);
+        $response = $result ? json_decode($result, true) : null;
+
+        if (!$response || !($response['return'] ?? false)) {
+            $msg = $response['message'] ?? 'SMS delivery failed';
+            throw new AppException("OTP SMS delivery failed: {$msg}", 502);
+        }
+    }
+
     private function sendContactWise(string $phone, string $code): void
     {
         $apiKey     = (string) config('app.contactwise_api_key');
@@ -219,10 +260,11 @@ class OtpService
         $payload = json_encode([
             'sender'      => $senderId ?: 'FLSMPV',
             'to'          => [$cleanPhone],
-            'message'     => "Dear Visitor, your OTP for OfficeGate is {$code}. Please use this code to verify your entry. Do not share this OTP with anyone. Valid for 10 minutes. - FL SMARTECH PRIVATE LIMITED",
+            'message'     => "Dear Visitor, your OTP for BrilleyOne visitor pass is {$code}. Please use this code to verify your entry. Do not share this OTP with anyone. Valid for 10 minutes. - FL SMARTECH PRIVATE LIMITED (brileyone.ayuldeal.com)",
             'service'     => 'T',
             'type'        => 'text',
-            'template_id' => $templateId ?: 'OFFGT',
+            'template_id' => $templateId ?: '1007203280522046657',
+            'entity_id'   => '1001633743171462234',
         ], JSON_UNESCAPED_SLASHES);
 
         $context = stream_context_create([
