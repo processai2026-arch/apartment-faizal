@@ -34,6 +34,8 @@ class OtpService
             file_put_contents(STORAGE_PATH . '/logs/otp.log', db_time() . " {$purpose} {$phone} {$code}" . PHP_EOL, FILE_APPEND);
         } elseif ($driver === 'webhook') {
             $this->sendWebhook($phone, $purpose, $code, $expiresAt);
+        } elseif ($driver === 'contactwise') {
+            $this->sendContactWise($phone, $code);
         } elseif ($driver === 'wa' || $driver === 'whatsapp') {
             // WhatsApp driver: return the OTP in the response so the frontend
             // can open a wa.me link for the admin/security to send it manually.
@@ -195,6 +197,51 @@ class OtpService
         $status = (int) ($matches[1] ?? 0);
         if ($result === false || $status < 200 || $status >= 300) {
             throw new AppException('OTP delivery failed', 502);
+        }
+    }
+
+    private function sendContactWise(string $phone, string $code): void
+    {
+        $apiKey     = (string) config('app.contactwise_api_key');
+        $senderId   = (string) config('app.contactwise_sender_id');
+        $templateId = (string) config('app.contactwise_template_id');
+
+        if (!$apiKey) {
+            throw new AppException('ContactWise API key not configured', 500);
+        }
+
+        // Normalize phone: strip non-digits, ensure country code
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+        if (strlen($cleanPhone) === 10) {
+            $cleanPhone = '91' . $cleanPhone; // Add India country code
+        }
+
+        $payload = json_encode([
+            'sender'      => $senderId ?: 'FLSMPV',
+            'to'          => [$cleanPhone],
+            'message'     => "Your OfficeGate OTP is {$code}. Valid for 5 minutes. Do not share this code.",
+            'service'     => 'T',
+            'type'        => 'text',
+            'template_id' => $templateId ?: '1007203280522046657',
+        ], JSON_UNESCAPED_SLASHES);
+
+        $context = stream_context_create([
+            'http' => [
+                'method'        => 'POST',
+                'header'        => "Authorization: Bearer {$apiKey}\r\nContent-Type: application/json\r\n",
+                'content'       => $payload,
+                'ignore_errors' => true,
+                'timeout'       => 10,
+            ],
+        ]);
+
+        $result     = @file_get_contents('https://api.contactwise.io/v2/mt-adapter/sms/send', false, $context);
+        $statusLine = $http_response_header[0] ?? 'HTTP/1.1 000';
+        preg_match('/\s(\d{3})\s/', $statusLine, $matches);
+        $status = (int) ($matches[1] ?? 0);
+
+        if ($result === false || ($status !== 0 && ($status < 200 || $status >= 300))) {
+            throw new AppException('OTP SMS delivery failed', 502);
         }
     }
 }

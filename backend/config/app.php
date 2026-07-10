@@ -20,6 +20,10 @@ return [
     'otp_driver' => env('OTP_DRIVER', 'log'),
     'otp_webhook_url' => env('OTP_WEBHOOK_URL', ''),
     'otp_webhook_token' => env('OTP_WEBHOOK_TOKEN', ''),
+    // ContactWise SMS OTP
+    'contactwise_api_key'    => env('CONTACTWISE_API_KEY', ''),
+    'contactwise_sender_id'  => env('CONTACTWISE_SENDER_ID', 'FLSMPV'),
+    'contactwise_template_id'=> env('CONTACTWISE_TEMPLATE_ID', '1007203280522046657'),
     // Razorpay Payment Gateway (P24)
     'razorpay_key_id' => env('RAZORPAY_KEY_ID', ''),
     'razorpay_key_secret' => env('RAZORPAY_KEY_SECRET', ''),
