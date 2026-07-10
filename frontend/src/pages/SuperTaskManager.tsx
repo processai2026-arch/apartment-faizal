@@ -126,18 +126,20 @@ function TaskCard({ task, onEdit, onComplete, onDelete, onStatusChange }: {
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <select
-          value={task.status}
-          onChange={e => onStatusChange(task, e.target.value)}
-          onClick={e => e.stopPropagation()}
-          className={cn(
-            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-400',
-            STATUS_COLORS[task.status]
-          )}
-          style={{ backgroundImage: 'none' }}
-        >
-          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <div className="relative inline-flex items-center">
+          <select
+            value={task.status}
+            onChange={e => onStatusChange(task, e.target.value)}
+            onClick={e => e.stopPropagation()}
+            className={cn(
+              'rounded-full pl-2 pr-6 py-0.5 text-xs font-medium border cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-400',
+              STATUS_COLORS[task.status]
+            )}
+          >
+            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px]">▾</span>
+        </div>
         <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', PRIORITY_COLORS[task.priority])}>
           <PIcon className="w-3 h-3" />{task.priority}
         </span>
