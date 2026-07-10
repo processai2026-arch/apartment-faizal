@@ -219,10 +219,10 @@ class OtpService
         $payload = json_encode([
             'sender'      => $senderId ?: 'FLSMPV',
             'to'          => [$cleanPhone],
-            'message'     => "Your OfficeGate OTP is {$code}. Valid for 5 minutes. Do not share this code.",
+            'message'     => "Dear Visitor, your OTP for OfficeGate is {$code}. Please use this code to verify your entry. Do not share this OTP with anyone. Valid for 10 minutes. - FL SMARTECH PRIVATE LIMITED",
             'service'     => 'T',
             'type'        => 'text',
-            'template_id' => $templateId ?: '1007203280522046657',
+            'template_id' => $templateId ?: 'OFFGT',
         ], JSON_UNESCAPED_SLASHES);
 
         $context = stream_context_create([
