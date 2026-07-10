@@ -82,11 +82,12 @@ function isToday(task: SuperTask) {
 
 // ── Task Card ────────────────────────────────────────────────────────────────
 
-function TaskCard({ task, onEdit, onComplete, onDelete }: {
+function TaskCard({ task, onEdit, onComplete, onDelete, onStatusChange }: {
   task: SuperTask;
   onEdit: (t: SuperTask) => void;
   onComplete: (t: SuperTask) => void;
   onDelete: (t: SuperTask) => void;
+  onStatusChange: (t: SuperTask, status: string) => void;
 }) {
   const PIcon = PRIORITY_ICONS[task.priority] ?? Circle;
   const overdue = isOverdue(task);
@@ -125,9 +126,18 @@ function TaskCard({ task, onEdit, onComplete, onDelete }: {
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border', STATUS_COLORS[task.status])}>
-          {task.status}
-        </span>
+        <select
+          value={task.status}
+          onChange={e => onStatusChange(task, e.target.value)}
+          onClick={e => e.stopPropagation()}
+          className={cn(
+            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-400',
+            STATUS_COLORS[task.status]
+          )}
+          style={{ backgroundImage: 'none' }}
+        >
+          {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
         <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', PRIORITY_COLORS[task.priority])}>
           <PIcon className="w-3 h-3" />{task.priority}
         </span>
@@ -190,21 +200,12 @@ function TaskForm({ initial, onSave, onCancel }: {
           rows={2} placeholder="Optional details..."
           className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs font-medium text-slate-600 mb-1 block">Status</label>
-          <select value={form.status ?? 'Pending'} onChange={e => f('status', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            {STATUSES.map(s => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-medium text-slate-600 mb-1 block">Priority</label>
-          <select value={form.priority ?? 'Medium'} onChange={e => f('priority', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            {PRIORITIES.map(p => <option key={p}>{p}</option>)}
-          </select>
-        </div>
+      <div>
+        <label className="text-xs font-medium text-slate-600 mb-1 block">Priority</label>
+        <select value={form.priority ?? 'Medium'} onChange={e => f('priority', e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          {PRIORITIES.map(p => <option key={p}>{p}</option>)}
+        </select>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -405,6 +406,21 @@ export default function SuperTaskManager() {
     loadDashboard();
   };
 
+  const handleStatusChange = async (task: SuperTask, status: string) => {
+    const token = localStorage.getItem('officegate.accessToken');
+    const res = await fetch(`/api/super/tasks/${task.id}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    const json = await res.json();
+    if (json.success) {
+      setTasks(ts => ts.map(t => t.id === task.id ? mapTask(json.data) : t));
+      if (status === 'Completed') toast.success('✅ Task completed!');
+      loadDashboard();
+    }
+  };
+
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
@@ -473,7 +489,8 @@ export default function SuperTaskManager() {
                   <TaskCard key={t.id} task={t}
                     onEdit={t => { setEditing(t); setShowForm(true); }}
                     onComplete={handleComplete}
-                    onDelete={handleDelete} />
+                    onDelete={handleDelete}
+                    onStatusChange={handleStatusChange} />
                 ))}
               </div>
             </div>
@@ -488,7 +505,8 @@ export default function SuperTaskManager() {
                   <TaskCard key={t.id} task={t}
                     onEdit={t => { setEditing(t); setShowForm(true); }}
                     onComplete={handleComplete}
-                    onDelete={handleDelete} />
+                    onDelete={handleDelete}
+                    onStatusChange={handleStatusChange} />
                 ))}
               </div>
             </div>
@@ -503,7 +521,8 @@ export default function SuperTaskManager() {
                   <TaskCard key={t.id} task={t}
                     onEdit={t => { setEditing(t); setShowForm(true); }}
                     onComplete={handleComplete}
-                    onDelete={handleDelete} />
+                    onDelete={handleDelete}
+                    onStatusChange={handleStatusChange} />
                 ))}
               </div>
             </div>
@@ -582,7 +601,8 @@ export default function SuperTaskManager() {
                   <TaskCard key={t.id} task={t}
                     onEdit={t => { setEditing(t); setShowForm(true); }}
                     onComplete={handleComplete}
-                    onDelete={handleDelete} />
+                    onDelete={handleDelete}
+                    onStatusChange={handleStatusChange} />
                 ))}
               </div>
             </>
