@@ -86,6 +86,7 @@ const superAdminNavItems: NavGroup[] = [
   { group: 'Platform', items: [
     { to: '/super', label: 'Organizations', icon: ShieldCheck },
     { to: '/subscriptions', label: 'Subscriptions', icon: BadgeDollarSign },
+    { to: '/super/tasks', label: 'My Tasks', icon: ClipboardList },
   ]},
   { group: 'Revenue', items: [
     { to: '/business-ads', label: 'Business Ads', icon: Briefcase },

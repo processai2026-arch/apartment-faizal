@@ -109,6 +109,8 @@ const AccountsCompliance = lazy(() => import('@/pages/AccountsCompliance'));
 const AmcMaintenance = lazy(() => import('@/pages/AmcMaintenance'));
 // Apartment Enquiry
 const ApartmentEnquiry = lazy(() => import('@/pages/ApartmentEnquiry'));
+// Super Admin Task Manager
+const SuperTaskManager = lazy(() => import('@/pages/SuperTaskManager'));
 // Super Admin portal (organizations & multi-tenant management)
 const SuperAdminPortal = lazy(() => import('@/pages/SuperAdminPortal'));
 
@@ -252,6 +254,7 @@ const App = () => (
 
             {/* Super Admin portal — exclusive to the super_admin role */}
             <Route path="/super" element={<ProtectedRoute allowedRoles={['super_admin']}><Layout><SuperAdminPortal /></Layout></ProtectedRoute>} />
+            <Route path="/super/tasks" element={<ProtectedRoute allowedRoles={['super_admin']}><Layout><SuperTaskManager /></Layout></ProtectedRoute>} />
 
             <Route path="/*" element={<ProtectedRoute allowedRoles={['admin']}><Layout><Routes>
               <Route path="/" element={<DashboardRedirect />} />

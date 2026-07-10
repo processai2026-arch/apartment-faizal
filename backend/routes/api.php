@@ -481,3 +481,12 @@ $router->put('/super/organizations/{id}', [SuperAdminController::class, 'updateO
 $router->post('/super/organizations/{id}/status', [SuperAdminController::class, 'statusOrganization'], ['RoleMiddleware:super_admin']);
 $router->delete('/super/organizations/{id}', [SuperAdminController::class, 'destroyOrganization'], ['RoleMiddleware:super_admin']);
 $router->post('/super/organizations/{id}/assign-user', [SuperAdminController::class, 'assignUser'], ['RoleMiddleware:super_admin']);
+
+// ── Super Admin Task Manager ──────────────────────────────────────────────────
+$router->get('/super/tasks/dashboard', [SuperTaskController::class, 'dashboard'], ['RoleMiddleware:super_admin']);
+$router->get('/super/tasks', [SuperTaskController::class, 'index'], ['RoleMiddleware:super_admin']);
+$router->post('/super/tasks', [SuperTaskController::class, 'store'], ['RoleMiddleware:super_admin']);
+$router->get('/super/tasks/{id}', [SuperTaskController::class, 'show'], ['RoleMiddleware:super_admin']);
+$router->put('/super/tasks/{id}', [SuperTaskController::class, 'update'], ['RoleMiddleware:super_admin']);
+$router->post('/super/tasks/{id}/complete', [SuperTaskController::class, 'complete'], ['RoleMiddleware:super_admin']);
+$router->delete('/super/tasks/{id}', [SuperTaskController::class, 'destroy'], ['RoleMiddleware:super_admin']);
